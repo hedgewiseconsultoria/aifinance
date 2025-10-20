@@ -19,7 +19,7 @@ ACCENT_COLOR = "#007BFF" # Azul de Destaque para Fluxo Positivo
 NEGATIVE_COLOR = "#DC3545" # Vermelho para Fluxo Negativo
 
 # Nome do arquivo da logo disponível localmente
-LOGO_FILENAME = "logo_hedgewise.jpg" 
+LOGO_FILENAME = "logo_hedgewise.png" 
 # NOTA: Para o rodapé, que usa HTML/CSS, é necessário uma URL pública.
 # Mantenho a variável, mas limpo o placeholder.
 LOGO_URL = "logo_hedgewise.jpg" # Substituir por URL pública se for usar em produção
@@ -333,3 +333,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
