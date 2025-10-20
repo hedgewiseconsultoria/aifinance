@@ -109,6 +109,10 @@ class Transacao(BaseModel):
     categoria_sugerida: str = Field(
         description="Sugestão de categoria mais relevante para esta transação (Ex: 'Alimentação', 'Transporte', 'Salário', 'Investimento', 'Serviços')."
     )
+    # NOVO: Campo para a classificação DCF
+    categoria_dcf: str = Field( 
+        description="Classificação da transação para o Demonstrativo de Fluxo de Caixa (DCF): 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO'."
+    )
 
 class ExtratoBancarioCompleto(BaseModel):
     """Contém a lista de transações e o relatório de análise."""
@@ -119,71 +123,92 @@ class ExtratoBancarioCompleto(BaseModel):
     saldo_final: float = Field(
         description="O saldo final da conta no extrato. Use zero se não for encontrado."
     )
+    # O relatório individual foi simplificado para ser apenas uma confirmação, 
+    # pois a análise avançada será feita de forma consolidada.
     relatorio_analise: str = Field(
-        description=(
-            "Análise financeira AVANÇADA e detalhada para o empreendedor. "
-            "Inclua as seguintes seções: 1. Sumário Executivo, 2. Análise de Fluxo de Caixa (Total Débito/Crédito e Saldo Médio), 3. ANÁLISE DO DEMONSTRATIVO DE FLUXO DE CAIXA (DCF): Detalhe o saldo líquido gerado pelas atividades OPERACIONAIS, de INVESTIMENTO e de FINANCIAMENTO. 4. Tendências de Gastos (As 3 Categorias de Maior Impacto e a que mais Cresceu), 5. Sugestões Estratégicas para Otimização de Capital."
-        )
+        description="Confirmação de extração dos dados deste extrato. Use 'Extração de dados concluída com sucesso.'"
     )
 
 
-# --- 3. FUNÇÃO DE CHAMADA DA API ---
+# --- 3. FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO ---
 
-# O tipo de retorno foi alterado para 'dict' para ser serializável pelo Streamlit Cache
-# O cache_data agora usa o nome do arquivo como parte da chave para diferenciar
 @st.cache_data(show_spinner="Analisando PDF com Gemini (pode demorar até 30 segundos)...")
 def analisar_extrato(pdf_bytes: bytes, filename: str) -> dict:
-    """Chama a Gemini API para extrair dados e gerar o relatório estruturado."""
+    """Chama a Gemini API para extrair dados estruturados e classificar DCF por transação."""
     
-    # Prepara a parte do arquivo PDF
     pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type='application/pdf')
 
-    # Prompt instruindo o modelo a gerar a análise avançada
+    # Prompt focado em extração e classificação
     prompt_analise = (
-        f"Você é um analista financeiro especializado em micro e pequenas empresas (PME), focado na metodologia do **Demonstrativo de Fluxo de Caixa (DCF)**. "
-        f"Este extrato se refere ao arquivo '{filename}'. " # Adicionando o nome do arquivo ao prompt
-        "Seu trabalho é extrair todas as transações deste extrato bancário em PDF e, "
-        "simultaneamente, gerar um relatório de análise AVANÇADA, TÉCNICA E DIRETA AO PONTO. " 
-        "Ao gerar o 'relatorio_analise', **é mandatório** que você classifique cada transação como 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO' para calcular o fluxo de caixa líquido gerado por cada uma dessas três atividades. "
-        "Ao formatar o relatório, **use apenas texto simples e Markdown básico (como negrito `**` e listas)**. É **fundamental** que você evite: "
-        "1. **Códigos LaTeX ou caracteres especiais**."
-        "2. **Símbolos de moeda (R$) ou separadores de milhar (ponto/vírgula)** em valores monetários no corpo do relatório. Use apenas números no formato de texto simples, por exemplo: 'O caixa líquido foi de 2227.39'. A exibição da moeda e formatação final será feita pela interface. " 
-        "Preencha rigorosamente a estrutura JSON fornecida, em particular o campo 'relatorio_analise', "
-        "garantindo que o relatório seja detalhado, profissional e contenha insights acionáveis sobre o fluxo de caixa do empreendedor, destacando o CAIXA GERADO PELA ATIVIDADE OPERACIONAL. "
+        f"Você é um especialista em extração e classificação de dados financeiros. "
+        f"Seu trabalho é extrair todas as transações deste extrato bancário em PDF do arquivo '{filename}' e "
+        "classificar cada transação rigorosamente em uma 'categoria_dcf' como 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO'. "
+        "Não gere relatórios. Preencha apenas a estrutura JSON rigorosamente. "
         "Use sempre o valor positivo para 'valor' e classifique estritamente como 'DEBITO' ou 'CREDITO'."
     )
     
-    # Configuração de geração para JSON estruturado
     config = types.GenerateContentConfig(
         response_mime_type="application/json",
         response_schema=ExtratoBancarioCompleto,
-        # Aumentar a temperatura levemente para dar criatividade na análise, mantendo a estrutura
-        temperature=0.4 
+        temperature=0.2 # Baixa temperatura para foco na extração
     )
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-pro', # Modelo PRO para maior precisão e raciocínio complexo
+            model='gemini-2.5-pro',
             contents=[pdf_part, prompt_analise],
             config=config,
         )
         
-        # Converte a string JSON de resposta em um objeto Pydantic
         response_json = json.loads(response.text)
         dados_pydantic = ExtratoBancarioCompleto(**response_json)
         
-        # Retorna o objeto Pydantic como um dicionário Python padrão
         return dados_pydantic.model_dump()
     
     except Exception as e:
         st.error(f"Erro ao chamar a Gemini API para {filename}: {e}")
         st.info("Verifique se o PDF está legível e se a API Key está configurada corretamente.")
-        # Retorna estrutura vazia em caso de falha para não interromper a análise dos outros arquivos
         return {
             'transacoes': [], 
             'saldo_final': 0.0, 
-            'relatorio_analise': f"**Falha na Análise:** Ocorreu um erro ao processar o arquivo {filename}. Motivo: {e}"
+            'relatorio_analise': f"**Falha na Extração:** Ocorreu um erro ao processar o arquivo {filename}. Motivo: {e}"
         }
+
+# --- 3.1. FUNÇÃO DE GERAÇÃO DE RELATÓRIO CONSOLIDADO ---
+
+def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame) -> str:
+    """Gera o relatório de análise consolidado enviando os dados agregados para o Gemini."""
+    
+    # Prepara os dados para análise
+    # Converte o DataFrame de transações consolidadas para uma string JSON
+    transacoes_json = df_transacoes.to_json(orient='records', date_format='iso', indent=2)
+    
+    prompt_analise = (
+        "Você é um analista financeiro de elite, especializado na metodologia do Demonstrativo de Fluxo de Caixa (DCF) para micro e pequenas empresas (PME). "
+        "Seu trabalho é analisar o conjunto de transações CONSOLIDADAS (de múltiplas contas) fornecido abaixo em JSON. "
+        "Todas as transações já estão classificadas em 'OPERACIONAL', 'INVESTIMENTO' e 'FINANCIAMENTO' (campo 'categoria_dcf'). "
+        "Gere um relatório de análise AVANÇADA, TÉCNICA E DIRETA AO PONTO para a gestão de caixa da empresa, focado na geração de capital. "
+        "É mandatório que você inclua as seguintes seções: "
+        "1. Sumário Executivo Consolidado: Breve resumo sobre a saúde financeira geral no período. "
+        "2. Análise de Fluxo de Caixa DCF: Calcule e detalhe o saldo líquido total gerado por cada uma das três atividades (OPERACIONAL, INVESTIMENTO e FINANCIAMENTO). Este é o ponto mais importante para o empreendedor. "
+        "3. Principais Tendências de Gastos: Liste e comente as 3 Categorias de Maior Impacto (baseadas em 'categoria_sugerida') e sua implicação no caixa. "
+        "4. Sugestões Estratégicas: Sugestões acionáveis para otimizar o capital de giro e melhorar o fluxo operacional. "
+        "Use apenas texto simples e Markdown básico (como negrito `**` e listas). Evite códigos LaTeX ou símbolos de moeda (R$) em valores monetários no corpo do relatório, use apenas números. "
+        "\n\n--- DADOS CONSOLIDADOS (JSON) ---\n"
+        f"{transacoes_json}"
+    )
+    
+    config = types.GenerateContentConfig(temperature=0.4)
+    
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-pro',
+            contents=[prompt_analise],
+            config=config,
+        )
+        return response.text
+    except Exception as e:
+        return f"**Falha na Geração do Relatório Consolidado:** Ocorreu um erro ao gerar o relatório analítico. Motivo: {e}"
 
 
 # --- 4. FUNÇÃO DE CABEÇALHO ---
@@ -191,7 +216,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str) -> dict:
 def load_header():
     """Carrega o logo e exibe o título principal usando st.columns para melhor layout."""
     try:
-        # Tenta carregar a imagem da logo (AGORA .PNG)
+        # Tenta carregar a imagem da logo (.PNG)
         logo = Image.open(LOGO_FILENAME)
         
         # Cria colunas para o layout do cabeçalho: 1 para o logo (pequeno) e 6 para o título
@@ -225,56 +250,60 @@ load_header()
 
 st.markdown("Faça o upload de **todos** os extratos bancários em PDF para extração estruturada de dados e geração de um relatório de análise financeira consolidada.")
 
-# AJUSTADO: Permite múltiplos arquivos
+# Permite múltiplos arquivos
 uploaded_files = st.file_uploader(
     "Selecione os arquivos PDF dos seus extratos bancários",
     type="pdf",
     accept_multiple_files=True,
-    help="Os PDFs devem ter texto selecionável (não ser imagens escaneadas). Você pode selecionar múltiplos arquivos de contas diferentes."
+    help="Os PDFs devem ter texto selecionável. Você pode selecionar múltiplos arquivos de contas diferentes para uma análise consolidada."
 )
 
 if uploaded_files: # Verifica se há arquivos
     
     # Botão para iniciar a análise
-    if st.button(f"Executar Análise Inteligente ({len(uploaded_files)} arquivos)", key="analyze_btn"):
+    if st.button(f"Executar Análise CONSOLIDADA ({len(uploaded_files)} arquivos)", key="analyze_btn"):
         
         # Estruturas para agregação
         todas_transacoes = []
-        relatorios_combinados = ""
         saldos_finais = 0.0
         
-        # 1. Loop sobre cada arquivo e chama a análise
-        with st.spinner("Processando todos os extratos..."):
-            for i, uploaded_file in enumerate(uploaded_files):
-                st.info(f"Analisando arquivo {i+1} de {len(uploaded_files)}: **{uploaded_file.name}**")
-                
-                pdf_bytes = uploaded_file.getvalue()
-                dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name)
+        # 1. Loop para extração de dados e agregação
+        extraction_status = st.empty()
+        extraction_status.info("Iniciando extração e classificação DCF por arquivo...")
+        
+        for i, uploaded_file in enumerate(uploaded_files):
+            extraction_status.info(f"Extraindo dados do arquivo {i+1} de {len(uploaded_files)}: **{uploaded_file.name}**")
+            
+            pdf_bytes = uploaded_file.getvalue()
+            # Chama a função de extração (que também classifica DCF)
+            dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name)
 
-                # Agregação
-                todas_transacoes.extend(dados_dict['transacoes'])
-                saldos_finais += dados_dict['saldo_final']
-                
-                relatorios_combinados += (
-                    f"\n\n---\n\n## Relatório Individual: {uploaded_file.name}\n\n"
-                    f"{dados_dict['relatorio_analise']}"
-                )
+            # Agregação
+            todas_transacoes.extend(dados_dict['transacoes'])
+            saldos_finais += dados_dict['saldo_final']
         
         # 2. Consolidação final
         df_transacoes = pd.DataFrame(todas_transacoes)
         
-        # 3. Cálculos de KPI consolidados
-        if not df_transacoes.empty:
+        # Checa se há dados válidos para prosseguir
+        if df_transacoes.empty:
+            extraction_status.error("Nenhuma transação válida foi extraída de todos os arquivos. A análise consolidada não pode ser realizada.")
+            total_credito, total_debito, saldo_periodo = 0, 0, 0
+            relatorio_consolidado = "**Falha na Análise Consolidada:** Nenhum dado extraído."
+        else:
+            extraction_status.success(f"✅ Extração de {len(todas_transacoes)} transações concluída! Gerando relatório consolidado...")
+
+            # 3. Cálculos de KPI consolidados
             total_credito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
             total_debito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
             saldo_periodo = total_credito - total_debito
             
-            st.success(f"✅ Extração e Análise Concluídas com Sucesso! {len(todas_transacoes)} transações agregadas de {len(uploaded_files)} contas.")
-        else:
-            total_credito = 0
-            total_debito = 0
-            saldo_periodo = 0
-            st.warning("Nenhuma transação válida foi extraída de todos os arquivos.")
+            # 4. Geração do Relatório Consolidado (SEGUNDA CHAMADA AO GEMINI)
+            with st.spinner("Gerando Relatório de Análise Consolidada..."):
+                relatorio_consolidado = gerar_relatorio_consolidado(df_transacoes)
+            
+            extraction_status.empty() # Limpa a mensagem de status da extração
+            st.success("✅ Análise Consolidada Concluída com Sucesso!")
 
 
         # --- Exibição de KPIs Consolidados ---
@@ -300,7 +329,7 @@ if uploaded_files: # Verifica se há arquivos
 
         with kpi_col4:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            # Nota: O saldo final somado pode ser impreciso e deve ser usado com cautela.
+            # Nota: A soma dos saldos finais é uma métrica meramente informativa.
             st.metric("Soma dos Saldos Finais", f"R$ {saldos_finais:,.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -312,9 +341,9 @@ if uploaded_files: # Verifica se há arquivos
         col_relatorio, col_tabela = st.columns([1, 1])
 
         with col_relatorio:
-            st.subheader("Relatórios de Análise Detalhada (Por Extrato)")
-            # O relatório agora é a concatenação de todas as análises
-            st.markdown(relatorios_combinados)
+            st.subheader("Relatório de Análise de Fluxo de Caixa (DCF) Consolidada")
+            # Exibe o relatório consolidado
+            st.markdown(relatorio_consolidado)
 
         with col_tabela:
             st.subheader("Dados Extraídos e Estruturados (Consolidado)")
@@ -324,6 +353,7 @@ if uploaded_files: # Verifica se há arquivos
                 use_container_width=True,
                 column_config={
                     "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f"),
+                    "categoria_dcf": st.column_config.TextColumn("Classificação DCF") # Exibe a nova coluna
                 }
             )
 
@@ -348,7 +378,7 @@ try:
         st.markdown(
             """
             <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">
-                Análise de Extrato Empresarial | Inteligência Financeira Aplicada
+                Análise de Extrato Empresarial | Dados extraídos com Gemini 2.5 Pro.
             </p>
             """,
             unsafe_allow_html=True
@@ -359,7 +389,7 @@ except FileNotFoundError:
     st.markdown(
         """
         <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">
-            Análise de Extrato Empresarial | Inteligência Financeira Aplicada
+            Análise de Extrato Empresarial | Dados extraídos com Gemini 2.5 Pro.
             (Logo do rodapé não encontrada.)
         </p>
         """,
@@ -367,5 +397,3 @@ except FileNotFoundError:
     )
 except Exception as e:
     st.error(f"Erro ao carregar a logo do rodapé: {e}")
-
-
