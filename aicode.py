@@ -15,6 +15,12 @@ from google.genai import types
 PRIMARY_COLOR = "#0A2342"  # Azul Marinho Escuro (para botões, links)
 SECONDARY_COLOR = "#000000"  # Preto (para títulos e texto principal)
 BACKGROUND_COLOR = "#F0F2F6" # Cinza Claro (fundo sutil)
+ACCENT_COLOR = "#007BFF" # Azul de Destaque para Fluxo Positivo
+NEGATIVE_COLOR = "#DC3545" # Vermelho para Fluxo Negativo
+
+# URL da logo para o rodapé e cabeçalho (Deve ser pública no GitHub)
+LOGO_URL = "https://raw.githubusercontent.com/<SEU_USUARIO>/<SEU_REPOSITORIO>/main/logo_hedgewise.jpg" 
+# NOTA: Ajuste o caminho acima para o local real da sua imagem no GitHub.
 
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
@@ -26,6 +32,7 @@ st.set_page_config(
 st.markdown(
     f"""
     <style>
+        /* Estilo para o Botão Principal */
         .stButton>button {{
             background-color: {PRIMARY_COLOR};
             color: white;
@@ -33,26 +40,75 @@ st.markdown(
             padding: 10px 20px;
             font-weight: bold;
             border: none;
+            transition: background-color 0.3s;
         }}
         .stButton>button:hover {{
             background-color: #1C3757; 
             color: white;
         }}
+        /* Fundo da Aplicação */
         .reportview-container {{
             background: {BACKGROUND_COLOR};
         }}
+        /* Header Principal (Agora usado apenas para a linha divisória) */
         .main-header {{
             color: {SECONDARY_COLOR};
             font-size: 2.5em;
-            border-bottom: 2px solid {PRIMARY_COLOR};
             padding-bottom: 10px;
         }}
+        /* Container dos Widgets/KPIs - Estilo de Card Profissional */
         .kpi-container {{
             background-color: white;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1);
-            margin-bottom: 15px;
+            border-radius: 12px;
+            box-shadow: 0 6px 15px 0 rgba(0, 0, 0, 0.08); /* Sombra mais suave */
+            margin-bottom: 20px;
+            height: 100%; /* Garante altura uniforme */
+        }}
+        /* Rodapé Fixo com Logo */
+        #st-pages-footer {{
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #f8f9fa; /* Fundo leve para o rodapé */
+            border-top: 1px solid #e9ecef;
+            padding: 5px 20px;
+            z-index: 10;
+        }}
+        .footer-content {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .footer-logo {{
+            height: 30px; 
+            margin-right: 15px;
+        }}
+        /* Ajuste do Título da Logo */
+        .logo-title {{
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid {PRIMARY_COLOR};
+            padding-bottom: 15px;
+        }}
+        .logo-title img {{
+            height: 40px; 
+            margin-right: 15px;
+        }}
+        .logo-title h1 {{
+            font-size: 1.8em;
+            margin: 0;
+            color: {PRIMARY_COLOR};
+        }}
+        .stMetric label {{
+            font-weight: 600 !important;
+            color: #6c757d; /* Texto cinza suave para a label */
+        }}
+        .stMetric div[data-testid="stMetricValue"] {{
+            font-size: 1.8em !important;
+            color: {SECONDARY_COLOR};
         }}
     </style>
     """,
@@ -120,11 +176,11 @@ def analisar_extrato(pdf_bytes: bytes) -> dict:
     prompt_analise = (
         "Você é um analista financeiro especializado em micro e pequenas empresas (PME), focado na metodologia do **Demonstrativo de Fluxo de Caixa (DCF)**. "
         "Seu trabalho é extrair todas as transações deste extrato bancário em PDF e, "
-        "simultaneamente, gerar um relatório de análise AVANÇADA, TÉCNICA E DIRETA AO PONTO. " # <--- Instrução de concisão reforçada
+        "simultaneamente, gerar um relatório de análise AVANÇADA, TÉCNICA E DIRETA AO PONTO. " 
         "Ao gerar o 'relatorio_analise', **é mandatório** que você classifique cada transação como 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO' para calcular o fluxo de caixa líquido gerado por cada uma dessas três atividades. "
         "Ao formatar o relatório, **use apenas texto simples e Markdown básico (como negrito `**` e listas)**. É **fundamental** que você evite: "
         "1. **Códigos LaTeX ou caracteres especiais**."
-        "2. **Símbolos de moeda (R$) ou separadores de milhar (ponto/vírgula)** em valores monetários no corpo do relatório. Use apenas números no formato de texto simples, por exemplo: 'O caixa líquido foi de 2227.39'. A exibição da moeda e formatação final será feita pela interface. " # <--- Instrução de formatação AINDA MAIS restritiva
+        "2. **Símbolos de moeda (R$) ou separadores de milhar (ponto/vírgula)** em valores monetários no corpo do relatório. Use apenas números no formato de texto simples, por exemplo: 'O caixa líquido foi de 2227.39'. A exibição da moeda e formatação final será feita pela interface. " 
         "Preencha rigorosamente a estrutura JSON fornecida, em particular o campo 'relatorio_analise', "
         "garantindo que o relatório seja detalhado, profissional e contenha insights acionáveis sobre o fluxo de caixa do empreendedor, destacando o CAIXA GERADO PELA ATIVIDADE OPERACIONAL. "
         "Use sempre o valor positivo para 'valor' e classifique estritamente como 'DEBITO' ou 'CREDITO'."
@@ -161,7 +217,17 @@ def analisar_extrato(pdf_bytes: bytes) -> dict:
 
 # --- 4. INTERFACE STREAMLIT ---
 
-st.markdown('<p class="main-header">📈 Hedgewise: Análise de Extrato Empresarial</p>', unsafe_allow_html=True)
+# 4.1. CABEÇALHO PERSONALIZADO COM LOGO
+st.markdown(
+    f"""
+    <div class="logo-title">
+        <img src="{LOGO_URL}" alt="Logo Hedgewise">
+        <h1>Análise Financeira Inteligente</h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 st.markdown("Faça o upload de um extrato bancário em PDF para extração estruturada de dados e geração de um relatório de análise financeira avançada.")
 
 uploaded_file = st.file_uploader(
@@ -180,10 +246,6 @@ if uploaded_file is not None:
         # 1. Chamar a função de análise
         dados_dict = analisar_extrato(pdf_bytes) # Recebe um dicionário agora
 
-        # 2. Re-envelopar o dicionário em Pydantic para acesso fácil (opcional, mas bom para tipagem)
-        # Ou simplesmente acessar os dados via chaves do dicionário (dados_dict['transacoes'])
-        # Para simplificar, vamos usar o dicionário diretamente (dados_dict)
-        
         # 3. Conversão para DataFrame (para exibição e cálculo de KPIs)
         df_transacoes = pd.DataFrame(dados_dict['transacoes'])
         
@@ -195,6 +257,7 @@ if uploaded_file is not None:
         st.success("✅ Extração e Análise Concluídas com Sucesso!")
 
         # --- Exibição de KPIs ---
+        st.markdown("## Resumo Financeiro do Período")
         kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
         
         with kpi_col1:
@@ -209,7 +272,9 @@ if uploaded_file is not None:
 
         with kpi_col3:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Resultado do Período", f"R$ {saldo_periodo:,.2f}", delta_color=("inverse" if saldo_periodo < 0 else "normal"))
+            # Determina a cor do resultado do período
+            delta_color = "normal" if saldo_periodo >= 0 else "inverse"
+            st.metric("Resultado do Período", f"R$ {saldo_periodo:,.2f}", delta_color=delta_color)
             st.markdown('</div>', unsafe_allow_html=True)
 
         with kpi_col4:
@@ -241,4 +306,19 @@ if uploaded_file is not None:
             )
 
         st.markdown("---")
-        st.caption(f"Dados extraídos com Gemini 2.5 Pro. Saldo Final do Extrato: R$ {dados_dict['saldo_final']:,.2f}")
+        
+# 4.2. RODAPÉ COM LOGO E INFORMAÇÕES
+# Usando o st.empty para simular o rodapé fixo (não é estritamente fixo, mas é o último elemento)
+st.markdown(
+    f"""
+    <div id="st-pages-footer">
+        <div class="footer-content">
+            <img src="{LOGO_URL}" alt="Logo Hedgewise Footer" class="footer-logo">
+            <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">
+                Análise de Extrato Empresarial | Dados extraídos com Gemini 2.5 Pro.
+            </p>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
