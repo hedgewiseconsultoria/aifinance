@@ -2,10 +2,9 @@ import streamlit as st
 import pandas as pd
 import json
 import io
-from PIL import Image # Importação da PIL para a logo
-# A importação do BaseModel é necessária para tipagem
+from PIL import Image
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 from google import genai
 from google.genai import types
 
@@ -18,10 +17,8 @@ BACKGROUND_COLOR = "#F0F2F6" # Cinza Claro (fundo sutil)
 ACCENT_COLOR = "#007BFF" # Azul de Destaque para Fluxo Positivo
 NEGATIVE_COLOR = "#DC3545" # Vermelho para Fluxo Negativo
 
-# Nome do arquivo da logo disponível localmente
+# Nome do arquivo da logo disponível localmente (AJUSTADO PARA .PNG)
 LOGO_FILENAME = "logo_hedgewise.png" 
-# Esta variável não é mais estritamente necessária após o ajuste do rodapé,
-# mas mantemos para consistência.
 LOGO_URL = "logo_hedgewise.png" 
 
 st.set_page_config(
@@ -133,8 +130,9 @@ class ExtratoBancarioCompleto(BaseModel):
 # --- 3. FUNÇÃO DE CHAMADA DA API ---
 
 # O tipo de retorno foi alterado para 'dict' para ser serializável pelo Streamlit Cache
+# O cache_data agora usa o nome do arquivo como parte da chave para diferenciar
 @st.cache_data(show_spinner="Analisando PDF com Gemini (pode demorar até 30 segundos)...")
-def analisar_extrato(pdf_bytes: bytes) -> dict:
+def analisar_extrato(pdf_bytes: bytes, filename: str) -> dict:
     """Chama a Gemini API para extrair dados e gerar o relatório estruturado."""
     
     # Prepara a parte do arquivo PDF
@@ -142,7 +140,8 @@ def analisar_extrato(pdf_bytes: bytes) -> dict:
 
     # Prompt instruindo o modelo a gerar a análise avançada
     prompt_analise = (
-        "Você é um analista financeiro especializado em micro e pequenas empresas (PME), focado na metodologia do **Demonstrativo de Fluxo de Caixa (DCF)**. "
+        f"Você é um analista financeiro especializado em micro e pequenas empresas (PME), focado na metodologia do **Demonstrativo de Fluxo de Caixa (DCF)**. "
+        f"Este extrato se refere ao arquivo '{filename}'. " # Adicionando o nome do arquivo ao prompt
         "Seu trabalho é extrair todas as transações deste extrato bancário em PDF e, "
         "simultaneamente, gerar um relatório de análise AVANÇADA, TÉCNICA E DIRETA AO PONTO. " 
         "Ao gerar o 'relatorio_analise', **é mandatório** que você classifique cada transação como 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO' para calcular o fluxo de caixa líquido gerado por cada uma dessas três atividades. "
@@ -173,22 +172,26 @@ def analisar_extrato(pdf_bytes: bytes) -> dict:
         response_json = json.loads(response.text)
         dados_pydantic = ExtratoBancarioCompleto(**response_json)
         
-        # Retorna o objeto Pydantic como um dicionário Python padrão,
-        # que o Streamlit consegue serializar e cachear sem erros.
+        # Retorna o objeto Pydantic como um dicionário Python padrão
         return dados_pydantic.model_dump()
     
     except Exception as e:
-        st.error(f"Erro ao chamar a Gemini API: {e}")
+        st.error(f"Erro ao chamar a Gemini API para {filename}: {e}")
         st.info("Verifique se o PDF está legível e se a API Key está configurada corretamente.")
-        st.stop()
+        # Retorna estrutura vazia em caso de falha para não interromper a análise dos outros arquivos
+        return {
+            'transacoes': [], 
+            'saldo_final': 0.0, 
+            'relatorio_analise': f"**Falha na Análise:** Ocorreu um erro ao processar o arquivo {filename}. Motivo: {e}"
+        }
 
 
-# --- 4. FUNÇÃO DE CABEÇALHO (NOVO AJUSTE) ---
+# --- 4. FUNÇÃO DE CABEÇALHO ---
 
 def load_header():
     """Carrega o logo e exibe o título principal usando st.columns para melhor layout."""
     try:
-        # Tenta carregar a imagem da logo
+        # Tenta carregar a imagem da logo (AGORA .PNG)
         logo = Image.open(LOGO_FILENAME)
         
         # Cria colunas para o layout do cabeçalho: 1 para o logo (pequeno) e 6 para o título
@@ -220,58 +223,85 @@ def load_header():
 # 5.1. CABEÇALHO PERSONALIZADO COM LOGO
 load_header()
 
-st.markdown("Faça o upload de um extrato bancário em PDF para extração estruturada de dados e geração de um relatório de análise financeira avançada.")
+st.markdown("Faça o upload de **todos** os extratos bancários em PDF para extração estruturada de dados e geração de um relatório de análise financeira consolidada.")
 
-uploaded_file = st.file_uploader(
-    "Selecione o arquivo PDF do seu extrato bancário",
+# AJUSTADO: Permite múltiplos arquivos
+uploaded_files = st.file_uploader(
+    "Selecione os arquivos PDF dos seus extratos bancários",
     type="pdf",
-    help="O PDF deve ter texto selecionável (não ser uma imagem escaneada)."
+    accept_multiple_files=True,
+    help="Os PDFs devem ter texto selecionável (não ser imagens escaneadas). Você pode selecionar múltiplos arquivos de contas diferentes."
 )
 
-if uploaded_file is not None:
-    # Lendo o arquivo em bytes
-    pdf_bytes = uploaded_file.getvalue()
+if uploaded_files: # Verifica se há arquivos
     
     # Botão para iniciar a análise
-    if st.button("Executar Análise Inteligente", key="analyze_btn"):
+    if st.button(f"Executar Análise Inteligente ({len(uploaded_files)} arquivos)", key="analyze_btn"):
         
-        # 1. Chamar a função de análise
-        dados_dict = analisar_extrato(pdf_bytes) # Recebe um dicionário agora
+        # Estruturas para agregação
+        todas_transacoes = []
+        relatorios_combinados = ""
+        saldos_finais = 0.0
+        
+        # 1. Loop sobre cada arquivo e chama a análise
+        with st.spinner("Processando todos os extratos..."):
+            for i, uploaded_file in enumerate(uploaded_files):
+                st.info(f"Analisando arquivo {i+1} de {len(uploaded_files)}: **{uploaded_file.name}**")
+                
+                pdf_bytes = uploaded_file.getvalue()
+                dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name)
 
-        # 3. Conversão para DataFrame (para exibição e cálculo de KPIs)
-        df_transacoes = pd.DataFrame(dados_dict['transacoes'])
+                # Agregação
+                todas_transacoes.extend(dados_dict['transacoes'])
+                saldos_finais += dados_dict['saldo_final']
+                
+                relatorios_combinados += (
+                    f"\n\n---\n\n## Relatório Individual: {uploaded_file.name}\n\n"
+                    f"{dados_dict['relatorio_analise']}"
+                )
         
-        # 4. Cálculos de KPI para o frontend (opcional)
-        total_credito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
-        total_debito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
-        saldo_periodo = total_credito - total_debito
+        # 2. Consolidação final
+        df_transacoes = pd.DataFrame(todas_transacoes)
         
-        st.success("✅ Extração e Análise Concluídas com Sucesso!")
+        # 3. Cálculos de KPI consolidados
+        if not df_transacoes.empty:
+            total_credito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
+            total_debito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
+            saldo_periodo = total_credito - total_debito
+            
+            st.success(f"✅ Extração e Análise Concluídas com Sucesso! {len(todas_transacoes)} transações agregadas de {len(uploaded_files)} contas.")
+        else:
+            total_credito = 0
+            total_debito = 0
+            saldo_periodo = 0
+            st.warning("Nenhuma transação válida foi extraída de todos os arquivos.")
 
-        # --- Exibição de KPIs ---
-        st.markdown("## Resumo Financeiro do Período")
+
+        # --- Exibição de KPIs Consolidados ---
+        st.markdown("## Resumo Financeiro CONSOLIDADO do Período")
         kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
         
         with kpi_col1:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Total de Créditos", f"R$ {total_credito:,.2f}")
+            st.metric("Total de Créditos (Consolidado)", f"R$ {total_credito:,.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
 
         with kpi_col2:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Total de Débitos", f"R$ {total_debito:,.2f}")
+            st.metric("Total de Débitos (Consolidado)", f"R$ {total_debito:,.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
 
         with kpi_col3:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
             # Determina a cor do resultado do período
             delta_color = "normal" if saldo_periodo >= 0 else "inverse"
-            st.metric("Resultado do Período", f"R$ {saldo_periodo:,.2f}", delta_color=delta_color)
+            st.metric("Resultado do Período (Consolidado)", f"R$ {saldo_periodo:,.2f}", delta_color=delta_color)
             st.markdown('</div>', unsafe_allow_html=True)
 
         with kpi_col4:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Saldo Final do Extrato", f"R$ {dados_dict['saldo_final']:,.2f}")
+            # Nota: O saldo final somado pode ser impreciso e deve ser usado com cautela.
+            st.metric("Soma dos Saldos Finais", f"R$ {saldos_finais:,.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -282,13 +312,13 @@ if uploaded_file is not None:
         col_relatorio, col_tabela = st.columns([1, 1])
 
         with col_relatorio:
-            st.subheader("Relatório de Análise Financeira Avançada")
-            # O relatório vem como string do campo 'relatorio_analise' do dicionário
-            st.markdown(dados_dict['relatorio_analise'])
+            st.subheader("Relatórios de Análise Detalhada (Por Extrato)")
+            # O relatório agora é a concatenação de todas as análises
+            st.markdown(relatorios_combinados)
 
         with col_tabela:
-            st.subheader("Dados Extraídos e Estruturados")
-            # Exibe o DataFrame
+            st.subheader("Dados Extraídos e Estruturados (Consolidado)")
+            # Exibe o DataFrame Consolidado
             st.dataframe(
                 df_transacoes, 
                 use_container_width=True,
@@ -303,7 +333,7 @@ if uploaded_file is not None:
 
 st.markdown("---") # Linha divisória para o rodapé
 try:
-    # 1. Tenta carregar a imagem local
+    # 1. Tenta carregar a imagem local (AGORA .PNG)
     footer_logo = Image.open(LOGO_FILENAME)
     
     # 2. Cria colunas para o rodapé: uma pequena para a logo e o restante para o texto
