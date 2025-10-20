@@ -348,7 +348,7 @@ try:
         st.markdown(
             """
             <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">
-                Análise de Extrato Empresarial | Dados extraídos com Gemini 2.5 Pro.
+                Análise de Extrato Empresarial | Inteligência Financeira Aplicada
             </p>
             """,
             unsafe_allow_html=True
@@ -367,4 +367,5 @@ except FileNotFoundError:
     )
 except Exception as e:
     st.error(f"Erro ao carregar a logo do rodapé: {e}")
+
 
