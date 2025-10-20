@@ -22,7 +22,7 @@ NEGATIVE_COLOR = "#DC3545" # Vermelho para Fluxo Negativo
 LOGO_FILENAME = "logo_hedgewise.png" 
 # NOTA: Para o rodapé, que usa HTML/CSS, é necessário uma URL pública.
 # Mantenho a variável, mas limpo o placeholder.
-LOGO_URL = "logo_hedgewise.jpg" # Substituir por URL pública se for usar em produção
+LOGO_URL = "logo_hedgewise.png" # Substituir por URL pública se for usar em produção
 
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
@@ -333,4 +333,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
