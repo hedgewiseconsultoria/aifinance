@@ -20,9 +20,9 @@ NEGATIVE_COLOR = "#DC3545" # Vermelho para Fluxo Negativo
 
 # Nome do arquivo da logo disponível localmente
 LOGO_FILENAME = "logo_hedgewise.png" 
-# NOTA: Para o rodapé, que usa HTML/CSS, é necessário uma URL pública.
-# Mantenho a variável, mas limpo o placeholder.
-LOGO_URL = "logo_hedgewise.png" # Substituir por URL pública se for usar em produção
+# Esta variável não é mais estritamente necessária após o ajuste do rodapé,
+# mas mantemos para consistência.
+LOGO_URL = "logo_hedgewise.png" 
 
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
@@ -67,26 +67,6 @@ st.markdown(
             margin-bottom: 20px;
             height: 100%; /* Garante altura uniforme */
         }}
-        /* Rodapé Fixo com Logo */
-        #st-pages-footer {{
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background-color: #f8f9fa; /* Fundo leve para o rodapé */
-            border-top: 1px solid #e9ecef;
-            padding: 5px 20px;
-            z-index: 10;
-        }}
-        .footer-content {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }}
-        .footer-logo {{
-            height: 30px; 
-            margin-right: 15px;
-        }}
         /* Estilos de Métricas */
         .stMetric label {{
             font-weight: 600 !important;
@@ -96,6 +76,8 @@ st.markdown(
             font-size: 1.8em !important;
             color: {SECONDARY_COLOR};
         }}
+        
+        /* O CSS do rodapé fixo foi removido para usar widgets nativos (st.columns) */
     </style>
     """,
     unsafe_allow_html=True
@@ -317,21 +299,41 @@ if uploaded_file is not None:
 
         st.markdown("---")
         
-# 5.2. RODAPÉ COM LOGO E INFORMAÇÕES
-# Usando o st.empty para simular o rodapé fixo (não é estritamente fixo, mas é o último elemento)
-st.markdown(
-    f"""
-    <div id="st-pages-footer">
-        <div class="footer-content">
-            <!-- NOTA: Para exibir a logo no rodapé via HTML, você deve usar uma URL pública. -->
-            <img src="{LOGO_URL}" alt="Logo Hedgewise Footer" class="footer-logo">
-            <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">
+# 5.2. RODAPÉ COM LOGO E INFORMAÇÕES (AJUSTADO PARA ARQUIVO LOCAL)
+
+st.markdown("---") # Linha divisória para o rodapé
+try:
+    # 1. Tenta carregar a imagem local
+    footer_logo = Image.open(LOGO_FILENAME)
+    
+    # 2. Cria colunas para o rodapé: uma pequena para a logo e o restante para o texto
+    footer_col1, footer_col2 = st.columns([1, 4]) 
+    
+    with footer_col1:
+        # Exibe a logo (tamanho reduzido para rodapé)
+        st.image(footer_logo, width=40)
+        
+    with footer_col2:
+        # Exibe o texto de informação (com um pequeno padding para alinhar com o logo)
+        st.markdown(
+            """
+            <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">
                 Análise de Extrato Empresarial | Dados extraídos com Gemini 2.5 Pro.
             </p>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
+            """,
+            unsafe_allow_html=True
+        )
+        
+except FileNotFoundError:
+    # Fallback se o arquivo local não for encontrado
+    st.markdown(
+        """
+        <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">
+            Análise de Extrato Empresarial | Dados extraídos com Gemini 2.5 Pro.
+            (Logo do rodapé não encontrada.)
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
+except Exception as e:
+    st.error(f"Erro ao carregar a logo do rodapé: {e}")
