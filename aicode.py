@@ -122,6 +122,7 @@ def analisar_extrato(pdf_bytes: bytes) -> dict:
         "Seu trabalho é extrair todas as transações deste extrato bancário em PDF e, "
         "simultaneamente, gerar um relatório de análise avançada. "
         "Ao gerar o 'relatorio_analise', **é mandatório** que você classifique cada transação como 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO' para calcular o fluxo de caixa líquido gerado por cada uma dessas três atividades. "
+        "Ao formatar o relatório, **use apenas texto simples (plain text) e Markdown básico (como negrito `**` e listas)**. É **fundamental** que você evite qualquer formatação complexa, códigos LaTeX, ou caracteres especiais (como acentos agudos desnecessários, barras invertidas, ou símbolos unicode incomuns) ao escrever valores monetários ou números para garantir a legibilidade. " # <--- Instrução de formatação adicionada/reforçada
         "Preencha rigorosamente a estrutura JSON fornecida, em particular o campo 'relatorio_analise', "
         "garantindo que o relatório seja detalhado, profissional e contenha insights acionáveis sobre o fluxo de caixa do empreendedor, destacando o CAIXA GERADO PELA ATIVIDADE OPERACIONAL. "
         "Use sempre o valor positivo para 'valor' e classifique estritamente como 'DEBITO' ou 'CREDITO'."
