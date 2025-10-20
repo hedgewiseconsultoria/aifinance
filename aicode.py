@@ -120,9 +120,11 @@ def analisar_extrato(pdf_bytes: bytes) -> dict:
     prompt_analise = (
         "Você é um analista financeiro especializado em micro e pequenas empresas (PME), focado na metodologia do **Demonstrativo de Fluxo de Caixa (DCF)**. "
         "Seu trabalho é extrair todas as transações deste extrato bancário em PDF e, "
-        "simultaneamente, gerar um relatório de análise avançada. "
+        "simultaneamente, gerar um relatório de análise AVANÇADA, TÉCNICA E DIRETA AO PONTO. " # <--- Instrução de concisão reforçada
         "Ao gerar o 'relatorio_analise', **é mandatório** que você classifique cada transação como 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO' para calcular o fluxo de caixa líquido gerado por cada uma dessas três atividades. "
-        "Ao formatar o relatório, **use apenas texto simples (plain text) e Markdown básico (como negrito `**` e listas)**. É **fundamental** que você evite qualquer formatação complexa, códigos LaTeX, ou caracteres especiais (como acentos agudos desnecessários, barras invertidas, ou símbolos unicode incomuns) ao escrever valores monetários ou números para garantir a legibilidade. " # <--- Instrução de formatação adicionada/reforçada
+        "Ao formatar o relatório, **use apenas texto simples e Markdown básico (como negrito `**` e listas)**. É **fundamental** que você evite: "
+        "1. **Códigos LaTeX ou caracteres especiais**."
+        "2. **Símbolos de moeda (R$) ou separadores de milhar (ponto/vírgula)** em valores monetários no corpo do relatório. Use apenas números no formato de texto simples, por exemplo: 'O caixa líquido foi de 2227.39'. A exibição da moeda e formatação final será feita pela interface. " # <--- Instrução de formatação AINDA MAIS restritiva
         "Preencha rigorosamente a estrutura JSON fornecida, em particular o campo 'relatorio_analise', "
         "garantindo que o relatório seja detalhado, profissional e contenha insights acionáveis sobre o fluxo de caixa do empreendedor, destacando o CAIXA GERADO PELA ATIVIDADE OPERACIONAL. "
         "Use sempre o valor positivo para 'valor' e classifique estritamente como 'DEBITO' ou 'CREDITO'."
