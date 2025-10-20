@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import json
 import io
+# A importação do BaseModel é necessária para tipagem, mas o Pydantic
+# não está mais sendo retornado diretamente pela função cacheada.
 from pydantic import BaseModel, Field
 from typing import List
 from google import genai
@@ -106,8 +108,9 @@ class ExtratoBancarioCompleto(BaseModel):
 
 # --- 3. FUNÇÃO DE CHAMADA DA API ---
 
+# O tipo de retorno foi alterado para 'dict' para ser serializável pelo Streamlit Cache
 @st.cache_data(show_spinner="Analisando PDF com Gemini (pode demorar até 30 segundos)...")
-def analisar_extrato(pdf_bytes: bytes) -> ExtratoBancarioCompleto:
+def analisar_extrato(pdf_bytes: bytes) -> dict:
     """Chama a Gemini API para extrair dados e gerar o relatório estruturado."""
     
     # Prepara a parte do arquivo PDF
@@ -140,7 +143,11 @@ def analisar_extrato(pdf_bytes: bytes) -> ExtratoBancarioCompleto:
         
         # Converte a string JSON de resposta em um objeto Pydantic
         response_json = json.loads(response.text)
-        return ExtratoBancarioCompleto(**response_json)
+        dados_pydantic = ExtratoBancarioCompleto(**response_json)
+        
+        # CORREÇÃO CRÍTICA: Retorna o objeto Pydantic como um dicionário Python padrão,
+        # que o Streamlit consegue serializar e cachear sem erros.
+        return dados_pydantic.model_dump()
     
     except Exception as e:
         st.error(f"Erro ao chamar a Gemini API: {e}")
@@ -167,12 +174,16 @@ if uploaded_file is not None:
     if st.button("Executar Análise Inteligente", key="analyze_btn"):
         
         # 1. Chamar a função de análise
-        dados_analisados = analisar_extrato(pdf_bytes)
+        dados_dict = analisar_extrato(pdf_bytes) # Recebe um dicionário agora
+
+        # 2. Re-envelopar o dicionário em Pydantic para acesso fácil (opcional, mas bom para tipagem)
+        # Ou simplesmente acessar os dados via chaves do dicionário (dados_dict['transacoes'])
+        # Para simplificar, vamos usar o dicionário diretamente (dados_dict)
         
-        # 2. Conversão para DataFrame (para exibição e cálculo de KPIs)
-        df_transacoes = pd.DataFrame(dados_analisados.transacoes)
+        # 3. Conversão para DataFrame (para exibição e cálculo de KPIs)
+        df_transacoes = pd.DataFrame(dados_dict['transacoes'])
         
-        # 3. Cálculos de KPI para o frontend (opcional)
+        # 4. Cálculos de KPI para o frontend (opcional)
         total_credito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
         total_debito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
         saldo_periodo = total_credito - total_debito
@@ -199,7 +210,7 @@ if uploaded_file is not None:
 
         with kpi_col4:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Saldo Final do Extrato", f"R$ {dados_analisados.saldo_final:,.2f}")
+            st.metric("Saldo Final do Extrato", f"R$ {dados_dict['saldo_final']:,.2f}")
             st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -211,8 +222,8 @@ if uploaded_file is not None:
 
         with col_relatorio:
             st.subheader("Relatório de Análise Financeira Avançada")
-            # O relatório vem como string do campo 'relatorio_analise' do JSON
-            st.markdown(dados_analisados.relatorio_analise)
+            # O relatório vem como string do campo 'relatorio_analise' do dicionário
+            st.markdown(dados_dict['relatorio_analise'])
 
         with col_tabela:
             st.subheader("Dados Extraídos e Estruturados")
@@ -226,4 +237,4 @@ if uploaded_file is not None:
             )
 
         st.markdown("---")
-        st.caption(f"Dados extraídos com Gemini 2.5 Pro. Saldo Final do Extrato: R$ {dados_analisados.saldo_final:,.2f}")
+        st.caption(f"Dados extraídos com Gemini 2.5 Pro. Saldo Final do Extrato: R$ {dados_dict['saldo_final']:,.2f}")
