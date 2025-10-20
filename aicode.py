@@ -176,18 +176,26 @@ def analisar_extrato(pdf_bytes: bytes, filename: str) -> dict:
 
 # --- 3.1. FUNÇÃO DE GERAÇÃO DE RELATÓRIO CONSOLIDADO ---
 
-def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame) -> str:
+def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional: str) -> str:
     """Gera o relatório de análise consolidado enviando os dados agregados para o Gemini."""
     
     # Prepara os dados para análise
     # Converte o DataFrame de transações consolidadas para uma string JSON
     transacoes_json = df_transacoes.to_json(orient='records', date_format='iso', indent=2)
     
+    # Adiciona o contexto do usuário ao prompt
+    contexto_prompt = ""
+    if contexto_adicional:
+        contexto_prompt = f"\n\n--- CONTEXTO ADICIONAL DO EMPREENDEDOR ---\n{contexto_adicional}\n--- FIM DO CONTEXTO ---\n"
+    
     prompt_analise = (
         "Você é um analista financeiro de elite, especializado na metodologia do Demonstrativo de Fluxo de Caixa (DCF) para micro e pequenas empresas (PME). "
         "Seu trabalho é analisar o conjunto de transações CONSOLIDADAS (de múltiplas contas) fornecido abaixo em JSON. "
         "Todas as transações já estão classificadas em 'OPERACIONAL', 'INVESTIMENTO' e 'FINANCIAMENTO' (campo 'categoria_dcf'). "
         "Gere um relatório de análise AVANÇADA, TÉCNICA E DIRETA AO PONTO para a gestão de caixa da empresa, focado na geração de capital. "
+        
+        f"{contexto_prompt}" # Inclui o contexto adicional aqui
+        
         "É mandatório que você inclua as seguintes seções: "
         "1. Sumário Executivo Consolidado: Breve resumo sobre a saúde financeira geral no período. "
         "2. Análise de Fluxo de Caixa DCF: Calcule e detalhe o saldo líquido total gerado por cada uma das três atividades (OPERACIONAL, INVESTIMENTO e FINANCIAMENTO). Este é o ponto mais importante para o empreendedor. "
@@ -258,6 +266,14 @@ uploaded_files = st.file_uploader(
     help="Os PDFs devem ter texto selecionável. Você pode selecionar múltiplos arquivos de contas diferentes para uma análise consolidada."
 )
 
+# NOVO: Caixa de texto para contexto adicional
+contexto_adicional = st.text_area(
+    "Contexto Adicional para a Análise (Opcional)",
+    placeholder="Ex: 'Todos os depósitos em dinheiro (cash) são provenientes de vendas diretas e devem ser considerados operacionais.'",
+    help="Use este campo para fornecer à IA informações contextuais que não estão nos extratos, como a origem de depósitos específicos."
+)
+
+
 if uploaded_files: # Verifica se há arquivos
     
     # Botão para iniciar a análise
@@ -300,7 +316,8 @@ if uploaded_files: # Verifica se há arquivos
             
             # 4. Geração do Relatório Consolidado (SEGUNDA CHAMADA AO GEMINI)
             with st.spinner("Gerando Relatório de Análise Consolidada..."):
-                relatorio_consolidado = gerar_relatorio_consolidado(df_transacoes)
+                # PASSA O CONTEXTO ADICIONAL PARA A FUNÇÃO DE RELATÓRIO
+                relatorio_consolidado = gerar_relatorio_consolidado(df_transacoes, contexto_adicional)
             
             extraction_status.empty() # Limpa a mensagem de status da extração
             st.success("✅ Análise Consolidada Concluída com Sucesso!")
