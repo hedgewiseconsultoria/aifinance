@@ -101,7 +101,7 @@ class ExtratoBancarioCompleto(BaseModel):
     relatorio_analise: str = Field(
         description=(
             "Análise financeira AVANÇADA e detalhada para o empreendedor. "
-            "Inclua as seguintes seções: 1. Sumário Executivo, 2. Análise de Fluxo de Caixa (Total Débito/Crédito e Saldo Médio), 3. Tendências de Gastos (As 3 Categorias de Maior Impacto e a que mais Cresceu), 4. Sugestões Estratégicas para Otimização de Capital."
+            "Inclua as seguintes seções: 1. Sumário Executivo, 2. Análise de Fluxo de Caixa (Total Débito/Crédito e Saldo Médio), 3. ANÁLISE DO DEMONSTRATIVO DE FLUXO DE CAIXA (DCF): Detalhe o saldo líquido gerado pelas atividades OPERACIONAIS, de INVESTIMENTO e de FINANCIAMENTO. 4. Tendências de Gastos (As 3 Categorias de Maior Impacto e a que mais Cresceu), 5. Sugestões Estratégicas para Otimização de Capital."
         )
     )
 
@@ -118,11 +118,12 @@ def analisar_extrato(pdf_bytes: bytes) -> dict:
 
     # Prompt instruindo o modelo a gerar a análise avançada
     prompt_analise = (
-        "Você é um analista financeiro especializado em micro e pequenas empresas (PME). "
+        "Você é um analista financeiro especializado em micro e pequenas empresas (PME), focado na metodologia do **Demonstrativo de Fluxo de Caixa (DCF)**. "
         "Seu trabalho é extrair todas as transações deste extrato bancário em PDF e, "
         "simultaneamente, gerar um relatório de análise avançada. "
+        "Ao gerar o 'relatorio_analise', **é mandatório** que você classifique cada transação como 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO' para calcular o fluxo de caixa líquido gerado por cada uma dessas três atividades. "
         "Preencha rigorosamente a estrutura JSON fornecida, em particular o campo 'relatorio_analise', "
-        "garantindo que o relatório seja detalhado, profissional e contenha insights acionáveis sobre o fluxo de caixa do empreendedor."
+        "garantindo que o relatório seja detalhado, profissional e contenha insights acionáveis sobre o fluxo de caixa do empreendedor, destacando o CAIXA GERADO PELA ATIVIDADE OPERACIONAL. "
         "Use sempre o valor positivo para 'valor' e classifique estritamente como 'DEBITO' ou 'CREDITO'."
     )
     
