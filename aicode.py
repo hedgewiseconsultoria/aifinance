@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import json
 import io
-# A importação do BaseModel é necessária para tipagem, mas o Pydantic
-# não está mais sendo retornado diretamente pela função cacheada.
+from PIL import Image # Importação da PIL para a logo
+# A importação do BaseModel é necessária para tipagem
 from pydantic import BaseModel, Field
 from typing import List
 from google import genai
@@ -12,15 +12,17 @@ from google.genai import types
 # --- 1. CONFIGURAÇÃO DE SEGURANÇA E TEMA ---
 
 # Cores baseadas na logo Hedgewise
-PRIMARY_COLOR = "#0A2342"  # Azul Marinho Escuro (para botões, links)
-SECONDARY_COLOR = "#000000"  # Preto (para títulos e texto principal)
+PRIMARY_COLOR = "#0A2342"   # Azul Marinho Escuro (para botões, links)
+SECONDARY_COLOR = "#000000" # Preto (para títulos e texto principal)
 BACKGROUND_COLOR = "#F0F2F6" # Cinza Claro (fundo sutil)
 ACCENT_COLOR = "#007BFF" # Azul de Destaque para Fluxo Positivo
 NEGATIVE_COLOR = "#DC3545" # Vermelho para Fluxo Negativo
 
-# URL da logo para o rodapé e cabeçalho (Deve ser pública no GitHub)
-LOGO_URL = "https://raw.githubusercontent.com/<SEU_USUARIO>/<SEU_REPOSITORIO>/main/logo_hedgewise.jpg" 
-# NOTA: Ajuste o caminho acima para o local real da sua imagem no GitHub.
+# Nome do arquivo da logo disponível localmente
+LOGO_FILENAME = "logo_hedgewise.jpg" 
+# NOTA: Para o rodapé, que usa HTML/CSS, é necessário uma URL pública.
+# Mantenho a variável, mas limpo o placeholder.
+LOGO_URL = "logo_hedgewise.jpg" # Substituir por URL pública se for usar em produção
 
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
@@ -85,23 +87,7 @@ st.markdown(
             height: 30px; 
             margin-right: 15px;
         }}
-        /* Ajuste do Título da Logo */
-        .logo-title {{
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid {PRIMARY_COLOR};
-            padding-bottom: 15px;
-        }}
-        .logo-title img {{
-            height: 40px; 
-            margin-right: 15px;
-        }}
-        .logo-title h1 {{
-            font-size: 1.8em;
-            margin: 0;
-            color: {PRIMARY_COLOR};
-        }}
+        /* Estilos de Métricas */
         .stMetric label {{
             font-weight: 600 !important;
             color: #6c757d; /* Texto cinza suave para a label */
@@ -205,7 +191,7 @@ def analisar_extrato(pdf_bytes: bytes) -> dict:
         response_json = json.loads(response.text)
         dados_pydantic = ExtratoBancarioCompleto(**response_json)
         
-        # CORREÇÃO CRÍTICA: Retorna o objeto Pydantic como um dicionário Python padrão,
+        # Retorna o objeto Pydantic como um dicionário Python padrão,
         # que o Streamlit consegue serializar e cachear sem erros.
         return dados_pydantic.model_dump()
     
@@ -215,18 +201,42 @@ def analisar_extrato(pdf_bytes: bytes) -> dict:
         st.stop()
 
 
-# --- 4. INTERFACE STREAMLIT ---
+# --- 4. FUNÇÃO DE CABEÇALHO (NOVO AJUSTE) ---
 
-# 4.1. CABEÇALHO PERSONALIZADO COM LOGO
-st.markdown(
-    f"""
-    <div class="logo-title">
-        <img src="{LOGO_URL}" alt="Logo Hedgewise">
-        <h1>Análise Financeira Inteligente</h1>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+def load_header():
+    """Carrega o logo e exibe o título principal usando st.columns para melhor layout."""
+    try:
+        # Tenta carregar a imagem da logo
+        logo = Image.open(LOGO_FILENAME)
+        
+        # Cria colunas para o layout do cabeçalho: 1 para o logo (pequeno) e 6 para o título
+        col1, col2 = st.columns([1, 6])
+        
+        with col1:
+            # Exibe a logo com largura de 100px
+            st.image(logo, width=100)
+            
+        with col2:
+            # Exibe o título principal do projeto
+            st.title("Análise Financeira Inteligente")
+            
+        # Adiciona uma linha horizontal para separar o cabeçalho do conteúdo principal
+        st.markdown("---")
+        
+    except FileNotFoundError:
+        st.title("Análise Financeira Inteligente")
+        st.warning(f"Atenção: O arquivo da logo '{LOGO_FILENAME}' não foi encontrado. O título é exibido sozinho.")
+        st.markdown("---")
+    except Exception as e:
+        st.title("Análise Financeira Inteligente")
+        st.error(f"Erro ao carregar a logo: {e}")
+        st.markdown("---")
+
+
+# --- 5. INTERFACE STREAMLIT ---
+
+# 5.1. CABEÇALHO PERSONALIZADO COM LOGO
+load_header()
 
 st.markdown("Faça o upload de um extrato bancário em PDF para extração estruturada de dados e geração de um relatório de análise financeira avançada.")
 
@@ -307,12 +317,13 @@ if uploaded_file is not None:
 
         st.markdown("---")
         
-# 4.2. RODAPÉ COM LOGO E INFORMAÇÕES
+# 5.2. RODAPÉ COM LOGO E INFORMAÇÕES
 # Usando o st.empty para simular o rodapé fixo (não é estritamente fixo, mas é o último elemento)
 st.markdown(
     f"""
     <div id="st-pages-footer">
         <div class="footer-content">
+            <!-- NOTA: Para exibir a logo no rodapé via HTML, você deve usar uma URL pública. -->
             <img src="{LOGO_URL}" alt="Logo Hedgewise Footer" class="footer-logo">
             <p style="font-size: 0.8rem; color: #6c757d; margin: 0;">
                 Análise de Extrato Empresarial | Dados extraídos com Gemini 2.5 Pro.
