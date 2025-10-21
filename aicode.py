@@ -154,8 +154,7 @@ class ExtratoBancarioCompleto(BaseModel):
 
 # --- 3. FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO ---
 
-# CORREÇÃO CRÍTICA: Adiciona hash_funcs={genai.Client: lambda _: None} para evitar o UnhashableParamError, 
-# pois o objeto 'client' não é hashable e é constante.
+# CORREÇÃO CRÍTICA DO ERRO ANTERIOR: Adiciona hash_funcs={genai.Client: lambda _: None} para evitar o UnhashableParamError
 @st.cache_data(show_spinner=False, hash_funcs={genai.Client: lambda _: None})
 def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> dict:
     """Chama a Gemini API para extrair dados estruturados e classificar DCF e Entidade."""
@@ -400,8 +399,10 @@ with tab1:
                 
                 # Formatação e ordenação inicial
                 df_transacoes['valor'] = pd.to_numeric(df_transacoes['valor'], errors='coerce')
-                # Converte data para garantir formato (Streamlit data_editor prefere formato datetime)
-                df_transacoes['data'] = pd.to_datetime(df_transacoes['data'], errors='coerce', dayfirst=True).dt.strftime('%Y-%m-%d')
+                
+                # CORREÇÃO CRÍTICA: Converte para datetime e mantém o tipo nativo do Pandas.
+                # Isso é necessário para compatibilidade com st.column_config.DateColumn.
+                df_transacoes['data'] = pd.to_datetime(df_transacoes['data'], errors='coerce', dayfirst=True)
                 
                 # Armazena o DataFrame extraído para a edição
                 st.session_state['df_transacoes_editado'] = df_transacoes
@@ -424,6 +425,7 @@ with tab1:
                 df_para_editar,
                 use_container_width=True,
                 column_config={
+                    # Agora a coluna 'data' é um datetime object, compatível com DateColumn
                     "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
                     "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f", required=True),
                     "tipo_movimentacao": st.column_config.SelectboxColumn(
