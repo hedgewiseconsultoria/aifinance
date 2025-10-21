@@ -275,8 +275,8 @@ def load_header():
             st.image(logo, width=100)
             
         with col2:
-            st.markdown('<div class="main-header">Hedgewise</div>', unsafe_allow_html=True)
-            st.caption("Análise Financeira Inteligente para PME")
+            st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
+            st.caption("Hedgewise")
             
         st.markdown("---")
         
@@ -604,7 +604,7 @@ try:
         st.markdown(
             """
             <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">
-                Análise de Extrato Empresarial | Dados extraídos e classificados com Gemini 2.5 Flash.
+                Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
             </p>
             """,
             unsafe_allow_html=True
@@ -614,8 +614,9 @@ except Exception:
     st.markdown(
         """
         <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">
-            Análise de Extrato Empresarial | Dados extraídos e classificados com Gemini 2.5 Flash.
+            Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
         </p>
         """,
         unsafe_allow_html=True
     )
+
