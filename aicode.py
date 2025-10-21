@@ -566,3 +566,4 @@ except FileNotFoundError:
     )
 except Exception as e:
     st.error(f"Erro ao carregar a logo do rodapé: {e}")
+
