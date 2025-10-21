@@ -292,7 +292,7 @@ with main_tab:
     )
 
     if uploaded_files:
-        if st.button(f"Executar Análise CONSOLIDADA ({len(uploaded_files)} arquivos)", key="analyze_btn"):
+        if st.button(f"Executar Análise CONSOLIDADA ({len(uploaded_files)} arquivos)", key="analyze_btn_main_tab"):
             todas_transacoes = []
             saldos_finais = 0.0
             extraction_status = st.empty()
@@ -367,7 +367,7 @@ with main_tab:
                 num_rows="dynamic",
                 key="data_editor"
             )
-            if st.button("Aplicar Edições e Recalcular Relatório", key="apply_edits_btn"):
+            if st.button("Aplicar Edições e Recalcular Relatório", key="apply_edits_btn_table"):
                 st.session_state.df_transacoes = edited_df
                 st.session_state.total_credito = edited_df[edited_df['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
                 st.session_state.total_debito = edited_df[edited_df['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
@@ -382,9 +382,7 @@ with main_tab:
 
 
 if uploaded_files: # Verifica se há arquivos
-    
-    # Botão para iniciar a análise
-    if st.button(f"Executar Análise CONSOLIDADA ({len(uploaded_files)} arquivos)", key="analyze_btn"):
+    pass # O botão de análise já está na aba principal
         
         # Estruturas para agregação
         todas_transacoes = []
