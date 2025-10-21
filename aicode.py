@@ -276,7 +276,7 @@ def load_header():
             
         with col2:
             st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
-            st.caption("Hedgewise")
+            st.caption("para pequenos empreendedores")
             
         st.markdown("---")
         
@@ -619,4 +619,3 @@ except Exception:
         """,
         unsafe_allow_html=True
     )
-
