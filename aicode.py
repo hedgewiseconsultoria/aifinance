@@ -559,5 +559,6 @@ except Exception:
         <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">
             Análise de Extrato Empresarial | Dados extraídos e classificados com Gemini 2.5 Pro.
         </p>
-        """,
+        """, # <--- O parêntese de fechamento estava faltando aqui na linha 557
         unsafe_allow_html=True
+    )
