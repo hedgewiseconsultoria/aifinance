@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from google import genai
 from google.genai import types
+import calendar
 
 # --- 1. CONFIGURAÇÃO DE SEGURANÇA E TEMA ---
 
@@ -17,20 +18,8 @@ BACKGROUND_COLOR = "#F0F2F6" # Cinza Claro (fundo sutil)
 ACCENT_COLOR = "#007BFF" # Azul de Destaque para Fluxo Positivo
 NEGATIVE_COLOR = "#DC3545" # Vermelho para Fluxo Negativo
 
-# Nome do arquivo da logo disponível localmente (AJUSTADO PARA .PNG)
+# O usuário enviou logo_hedgewise.png (AJUSTADO)
 LOGO_FILENAME = "logo_hedgewise.png" 
-LOGO_URL = "logo_hedgewise.png" 
-
-if 'df_transacoes' not in st.session_state:
-    st.session_state.df_transacoes = pd.DataFrame()
-if 'relatorio_consolidado' not in st.session_state:
-    st.session_state.relatorio_consolidado = ""
-if 'total_credito' not in st.session_state:
-    st.session_state.total_credito = 0.0
-if 'total_debito' not in st.session_state:
-    st.session_state.total_debito = 0.0
-if 'saldo_periodo' not in st.session_state:
-    st.session_state.saldo_periodo = 0.0
 
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
@@ -57,10 +46,10 @@ st.markdown(
             color: white;
         }}
         /* Fundo da Aplicação */
-        .reportview-container {{
-            background: {BACKGROUND_COLOR};
+        .stApp {{
+            background-color: {BACKGROUND_COLOR};
         }}
-        /* Header Principal (Agora usado apenas para a linha divisória) */
+        /* Header Principal */
         .main-header {{
             color: {SECONDARY_COLOR};
             font-size: 2.5em;
@@ -76,20 +65,42 @@ st.markdown(
             height: 100%; /* Garante altura uniforme */
         }}
         /* Estilos de Métricas */
-        .stMetric label {{
+        [data-testid="stMetricLabel"] label {{
             font-weight: 600 !important;
             color: #6c757d; /* Texto cinza suave para a label */
         }}
-        .stMetric div[data-testid="stMetricValue"] {{
+        [data-testid="stMetricValue"] {{
             font-size: 1.8em !important;
             color: {SECONDARY_COLOR};
         }}
-        
-        /* O CSS do rodapé fixo foi removido para usar widgets nativos (st.columns) */
+        /* Estilo para Abas (Tabs) */
+        button[data-baseweb="tab"] {{
+            color: #6c757d;
+            border-bottom: 2px solid transparent;
+            font-weight: 600;
+        }}
+        button[data-baseweb="tab"][aria-selected="true"] {{
+            color: {PRIMARY_COLOR};
+            border-bottom: 3px solid {PRIMARY_COLOR} !important;
+        }}
+        /* Títulos */
+        h2 {{
+            color: {PRIMARY_COLOR};
+            border-left: 5px solid {PRIMARY_COLOR};
+            padding-left: 10px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }}
     </style>
     """,
     unsafe_allow_html=True
 )
+
+# Inicializa o estado da sessão para armazenar o DataFrame
+if 'df_transacoes_editado' not in st.session_state:
+    st.session_state['df_transacoes_editado'] = pd.DataFrame()
+if 'relatorio_consolidado' not in st.session_state:
+    st.session_state['relatorio_consolidado'] = "Aguardando análise de dados..."
 
 # Inicializa o cliente Gemini
 try:
@@ -120,25 +131,22 @@ class Transacao(BaseModel):
     categoria_sugerida: str = Field(
         description="Sugestão de categoria mais relevante para esta transação (Ex: 'Alimentação', 'Transporte', 'Salário', 'Investimento', 'Serviços')."
     )
-    # NOVO: Campo para a classificação DCF
     categoria_dcf: str = Field( 
         description="Classificação da transação para o Demonstrativo de Fluxo de Caixa (DCF): 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO'."
     )
+    # NOVO CAMPO: Entidade
     entidade: str = Field(
-        description="Classificação da entidade da transação: 'EMPRESARIAL' ou 'PESSOAL'."
+        description="Classificação binária para identificar a origem/destino da movimentação: 'EMPRESARIAL' (relacionada ao negócio) ou 'PESSOAL' (retiradas dos sócios ou gastos pessoais detectados)."
     )
 
 class ExtratoBancarioCompleto(BaseModel):
     """Contém a lista de transações e o relatório de análise."""
-    
     transacoes: List[Transacao] = Field(
         description="Uma lista de objetos 'Transacao' extraídos do documento."
     )
     saldo_final: float = Field(
         description="O saldo final da conta no extrato. Use zero se não for encontrado."
     )
-    # O relatório individual foi simplificado para ser apenas uma confirmação, 
-    # pois a análise avançada será feita de forma consolidada.
     relatorio_analise: str = Field(
         description="Confirmação de extração dos dados deste extrato. Use 'Extração de dados concluída com sucesso.'"
     )
@@ -146,17 +154,19 @@ class ExtratoBancarioCompleto(BaseModel):
 
 # --- 3. FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO ---
 
-@st.cache_data(show_spinner="Analisando PDF com Gemini (pode demorar até 30 segundos)...")
-def analisar_extrato(pdf_bytes: bytes, filename: str) -> dict:
-    """Chama a Gemini API para extrair dados estruturados e classificar DCF por transação."""
+@st.cache_data(show_spinner=False) # Spinner é gerenciado manualmente para melhor feedback
+def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> dict:
+    """Chama a Gemini API para extrair dados estruturados e classificar DCF e Entidade."""
     
     pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type='application/pdf')
 
-    # Prompt focado em extração e classificação
+    # Prompt atualizado para incluir a classificação da nova coluna 'entidade'
     prompt_analise = (
         f"Você é um especialista em extração e classificação de dados financeiros. "
         f"Seu trabalho é extrair todas as transações deste extrato bancário em PDF do arquivo '{filename}' e "
-        "classificar cada transação rigorosamente em uma 'categoria_dcf' como 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO'. "
+        "classificar cada transação rigorosamente em uma 'categoria_dcf' ('OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO') E "
+        "em uma 'entidade' ('EMPRESARIAL' ou 'PESSOAL'). "
+        "Use o contexto de que a maioria das movimentações devem ser EMPRESARIAIS, mas qualquer retirada para sócios, pagamento de contas pessoais ou compras não relacionadas ao CNPJ deve ser classificada como PESSOAL. "
         "Não gere relatórios. Preencha apenas a estrutura JSON rigorosamente. "
         "Use sempre o valor positivo para 'valor' e classifique estritamente como 'DEBITO' ou 'CREDITO'."
     )
@@ -181,7 +191,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str) -> dict:
     
     except Exception as e:
         st.error(f"Erro ao chamar a Gemini API para {filename}: {e}")
-        st.info("Verifique se o PDF está legível e se a API Key está configurada corretamente.")
+        st.info("Verifique se o PDF está legível ou se a API Key está configurada corretamente.")
         return {
             'transacoes': [], 
             'saldo_final': 0.0, 
@@ -190,11 +200,10 @@ def analisar_extrato(pdf_bytes: bytes, filename: str) -> dict:
 
 # --- 3.1. FUNÇÃO DE GERAÇÃO DE RELATÓRIO CONSOLIDADO ---
 
-def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional: str) -> str:
-    """Gera o relatório de análise consolidado enviando os dados agregados para o Gemini."""
+def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional: str, client: genai.Client) -> str:
+    """Gera o relatório de análise consolidado, agora mais conciso e focado no split Entidade/DCF."""
     
-    # Prepara os dados para análise
-    # Converte o DataFrame de transações consolidadas para uma string JSON
+    # Prepara os dados para análise (JSON)
     transacoes_json = df_transacoes.to_json(orient='records', date_format='iso', indent=2)
     
     # Adiciona o contexto do usuário ao prompt
@@ -202,22 +211,20 @@ def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional:
     if contexto_adicional:
         contexto_prompt = f"\n\n--- CONTEXTO ADICIONAL DO EMPREENDEDOR ---\n{contexto_adicional}\n--- FIM DO CONTEXTO ---\n"
     
+    # Prompt de relatório ajustado para ser EXTREMAMENTE CONCISO e focado no público-alvo
     prompt_analise = (
-        "Você é um analista financeiro de elite, especializado na metodologia do Demonstrativo de Fluxo de Caixa (DCF) para micro e pequenas empresas (PME). "
-        "Seu trabalho é analisar o conjunto de transações CONSOLIDADAS (de múltiplas contas) fornecido abaixo em JSON. "
-        "Todas as transações já estão classificadas em 'OPERACIONAL', 'INVESTIMENTO' e 'FINANCIAMENTO' (campo 'categoria_dcf'). "
-        "Gere um relatório de análise DIRETA AO PONTO para a gestão de caixa da empresa, focado na capacidade de geração de capital e na relação entre gastos empresariais e pessoais. "
-        "O relatório deve ser fácil de entender para pequenos empreendedores, evitando jargões excessivamente técnicos. "
+        "Você é um analista financeiro de elite, especializado em PME (Pequenas e Médias Empresas). "
+        "Seu trabalho é analisar o conjunto de transações CONSOLIDADAS (incluindo as correções manuais do usuário) fornecido abaixo em JSON. "
+        "Todas as transações já estão classificadas em 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO' e em 'EMPRESARIAL' ou 'PESSOAL'. "
+        "Gere um relatório de análise EXTREMAMENTE CONCISO, FOCADO E ACIONÁVEL, voltado para a gestão de caixa. "
         
         f"{contexto_prompt}" # Inclui o contexto adicional aqui
         
-        "É mandatório que você inclua as seguintes seções: "
-        "1. Sumário Executivo Consolidado: Breve resumo sobre a saúde financeira geral no período. "
-        "2. Análise de Fluxo de Caixa DCF: Detalhe o saldo líquido total gerado por cada uma das três atividades (OPERACIONAL, INVESTIMENTO e FINANCIAMENTO). Este é o ponto mais importante para o empreendedor. "
-        "3. Análise de Entidade (Empresarial vs. Pessoal): Apresente o fluxo de caixa total para atividades 'EMPRESARIAL' e 'PESSOAL', comentando sobre a capacidade da empresa de cobrir as despesas pessoais do(s) sócio(s). "
-        "4. Principais Tendências de Gastos: Liste e comente as 3 Categorias de Maior Impacto (baseadas em \'categoria_sugerida\') e sua implicação no caixa. \n"
-        "5. Sugestões Estratégicas: Sugestões acionáveis para otimizar o capital de giro e melhorar o fluxo operacional. \n"
-        "Use apenas texto simples e Markdown básico (como negrito `**` e listas). Evite códigos LaTeX ou símbolos de moeda (R$) em valores monetários no corpo do relatório, use apenas números. "
+        "É mandatório que você inclua as seguintes análises, separadas por parágrafos curtos: "
+        "1. Desempenho Operacional: Calcule e detalhe o saldo líquido total gerado pela atividade OPERACIONAL. É este saldo que cobre as demais atividades e retiradas. "
+        "2. Fluxo de Caixa Total e Impacto Pessoal: Calcule o Fluxo de Caixa Total. Comente o impacto do fluxo PESSOAL no caixa (saídas PESSOAIS, como pró-labore ou retiradas indevidas). O saldo operacional foi suficiente para cobrir as retiradas? "
+        "3. Sugestões Estratégicas: Sugestões acionáveis para otimizar o capital de giro e melhorar o fluxo operacional. "
+        "Use apenas texto simples e Markdown básico (como negrito `**`). Não use listas, headings ou símbolos de moeda (R$) no corpo do relatório."
         "\n\n--- DADOS CONSOLIDADOS (JSON) ---\n"
         f"{transacoes_json}"
     )
@@ -234,336 +241,296 @@ def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional:
     except Exception as e:
         return f"**Falha na Geração do Relatório Consolidado:** Ocorreu um erro ao gerar o relatório analítico. Motivo: {e}"
 
-
 # --- 4. FUNÇÃO DE CABEÇALHO ---
 
 def load_header():
     """Carrega o logo e exibe o título principal usando st.columns para melhor layout."""
     try:
-        # Tenta carregar a imagem da logo (.PNG)
+        # AQUI BUSCA AGORA O ARQUIVO .PNG
         logo = Image.open(LOGO_FILENAME)
         
-        # Cria colunas para o layout do cabeçalho: 1 para o logo (pequeno) e 6 para o título
         col1, col2 = st.columns([1, 6])
         
         with col1:
-            # Exibe a logo com largura de 100px
             st.image(logo, width=100)
             
         with col2:
-            # Exibe o título principal do projeto
-            st.title("Análise Financeira Inteligente")
+            st.markdown('<div class="main-header">Hedgewise</div>', unsafe_allow_html=True)
+            st.caption("Análise Financeira Inteligente para PME")
             
-        # Adiciona uma linha horizontal para separar o cabeçalho do conteúdo principal
         st.markdown("---")
         
     except FileNotFoundError:
-        st.title("Análise Financeira Inteligente")
+        st.title("Hedgewise | Análise Financeira Inteligente")
         st.warning(f"Atenção: O arquivo da logo '{LOGO_FILENAME}' não foi encontrado. O título é exibido sozinho.")
         st.markdown("---")
     except Exception as e:
-        st.title("Análise Financeira Inteligente")
+        st.title("Hedgewise | Análise Financeira Inteligente")
         st.error(f"Erro ao carregar a logo: {e}")
         st.markdown("---")
 
 
-# --- 5. INTERFACE STREAMLIT ---
+# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD ---
 
-# 5.1. CABEÇALHO PERSONALIZADO COM LOGO
+def criar_dashboard(df: pd.DataFrame):
+    """Cria os gráficos de fluxo de caixa mensal separados por Entidade (Empresarial/Pessoal)."""
+    st.subheader("Dashboard: Fluxo de Caixa Mensal por Entidade")
+    
+    if df.empty:
+        st.info("Nenhum dado disponível para o dashboard. Por favor, analise e confirme as transações na aba anterior.")
+        return
+
+    try:
+        # 1. Pré-processamento e Cálculo do Fluxo
+        # Converte a data para datetime e extrai Mês/Ano
+        df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
+        df.dropna(subset=['data'], inplace=True) # Remove linhas com data inválida
+        df['mes_ano'] = df['data'].dt.to_period('M')
+
+        # Cria a coluna de Fluxo: Crédito - Débito
+        df['fluxo'] = df.apply(
+            lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'], 
+            axis=1
+        )
+        
+        # 2. Agrupamento e Pivotação dos Dados
+        df_agrupado = df.groupby(['mes_ano', 'entidade'])['fluxo'].sum().reset_index()
+        df_agrupado['mes_ano_str'] = df_agrupado['mes_ano'].dt.strftime('%Y-%m')
+
+        # Pivota a tabela para ter Entidades como colunas para o gráfico
+        df_pivot = df_agrupado.pivot(index='mes_ano_str', columns='entidade', values='fluxo').fillna(0)
+
+        # Reordena o índice para garantir a ordem cronológica
+        df_pivot.sort_index(inplace=True)
+        
+        # 3. Criação do Gráfico (Fluxo de Caixa Mensal)
+        st.markdown("### Comparativo Mensal de Fluxo (R$)")
+        
+        # Cria a coluna de Capacidade de Cobertura
+        df_pivot['Cobertura_Ent_vs_Pes'] = df_pivot['EMPRESARIAL'] + df_pivot['PESSOAL']
+
+        # Gráfico de barras com a separação por entidade (fluxo de cada um)
+        st.bar_chart(
+            df_pivot[['EMPRESARIAL', 'PESSOAL']],
+            color={
+                "EMPRESARIAL": PRIMARY_COLOR,
+                "PESSOAL": NEGATIVE_COLOR,
+            },
+            height=350
+        )
+        st.caption("O fluxo PESSOAL representa as retiradas ou gastos do sócio. O fluxo EMPRESARIAL deve ser positivo para cobrir o PESSOAL.")
+        
+        
+        # Gráfico de Linha (Capacidade de Cobertura)
+        st.markdown("### Saldo de Caixa Após Retiradas/Pagamentos Pessoais")
+        st.line_chart(
+            df_pivot['Cobertura_Ent_vs_Pes'],
+            color=ACCENT_COLOR,
+            height=350
+        )
+        st.caption("Linha do tempo: Se o valor estiver acima de zero, o caixa da empresa cresceu. Se estiver abaixo, o caixa diminuiu no mês (considerando o fluxo pessoal).")
+
+    except Exception as e:
+        st.error(f"Erro ao gerar o dashboard: {e}")
+        st.info("Verifique se as colunas 'entidade', 'valor' e 'data' estão preenchidas corretamente.")
+
+
+# --- 6. INTERFACE STREAMLIT PRINCIPAL ---
+
 load_header()
 
-main_tab, dashboard_tab = st.tabs(["Análise Principal", "Dashboard de Fluxo de Caixa"])
+tab1, tab2 = st.tabs(["📊 Análise e Correção de Dados", "📈 Dashboard & Fluxo de Caixa"])
 
-with main_tab:
-    st.markdown("Faça o upload de **todos** os extratos bancários em PDF para extração estruturada de dados e geração de um relatório de análise financeira consolidada.")
+with tab1:
+    st.markdown("## 1. Upload e Extração de Dados")
+    st.markdown("Faça o upload dos extratos em PDF para que o Gemini possa extrair e classificar as transações. **É fundamental revisar e corrigir a coluna 'Entidade' (Empresarial/Pessoal).**")
 
-    uploaded_files = st.file_uploader(
-        "Selecione os arquivos PDF dos seus extratos bancários",
-        type="pdf",
-        accept_multiple_files=True,
-        help="Os PDFs devem ter texto selecionável. Você pode selecionar múltiplos arquivos de contas diferentes para uma análise consolidada."
-    )
+    col_upload, col_contexto = st.columns([1, 1])
+    
+    with col_upload:
+        # Permite múltiplos arquivos
+        uploaded_files = st.file_uploader(
+            "Selecione os arquivos PDF dos seus extratos bancários",
+            type="pdf",
+            accept_multiple_files=True,
+            help="Os PDFs devem ter texto selecionável. Você pode selecionar múltiplos arquivos de contas diferentes para uma análise consolidada."
+        )
 
-    contexto_adicional = st.text_area(
-        "Contexto Adicional para a Análise (Opcional)",
-        key="contexto_adicional_main",
-        placeholder="Ex: 'Todos os depósitos em dinheiro (cash) são provenientes de vendas diretas e devem ser considerados operacionais.'",
-        help="Use este campo para fornecer à IA informações contextuais que não estão nos extratos, como a origem de depósitos específicos."
-    )
+    with col_contexto:
+        # Caixa de texto para contexto adicional
+        contexto_adicional = st.text_area(
+            "2. Contexto Adicional para a Análise (Opcional)",
+            placeholder="Ex: 'Todos os depósitos em dinheiro (cash) são provenientes de vendas diretas.'",
+            help="Use este campo para fornecer à IA informações contextuais que não estão nos extratos."
+        )
 
-    if uploaded_files:
-        if st.button(f"Executar Análise CONSOLIDADA ({len(uploaded_files)} arquivos)", key="analyze_btn_main_tab"):
+
+    if uploaded_files: # Verifica se há arquivos
+        
+        # Botão para iniciar a análise
+        if st.button(f"3. Executar Extração e Classificação ({len(uploaded_files)} arquivos)", key="analyze_btn"):
+            
+            # --- Fase de Extração ---
             todas_transacoes = []
             saldos_finais = 0.0
-            extraction_status = st.empty()
-            extraction_status.info("Iniciando extração e classificação DCF por arquivo...")
-
+            
+            extraction_status = st.status("Iniciando extração e classificação...", expanded=True)
+            
             for i, uploaded_file in enumerate(uploaded_files):
-                extraction_status.info(f"Extraindo dados do arquivo {i+1} de {len(uploaded_files)}: **{uploaded_file.name}**")
+                extraction_status.write(f"Extraindo dados do arquivo {i+1} de {len(uploaded_files)}: **{uploaded_file.name}**")
+                
                 pdf_bytes = uploaded_file.getvalue()
-                dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name)
+                with extraction_status:
+                    dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client)
+
                 todas_transacoes.extend(dados_dict['transacoes'])
                 saldos_finais += dados_dict['saldo_final']
             
+            # 4. Consolidação e salvamento no estado da sessão
             df_transacoes = pd.DataFrame(todas_transacoes)
+            
             if df_transacoes.empty:
-                extraction_status.error("Nenhuma transação válida foi extraída de todos os arquivos. A análise consolidada não pode ser realizada.")
-                st.session_state.df_transacoes = pd.DataFrame()
-                st.session_state.relatorio_consolidado = "**Falha na Análise Consolidada:** Nenhum dado extraído."
+                extraction_status.error("❌ Nenhuma transação válida foi extraída.")
+                st.session_state['df_transacoes_editado'] = pd.DataFrame()
             else:
-                extraction_status.success(f"✅ Extração de {len(todas_transacoes)} transações concluída! Gerando relatório consolidado...")
-                st.session_state.df_transacoes = df_transacoes
-                st.session_state.total_credito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
-                st.session_state.total_debito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
-                st.session_state.saldo_periodo = st.session_state.total_credito - st.session_state.total_debito
-                with st.spinner("Gerando Relatório de Análise Consolidada..."):
-                    st.session_state.relatorio_consolidado = gerar_relatorio_consolidado(df_transacoes, contexto_adicional)
-                extraction_status.empty()
-                st.success("✅ Análise Consolidada Concluída com Sucesso!")
+                extraction_status.update(label=f"✅ Extração de {len(todas_transacoes)} transações concluída!", state="complete", expanded=False)
+                
+                # Formatação e ordenação inicial
+                df_transacoes['valor'] = pd.to_numeric(df_transacoes['valor'], errors='coerce')
+                # Converte data para garantir formato (Streamlit data_editor prefere formato datetime)
+                df_transacoes['data'] = pd.to_datetime(df_transacoes['data'], errors='coerce', dayfirst=True).dt.strftime('%Y-%m-%d')
+                
+                # Armazena o DataFrame extraído para a edição
+                st.session_state['df_transacoes_editado'] = df_transacoes
+                st.session_state['contexto_adicional'] = contexto_adicional
+                st.session_state['saldos_finais'] = saldos_finais
 
-    if 'df_transacoes' in st.session_state and not st.session_state.df_transacoes.empty:
-        st.markdown("## Resumo Financeiro CONSOLIDADO do Período")
-        kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-
-        with kpi_col1:
-            st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Total de Créditos (Consolidado)", f"R$ {st.session_state.total_credito:,.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with kpi_col2:
-            st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Total de Débitos (Consolidado)", f"R$ {st.session_state.total_debito:,.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with kpi_col3:
-            st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            delta_color = "normal" if st.session_state.saldo_periodo >= 0 else "inverse"
-            st.metric("Resultado do Período (Consolidado)", f"R$ {st.session_state.saldo_periodo:,.2f}", delta_color=delta_color)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with kpi_col4:
-            st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Soma dos Saldos Finais", f"R$ {saldos_finais:,.2f}") # saldos_finais é a soma dos saldos finais dos extratos individuais, não do período.
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown("---")
-
-        col_relatorio, col_tabela = st.columns([1, 1])
-
-        with col_relatorio:
-            st.subheader("Relatório de Análise de Fluxo de Caixa (DCF) Consolidada")
-            st.markdown(st.session_state.relatorio_consolidado)
-
-        with col_tabela:
-            st.subheader("Dados Extraídos e Estruturados (Consolidado)")
+        
+        # --- Fase de Edição e Geração de Relatório ---
+        
+        if not st.session_state['df_transacoes_editado'].empty:
+            
+            df_para_editar = st.session_state['df_transacoes_editado'].copy()
+            
+            st.markdown("---")
+            st.markdown("## 4. Revisão e Correção Manual dos Dados")
+            st.info("⚠️ **IMPORTANTE:** Revise as colunas 'Entidade' (Empresarial/Pessoal) e 'Classificação DCF' e corrija manualmente qualquer erro de classificação. O relatório e o Dashboard usarão estes dados corrigidos.")
+            
+            # st.data_editor permite a edição interativa dos dados
             edited_df = st.data_editor(
-                st.session_state.df_transacoes,
+                df_para_editar,
                 use_container_width=True,
                 column_config={
-                    "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f"),
-                    "categoria_dcf": st.column_config.SelectboxColumn("Classificação DCF", options=["OPERACIONAL", "INVESTIMENTO", "FINANCIAMENTO"], required=True),
-                    "entidade": st.column_config.SelectboxColumn("Entidade", options=["EMPRESARIAL", "PESSOAL"], required=True)
+                    "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
+                    "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f", required=True),
+                    "tipo_movimentacao": st.column_config.SelectboxColumn(
+                        "Tipo", 
+                        options=["CREDITO", "DEBITO"], 
+                        required=True
+                    ),
+                    "categoria_dcf": st.column_config.SelectboxColumn(
+                        "Classificação DCF", 
+                        options=["OPERACIONAL", "INVESTIMENTO", "FINANCIAMENTO"], 
+                        required=True
+                    ),
+                    "entidade": st.column_config.SelectboxColumn(
+                        "Entidade", 
+                        options=["EMPRESARIAL", "PESSOAL"], 
+                        required=True
+                    ),
                 },
-                num_rows="dynamic",
-                key="data_editor"
-            )
-            if st.button("Aplicar Edições e Recalcular Relatório", key="apply_edits_btn_table"):
-                st.session_state.df_transacoes = edited_df
-                st.session_state.total_credito = edited_df[edited_df['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
-                st.session_state.total_debito = edited_df[edited_df['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
-                st.session_state.saldo_periodo = st.session_state.total_credito - st.session_state.total_debito
-                with st.spinner("Regerando Relatório com edições..."):
-                    st.session_state.relatorio_consolidado = gerar_relatorio_consolidado(edited_df, contexto_adicional)
-                st.success("✅ Edições aplicadas e relatório recalculado!")
-                st.rerun()
-
-        st.markdown("---")
-
-
-
-if uploaded_files: # Verifica se há arquivos
-    pass # O botão de análise já está na aba principal
-        
-        # Estruturas para agregação
-        todas_transacoes = []
-        saldos_finais = 0.0
-        
-        # 1. Loop para extração de dados e agregação
-        extraction_status = st.empty()
-        extraction_status.info("Iniciando extração e classificação DCF por arquivo...")
-        
-        for i, uploaded_file in enumerate(uploaded_files):
-            extraction_status.info(f"Extraindo dados do arquivo {i+1} de {len(uploaded_files)}: **{uploaded_file.name}**")
-            
-            pdf_bytes = uploaded_file.getvalue()
-            # Chama a função de extração (que também classifica DCF)
-            dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name)
-
-            # Agregação
-            todas_transacoes.extend(dados_dict['transacoes'])
-            saldos_finais += dados_dict['saldo_final']
-        
-        # 2. Consolidação final
-        df_transacoes = pd.DataFrame(todas_transacoes)
-        
-        # Checa se há dados válidos para prosseguir
-        if df_transacoes.empty:
-            extraction_status.error("Nenhuma transação válida foi extraída de todos os arquivos. A análise consolidada não pode ser realizada.")
-            total_credito, total_debito, saldo_periodo = 0, 0, 0
-            relatorio_consolidado = "**Falha na Análise Consolidada:** Nenhum dado extraído."
-        else:
-            extraction_status.success(f"✅ Extração de {len(todas_transacoes)} transações concluída! Gerando relatório consolidado...")
-
-            # 3. Cálculos de KPI consolidados
-            total_credito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
-            total_debito = df_transacoes[df_transacoes['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
-            saldo_periodo = total_credito - total_debito
-            
-            # 4. Geração do Relatório Consolidado (SEGUNDA CHAMADA AO GEMINI)
-            with st.spinner("Gerando Relatório de Análise Consolidada..."):
-                # PASSA O CONTEXTO ADICIONAL PARA A FUNÇÃO DE RELATÓRIO
-                relatorio_consolidado = gerar_relatorio_consolidado(df_transacoes, contexto_adicional)
-            
-            extraction_status.empty() # Limpa a mensagem de status da extração
-            st.success("✅ Análise Consolidada Concluída com Sucesso!")
-
-
-        # --- Exibição de KPIs Consolidados ---
-        st.markdown("## Resumo Financeiro CONSOLIDADO do Período")
-        kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-        
-        with kpi_col1:
-            st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Total de Créditos (Consolidado)", f"R$ {total_credito:,.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with kpi_col2:
-            st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Total de Débitos (Consolidado)", f"R$ {total_debito:,.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with kpi_col3:
-            st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            # Determina a cor do resultado do período
-            delta_color = "normal" if saldo_periodo >= 0 else "inverse"
-            st.metric("Resultado do Período (Consolidado)", f"R$ {saldo_periodo:,.2f}", delta_color=delta_color)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with kpi_col4:
-            st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            # Nota: A soma dos saldos finais é uma métrica meramente informativa.
-            st.metric("Soma dos Saldos Finais", f"R$ {saldos_finais:,.2f}")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-
-        # --- Apresentação de Resultados (Relatório e Tabela) ---
-        
-        st.markdown("---")
-        
-        col_relatorio, col_tabela = st.columns([1, 1])
-
-        with col_relatorio:
-            st.subheader("Relatório de Análise de Fluxo de Caixa (DCF) Consolidada")
-            # Exibe o relatório consolidado
-            st.markdown(relatorio_consolidado)
-
-        with col_tabela:
-            st.subheader("Dados Extraídos e Estruturados (Consolidado)")
-            # Exibe o DataFrame Consolidado
-            st.dataframe(
-                df_transacoes, 
-                use_container_width=True,
-                column_config={
-                    "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f"),
-                    "categoria_dcf": st.column_config.TextColumn("Classificação DCF") # Exibe a nova coluna
-                }
+                num_rows="dynamic", # Permite adicionar/remover linhas (opcional, mas funcional)
+                key="data_editor_transacoes"
             )
 
-        st.markdown("---")
-        
-# 5.2. RODAPÉ COM LOGO E INFORMAÇÕES (AJUSTADO PARA ARQUIVO LOCAL)
+            if st.button("5. Gerar Relatório e Dashboard com Dados Corrigidos", key="generate_report_btn"):
+                
+                # Armazena a versão editada no estado
+                st.session_state['df_transacoes_editado'] = edited_df
+                
+                # Recálculos de KPI consolidados
+                total_credito = edited_df[edited_df['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
+                total_debito = edited_df[edited_df['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
+                saldo_periodo = total_credito - total_debito
+                
+                # Geração do Relatório Consolidado (SEGUNDA CHAMADA AO GEMINI)
+                with st.spinner("Gerando Relatório de Análise Consolidada..."):
+                    relatorio_consolidado = gerar_relatorio_consolidado(edited_df, st.session_state.get('contexto_adicional', ''), client)
+                
+                st.session_state['relatorio_consolidado'] = relatorio_consolidado
 
-with dashboard_tab:
-    st.subheader("Dashboard de Fluxo de Caixa Mensal por Entidade")
-    if 'df_transacoes' in st.session_state and not st.session_state.df_transacoes.empty:
-        df_dashboard = st.session_state.df_transacoes.copy()
-        df_dashboard['data'] = pd.to_datetime(df_dashboard['data'], errors='coerce')
-        df_dashboard.dropna(subset=['data'], inplace=True)
-        df_dashboard['mes_ano'] = df_dashboard['data'].dt.to_period('M').astype(str)
+                # Exibição dos KPIs Consolidados
+                st.markdown("---")
+                st.markdown("## Resumo Financeiro CONSOLIDADO do Período (Pós-Correção)")
+                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+                
+                with kpi_col1:
+                    st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
+                    st.metric("Total de Créditos", f"R$ {total_credito:,.2f}")
+                    st.markdown('</div>', unsafe_allow_html=True)
 
-        # Calcular créditos e débitos por mês, ano e entidade
-        fluxo_caixa = df_dashboard.groupby(['mes_ano', 'entidade', 'tipo_movimentacao'])['valor'].sum().unstack(fill_value=0)
-        fluxo_caixa['fluxo_liquido'] = fluxo_caixa.get('CREDITO', 0) - fluxo_caixa.get('DEBITO', 0)
-        fluxo_caixa = fluxo_caixa.reset_index()
+                with kpi_col2:
+                    st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
+                    st.metric("Total de Débitos", f"R$ {total_debito:,.2f}")
+                    st.markdown('</div>', unsafe_allow_html=True)
 
-        # Pivotar para ter entidades como colunas para o gráfico
-        df_plot = fluxo_caixa.pivot_table(index='mes_ano', columns='entidade', values='fluxo_liquido', fill_value=0)
-        df_plot = df_plot.reindex(sorted(df_plot.index), axis=0) # Ordenar por mês/ano
+                with kpi_col3:
+                    st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
+                    delta_color = "normal" if saldo_periodo >= 0 else "inverse"
+                    st.metric("Resultado do Período", f"R$ {saldo_periodo:,.2f}", delta_color=delta_color)
+                    st.markdown('</div>', unsafe_allow_html=True)
 
-        st.write("#### Fluxo de Caixa Líquido Mensal")
-        st.bar_chart(df_plot)
+                st.markdown("---")
+                st.subheader("Relatório de Análise de Fluxo de Caixa (DCF) Consolidada")
+                st.markdown(st.session_state['relatorio_consolidado'])
+                
+                st.success("Relatório gerado! Acesse a aba **Dashboard & Fluxo de Caixa** para ver os gráficos.")
+            
+        elif uploaded_files and 'df_transacoes_editado' not in st.session_state:
+            st.info("Pressione o botão 'Executar Extração e Classificação' para iniciar a análise.")
 
-        st.write("#### Detalhes do Fluxo de Caixa por Entidade")
-        st.dataframe(fluxo_caixa, use_container_width=True)
-
-        st.markdown("--- ")
-        st.markdown("##### Análise da Capacidade de Cobertura")
-        st.markdown("Esta seção visa analisar se o fluxo de caixa operacional da empresa é suficiente para cobrir as retiradas e gastos pessoais do(s) empreendedor(es).")
-        
-        # Calcular o fluxo de caixa empresarial e pessoal
-        fluxo_empresarial = df_plot.get('EMPRESARIAL', pd.Series(dtype=float)).sum()
-        fluxo_pessoal = df_plot.get('PESSOAL', pd.Series(dtype=float)).sum()
-
-        if fluxo_empresarial > 0 and fluxo_pessoal < 0: # Empresa gerando caixa e pessoal consumindo
-            cobertura = abs(fluxo_empresarial / fluxo_pessoal) if fluxo_pessoal != 0 else float('inf')
-            st.info(f"O fluxo de caixa empresarial totalizou **R$ {fluxo_empresarial:,.2f}** e o pessoal **R$ {fluxo_pessoal:,.2f}** no período. "
-                    f"A empresa gerou um caixa operacional {cobertura:.2f} vezes maior que os gastos pessoais.")
-        elif fluxo_empresarial > 0 and fluxo_pessoal >= 0:
-            st.info(f"O fluxo de caixa empresarial totalizou **R$ {fluxo_empresarial:,.2f}** e o pessoal **R$ {fluxo_pessoal:,.2f}** no período. "
-                    f"Ambos os fluxos foram positivos, indicando uma excelente saúde financeira.")
-        elif fluxo_empresarial <= 0 and fluxo_pessoal < 0:
-            st.warning(f"O fluxo de caixa empresarial foi **R$ {fluxo_empresarial:,.2f}** e o pessoal **R$ {fluxo_pessoal:,.2f}** no período. "
-                       f"Ambos os fluxos foram negativos ou nulos, sugerindo que a empresa não está gerando caixa suficiente para cobrir suas próprias operações e/ou os gastos pessoais.")
-        else:
-            st.info("Dados insuficientes para uma análise de cobertura clara. Verifique as classificações de entidade.")
-
-    else:
-        st.info("Faça o upload dos extratos e execute a análise na aba 'Análise Principal' para visualizar o dashboard.")
-
-st.markdown("---") # Linha divisória para o rodapé
-try:
-    # 1. Tenta carregar a imagem local (AGORA .PNG)
-    footer_logo = Image.open(LOGO_FILENAME)
+with tab2:
+    st.markdown("## 6. Relatórios Gerenciais e Dashboard")
     
-    # 2. Cria colunas para o rodapé: uma pequena para a logo e o restante para o texto
+    # 6.1. Exibe o Relatório de Análise
+    if st.session_state['relatorio_consolidado'] and st.session_state['relatorio_consolidado'] != "Aguardando análise de dados...":
+        st.subheader("Relatório de Análise Consolidada (Texto)")
+        st.markdown(st.session_state['relatorio_consolidado'])
+        st.markdown("---")
+    
+    # 6.2. Cria os Gráficos
+    if not st.session_state['df_transacoes_editado'].empty:
+        df_final = st.session_state['df_transacoes_editado']
+        criar_dashboard(df_final)
+    else:
+        st.warning("Nenhum dado processado encontrado. Volte para a aba **Análise e Correção de Dados** e execute o processamento para visualizar o Dashboard.")
+
+# --- Rodapé ---
+st.markdown("---")
+try:
+    # AQUI TAMBÉM BUSCA O ARQUIVO .PNG
+    footer_logo = Image.open(LOGO_FILENAME)
     footer_col1, footer_col2 = st.columns([1, 4]) 
     
     with footer_col1:
-        # Exibe a logo (tamanho reduzido para rodapé)
         st.image(footer_logo, width=40)
         
     with footer_col2:
-        # Exibe o texto de informação (com um pequeno padding para alinhar com o logo)
         st.markdown(
             """
             <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">
-                Análise de Extrato Empresarial | Dados extraídos com Gemini 2.5 Pro.
+                Análise de Extrato Empresarial | Dados extraídos e classificados com Gemini 2.5 Pro.
             </p>
             """,
             unsafe_allow_html=True
         )
         
-except FileNotFoundError:
-    # Fallback se o arquivo local não for encontrado
+except Exception:
     st.markdown(
         """
         <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">
-            Análise de Extrato Empresarial | Dados extraídos com Gemini 2.5 Pro.
-            (Logo do rodapé não encontrada.)
+            Análise de Extrato Empresarial | Dados extraídos e classificados com Gemini 2.5 Pro.
         </p>
         """,
         unsafe_allow_html=True
     )
-except Exception as e:
-    st.error(f"Erro ao carregar a logo do rodapé: {e}")
-
