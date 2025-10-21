@@ -303,7 +303,7 @@ def load_header():
             
         with col2:
             st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
-            st.caption("Aqui, o pequeno empreendedor encontra um horizonte")
+            st.caption("O horizonte do pequeno empreendedor")
             
         st.markdown("---")
         
@@ -650,3 +650,4 @@ except Exception:
         """,
         unsafe_allow_html=True
     )
+
