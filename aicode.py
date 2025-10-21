@@ -277,8 +277,9 @@ main_tab, dashboard_tab = st.tabs(["Análise Principal", "Dashboard de Fluxo de 
 with main_tab:
     st.markdown("Faça o upload de **todos** os extratos bancários em PDF para extração estruturada de dados e geração de um relatório de análise financeira consolidada.")
 
-    uploaded_files = st.file_uploader(key="file_uploader_main",
+    uploaded_files = st.file_uploader(
         "Selecione os arquivos PDF dos seus extratos bancários",
+        key="file_uploader_main",
         type="pdf",
         accept_multiple_files=True,
         help="Os PDFs devem ter texto selecionável. Você pode selecionar múltiplos arquivos de contas diferentes para uma análise consolidada."
