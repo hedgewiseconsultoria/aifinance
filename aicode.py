@@ -309,18 +309,19 @@ def criar_dashboard(df: pd.DataFrame):
         # Usa dayfirst=True para tratar formato brasileiro DD/MM/AAAA
         df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True) 
         df.dropna(subset=['data'], inplace=True) # Remove linhas com data inválida
-        df['mes_ano'] = df['data'].dt.to_period('M')
-
+        
         # Cria a coluna de Fluxo: Crédito - Débito
         df['fluxo'] = df.apply(
             lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'], 
             axis=1
         )
+
+        # FIX: Criar a coluna mes_ano_str aqui para ser usada nos dois gráficos
+        df['mes_ano_str'] = df['data'].dt.to_period('M').astype(str) # Converte para Period e depois para String (YYYY-MM)
         
         # 2. Agrupamento e Pivotação dos Dados (Por Entidade)
-        df_agrupado = df.groupby(['mes_ano', 'entidade'])['fluxo'].sum().reset_index()
-        # Formata mes_ano para string para uso no gráfico (YYYY-MM)
-        df_agrupado['mes_ano_str'] = df_agrupado['mes_ano'].dt.strftime('%Y-%m')
+        # Usa 'mes_ano_str' para agrupamento
+        df_agrupado = df.groupby(['mes_ano_str', 'entidade'])['fluxo'].sum().reset_index()
 
         # Pivota a tabela para ter Entidades como colunas para o gráfico
         df_pivot_entidade = df_agrupado.pivot(index='mes_ano_str', columns='entidade', values='fluxo').fillna(0)
@@ -352,7 +353,7 @@ def criar_dashboard(df: pd.DataFrame):
         # 4. NOVA ANÁLISE DCF (Gráfico de Linhas)
         st.markdown("### Comparativo Mensal de Fluxo de Caixa pelo Método DCF (Operacional, Investimento, Financiamento)")
         
-        # Agrupamento DCF
+        # Agrupamento DCF - Agora usando 'mes_ano_str' que existe em 'df'
         df_dcf_agrupado = df.groupby(['mes_ano_str', 'categoria_dcf'])['fluxo'].sum().reset_index()
         
         # Pivota a tabela para ter categorias DCF como colunas
@@ -380,7 +381,10 @@ def criar_dashboard(df: pd.DataFrame):
 
 
     except Exception as e:
+        # Adiciona logging para rastrear outros erros potenciais
+        import traceback
         st.error(f"Erro ao gerar o dashboard: {e}")
+        st.code(f"Detalhes do erro:\n{traceback.format_exc()}")
         st.info("Verifique se as colunas 'entidade', 'valor' e 'data' estão preenchidas corretamente no Data Editor.")
 
 
@@ -615,3 +619,4 @@ except Exception:
         """,
         unsafe_allow_html=True
     )
+            
