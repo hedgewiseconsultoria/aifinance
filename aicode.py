@@ -17,6 +17,7 @@ SECONDARY_COLOR = "#000000" # Preto (para títulos e texto principal)
 BACKGROUND_COLOR = "#F0F2F6" # Cinza Claro (fundo sutil)
 ACCENT_COLOR = "#007BFF" # Azul de Destaque para Fluxo Positivo
 NEGATIVE_COLOR = "#DC3545" # Vermelho para Fluxo Negativo
+FINANCING_COLOR = "#FFC107" # Amarelo/Dourado para Financiamento
 
 # Nome do arquivo da logo no formato PNG
 LOGO_FILENAME = "logo_hedgewise.png" 
@@ -292,8 +293,11 @@ def load_header():
 # --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD ---
 
 def criar_dashboard(df: pd.DataFrame):
-    """Cria os gráficos de fluxo de caixa mensal separados por Entidade (Empresarial/Pessoal)."""
-    st.subheader("Dashboard: Fluxo de Caixa Mensal por Entidade")
+    """
+    Cria os gráficos de fluxo de caixa mensal, incluindo a comparação por Entidade 
+    e a comparação mensal entre os fluxos Operacional, Investimento e Financiamento (DCF).
+    """
+    st.subheader("Dashboard: Fluxo de Caixa Mensal por Entidade e DCF")
     
     if df.empty:
         st.info("Nenhum dado disponível para o dashboard. Por favor, analise e confirme as transações na aba anterior.")
@@ -313,48 +317,67 @@ def criar_dashboard(df: pd.DataFrame):
             axis=1
         )
         
-        # 2. Agrupamento e Pivotação dos Dados
+        # 2. Agrupamento e Pivotação dos Dados (Por Entidade)
         df_agrupado = df.groupby(['mes_ano', 'entidade'])['fluxo'].sum().reset_index()
         # Formata mes_ano para string para uso no gráfico (YYYY-MM)
         df_agrupado['mes_ano_str'] = df_agrupado['mes_ano'].dt.strftime('%Y-%m')
 
         # Pivota a tabela para ter Entidades como colunas para o gráfico
-        df_pivot = df_agrupado.pivot(index='mes_ano_str', columns='entidade', values='fluxo').fillna(0)
+        df_pivot_entidade = df_agrupado.pivot(index='mes_ano_str', columns='entidade', values='fluxo').fillna(0)
 
         # Garante que as colunas críticas existam
         required_columns = ['EMPRESARIAL', 'PESSOAL']
         for col in required_columns:
-            if col not in df_pivot.columns:
-                df_pivot[col] = 0.0
+            if col not in df_pivot_entidade.columns:
+                df_pivot_entidade[col] = 0.0
         
         # Reordena o índice para garantir a ordem cronológica
-        df_pivot.sort_index(inplace=True)
+        df_pivot_entidade.sort_index(inplace=True)
         
-        # 3. Criação do Gráfico (Fluxo de Caixa Mensal)
-        st.markdown("### Comparativo Mensal de Fluxo (R$)")
+        # 3. Criação do Primeiro Gráfico (Fluxo de Caixa Mensal por Entidade)
+        st.markdown("### Comparativo Mensal de Fluxo por Entidade (R$)")
         
-        # Calcula o Fluxo de Caixa Total
-        df_pivot['Fluxo_Caixa_Total'] = df_pivot['EMPRESARIAL'] + df_pivot['PESSOAL']
-
-        # CORREÇÃO CRÍTICA: st.bar_chart não aceita dicionário para color. 
-        # Passamos as colunas Y e uma lista de cores na ordem correta.
+        # Bar chart for Entity
         st.bar_chart(
-            df_pivot,
+            df_pivot_entidade,
             y=['EMPRESARIAL', 'PESSOAL'], # Colunas Y explícitas
             color=[PRIMARY_COLOR, NEGATIVE_COLOR], # Lista de cores na mesma ordem
             height=350
         )
         st.caption("O fluxo **PESSOAL** representa as retiradas ou gastos do sócio (geralmente negativo). O fluxo **EMPRESARIAL** (negócio principal) deve ser positivo.")
         
+        st.markdown("---")
+
+
+        # 4. NOVA ANÁLISE DCF (Gráfico de Linhas)
+        st.markdown("### Comparativo Mensal de Fluxo de Caixa pelo Método DCF (Operacional, Investimento, Financiamento)")
         
-        # Gráfico de Linha (Capacidade de Cobertura)
-        st.markdown("### Saldo de Caixa Total no Mês (Empresarial + Pessoal)")
+        # Agrupamento DCF
+        df_dcf_agrupado = df.groupby(['mes_ano_str', 'categoria_dcf'])['fluxo'].sum().reset_index()
+        
+        # Pivota a tabela para ter categorias DCF como colunas
+        df_dcf_pivot = df_dcf_agrupado.pivot(index='mes_ano_str', columns='categoria_dcf', values='fluxo').fillna(0)
+
+        # Garante que as colunas críticas existam e define a ordem
+        dcf_columns = ['OPERACIONAL', 'INVESTIMENTO', 'FINANCIAMENTO']
+        for col in dcf_columns:
+            if col not in df_dcf_pivot.columns:
+                df_dcf_pivot[col] = 0.0
+                
+        # Define as cores para o gráfico de linhas DCF
+        DCF_COLORS = [
+            PRIMARY_COLOR,  # OPERACIONAL (Azul Escuro)
+            ACCENT_COLOR,   # INVESTIMENTO (Azul de Destaque)
+            FINANCING_COLOR # FINANCIAMENTO (Amarelo/Warning)
+        ]
+
         st.line_chart(
-            df_pivot['Fluxo_Caixa_Total'],
-            color=ACCENT_COLOR,
+            df_dcf_pivot[dcf_columns], # Garante a ordem das colunas
+            color=DCF_COLORS,
             height=350
         )
-        st.caption("Linha do tempo: Se o valor estiver acima de zero, o caixa da empresa cresceu no mês. Se estiver abaixo, o caixa diminuiu.")
+        st.caption("O fluxo **OPERACIONAL** é o principal indicador de saúde (o negócio em si). Fluxo de **INVESTIMENTO** mostra o gasto em ativos ou vendas de ativos. Fluxo de **FINANCIAMENTO** mostra entrada/saída de capital de terceiros ou sócios.")
+
 
     except Exception as e:
         st.error(f"Erro ao gerar o dashboard: {e}")
