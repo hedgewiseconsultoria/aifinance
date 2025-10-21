@@ -279,7 +279,6 @@ with main_tab:
 
     uploaded_files = st.file_uploader(
         "Selecione os arquivos PDF dos seus extratos bancários",
-        key="file_uploader_main",
         type="pdf",
         accept_multiple_files=True,
         help="Os PDFs devem ter texto selecionável. Você pode selecionar múltiplos arquivos de contas diferentes para uma análise consolidada."
@@ -287,6 +286,7 @@ with main_tab:
 
     contexto_adicional = st.text_area(
         "Contexto Adicional para a Análise (Opcional)",
+        key="contexto_adicional_main",
         placeholder="Ex: 'Todos os depósitos em dinheiro (cash) são provenientes de vendas diretas e devem ser considerados operacionais.'",
         help="Use este campo para fornecer à IA informações contextuais que não estão nos extratos, como a origem de depósitos específicos."
     )
@@ -379,15 +379,6 @@ with main_tab:
 
         st.markdown("---")
 
-# Permite múltiplos arquivos
-
-
-# NOVO: Caixa de texto para contexto adicional
-contexto_adicional = st.text_area(
-    "Contexto Adicional para a Análise (Opcional)",
-    placeholder="Ex: 'Todos os depósitos em dinheiro (cash) são provenientes de vendas diretas e devem ser considerados operacionais.'",
-    help="Use este campo para fornecer à IA informações contextuais que não estão nos extratos, como a origem de depósitos específicos."
-)
 
 
 if uploaded_files: # Verifica se há arquivos
