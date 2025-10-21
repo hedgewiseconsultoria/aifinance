@@ -155,14 +155,12 @@ class ExtratoBancarioCompleto(BaseModel):
 
 # --- 3. FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO ---
 
-# CORREÇÃO CRÍTICA: Adiciona hash_funcs={genai.Client: lambda _: None} para evitar o UnhashableParamError
 @st.cache_data(show_spinner=False, hash_funcs={genai.Client: lambda _: None})
 def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> dict:
     """Chama a Gemini API para extrair dados estruturados e classificar DCF e Entidade."""
     
     pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type='application/pdf')
 
-    # Prompt atualizado para incluir a classificação da coluna 'entidade'
     prompt_analise = (
         f"Você é um especialista em extração e classificação de dados financeiros. "
         f"Seu trabalho é extrair todas as transações deste extrato bancário em PDF do arquivo '{filename}' e "
@@ -200,7 +198,6 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
             st.info("Este é um erro temporário do servidor da API. Por favor, tente novamente em alguns minutos. O problema não está no seu código ou no seu PDF.")
         else:
             # Erro genérico (API Key errada, PDF ilegível, etc.)
-            # Nota: Não exibe st.error aqui, pois a função é cacheável. A interface lidará com o erro no loop de extração.
             print(f"Erro ao chamar a Gemini API para {filename}: {error_message}")
 
         return {
@@ -212,25 +209,35 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
 # --- 3.1. FUNÇÃO DE GERAÇÃO DE RELATÓRIO CONSOLIDADO ---
 
 def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional: str, client: genai.Client) -> str:
-    """Gera o relatório de análise consolidado, agora mais conciso e focado no split Entidade/DCF."""
+    """Gera o relatório de análise consolidado, agora mais conciso e focado no split Entidade/DCF. 
+       Aplica filtro de colunas e formatação de data para reduzir o payload de JSON."""
     
-    # Prepara os dados para análise (JSON)
-    # Inclui as colunas corrigidas (DCF e Entidade)
-    transacoes_json = df_transacoes.to_json(orient='records', date_format='iso', indent=2)
+    # CRITICAL FIX: Criar uma cópia do DF e formatar/filtrar colunas para reduzir o tamanho do JSON payload
+    df_temp = df_transacoes.copy()
+    
+    # 1. Formatar a data para uma string simples (YYYY-MM-DD) antes de serializar
+    df_temp['data'] = df_temp['data'].dt.strftime('%Y-%m-%d')
+    
+    # 2. Selecionar apenas as colunas essenciais para a análise do LLM
+    df_analise = df_temp[['data', 'descricao', 'valor', 'tipo_movimentacao', 
+                          'categoria_sugerida', 'categoria_dcf', 'entidade']]
+    
+    # Gerar o JSON a partir do DF filtrado (muito menor)
+    transacoes_json = df_analise.to_json(orient='records', date_format='iso', indent=2)
     
     # Adiciona o contexto do usuário ao prompt
     contexto_prompt = ""
     if contexto_adicional:
         contexto_prompt = f"\n\n--- CONTEXTO ADICIONAL DO EMPREENDEDOR ---\n{contexto_adicional}\n--- FIM DO CONTEXTO ---\n"
     
-    # Prompt de relatório ajustado para ser EXTREMAMENTE CONCISO e focado no público-alvo
+    # Prompt de relatório ajustado
     prompt_analise = (
         "Você é um analista financeiro de elite, especializado em PME (Pequenas e Médias Empresas). "
         "Seu trabalho é analisar o conjunto de transações CONSOLIDADAS (incluindo as correções manuais do usuário) fornecido abaixo em JSON. "
         "Todas as transações estão classificadas em 'OPERACIONAL', 'INVESTIMENTO', 'FINANCIAMENTO' (DCF) e 'EMPRESARIAL' ou 'PESSOAL' (Entidade). "
         "Gere um relatório de análise EXTREMAMENTE CONCISO, FOCADO E ACIONÁVEL, voltado para a gestão de caixa. "
         
-        f"{contexto_prompt}" # Inclui o contexto adicional aqui
+        f"{contexto_prompt}"
         
         "É mandatório que você inclua as seguintes análises, separadas por parágrafos curtos: "
         "1. Desempenho Operacional: Calcule e detalhe o saldo líquido total gerado pela atividade OPERACIONAL. Este é o fluxo de caixa central da empresa. "
@@ -295,7 +302,8 @@ def criar_dashboard(df: pd.DataFrame):
     try:
         # 1. Pré-processamento e Cálculo do Fluxo
         # Converte a data para datetime e extrai Mês/Ano (garantindo que só datas válidas prossigam)
-        df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
+        # Usa dayfirst=True para tratar formato brasileiro DD/MM/AAAA
+        df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True) 
         df.dropna(subset=['data'], inplace=True) # Remove linhas com data inválida
         df['mes_ano'] = df['data'].dt.to_period('M')
 
@@ -337,7 +345,7 @@ def criar_dashboard(df: pd.DataFrame):
             },
             height=350
         )
-        st.caption("O fluxo PESSOAL representa as retiradas ou gastos do sócio (geralmente negativo). O fluxo EMPRESARIAL (negócio principal) deve ser positivo.")
+        st.caption("O fluxo **PESSOAL** representa as retiradas ou gastos do sócio (geralmente negativo). O fluxo **EMPRESARIAL** (negócio principal) deve ser positivo.")
         
         
         # Gráfico de Linha (Capacidade de Cobertura)
@@ -451,12 +459,13 @@ with tab1:
             
             st.markdown("---")
             st.markdown("## 4. Revisão e Correção Manual dos Dados")
-            st.info("⚠️ **IMPORTANTE:** Revise as colunas 'Entidade' (Empresarial/Pessoal) e 'Classificação DCF' e corrija manualmente qualquer erro. Estes dados corrigidos serão usados no relatório e Dashboard.")
+            st.info("⚠️ **IMPORTANTE:** Revise as colunas **'Entidade'** (Empresarial/Pessoal) e **'Classificação DCF'** e corrija manualmente qualquer erro. Estes dados corrigidos serão usados no relatório e Dashboard.")
             
             # st.data_editor permite a edição interativa dos dados
             edited_df = st.data_editor(
                 st.session_state['df_transacoes_editado'],
-                use_container_width=True,
+                # FIX: Substitui use_container_width=True por width='stretch'
+                width='stretch',
                 column_config={
                     # Data: Exibida como string, mas formatada para edição
                     "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
@@ -498,7 +507,6 @@ with tab1:
                 st.session_state['relatorio_consolidado'] = relatorio_consolidado
                 
                 st.success("Relatório gerado! Acesse a aba **Dashboard & Fluxo de Caixa** para ver os gráficos e a análise completa.")
-                # Não é necessário rerunning aqui, pois o success já está visível
             
             
         elif uploaded_files and 'df_transacoes_editado' not in st.session_state:
@@ -544,7 +552,7 @@ with tab2:
             st.markdown(st.session_state['relatorio_consolidado'])
             st.markdown("---")
         else:
-            st.warning("Pressione o botão 'Gerar Relatório e Dashboard com Dados Corrigidos' na aba anterior para gerar a análise em texto.")
+            st.warning("Pressione o botão **'Gerar Relatório e Dashboard com Dados Corrigidos'** na aba anterior para gerar a análise em texto.")
             st.markdown("---")
 
         # 6.2. Cria os Gráficos
@@ -555,7 +563,7 @@ with tab2:
 # --- Rodapé ---
 st.markdown("---")
 try:
-    # 1. Tenta carregar a imagem local (AGORA .PNG)
+    # 1. Tenta carregar a imagem local (PNG)
     footer_logo = Image.open(LOGO_FILENAME)
     
     # 2. Cria colunas para o rodapé: uma pequena para a logo e o restante para o texto
