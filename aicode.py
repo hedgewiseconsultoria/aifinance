@@ -9,6 +9,30 @@ from google import genai
 from google.genai import types
 import calendar
 
+# --- FUNÇÃO DE FORMATAÇÃO BRL (NOVO) ---
+def formatar_brl(valor: float) -> str:
+    """
+    Formata um valor float para a moeda Real Brasileiro (R$ xx.xxx,xx).
+    Esta função usa uma abordagem manual para garantir a portabilidade do separador de milhares (ponto) 
+    e separador decimal (vírgula).
+    """
+    # Arredonda o valor e usa formatação US (vírgula para milhar, ponto para decimal)
+    # Ex: 12345.67 -> '12,345.67'
+    valor_us = f"{valor:,.2f}"
+    
+    # 1. Troca o separador de milhares US (vírgula) por um temporário
+    valor_brl = valor_us.replace(",", "TEMP_SEP")
+    
+    # 2. Troca o separador decimal US (ponto) por vírgula BR
+    valor_brl = valor_brl.replace(".", ",")
+    
+    # 3. Troca o separador temporário por ponto BR (milhares)
+    valor_brl = valor_brl.replace("TEMP_SEP", ".")
+    
+    return "R$ " + valor_brl
+# --- FIM FUNÇÃO DE FORMATAÇÃO BRL ---
+
+
 # --- 1. CONFIGURAÇÃO DE SEGURANÇA E TEMA ---
 
 # Cores baseadas na logo Hedgewise
@@ -211,7 +235,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
 
 def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional: str, client: genai.Client) -> str:
     """Gera o relatório de análise consolidado, agora mais conciso e focado no split Entidade/DCF. 
-       Aplica filtro de colunas e formatação de data para reduzir o payload de JSON."""
+        Aplica filtro de colunas e formatação de data para reduzir o payload de JSON."""
     
     # CRITICAL FIX: Criar uma cópia do DF e formatar/filtrar colunas para reduzir o tamanho do JSON payload
     df_temp = df_transacoes.copy()
@@ -231,7 +255,7 @@ def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional:
     if contexto_adicional:
         contexto_prompt = f"\n\n--- CONTEXTO ADICIONAL DO EMPREENDEDOR ---\n{contexto_adicional}\n--- FIM DO CONTEXTO ---\n"
     
-    # Prompt de relatório ajustado
+    # Prompt de relatório ajustado (INCLUI INSTRUÇÃO PARA FORMATO BRL)
     prompt_analise = (
         "Você é um analista financeiro de elite, especializado em PME (Pequenas e Médias Empresas). "
         "Seu trabalho é analisar o conjunto de transações CONSOLIDADAS (incluindo as correções manuais do usuário) fornecido abaixo em JSON. "
@@ -244,7 +268,10 @@ def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional:
         "1. Desempenho Operacional: Calcule e detalhe o saldo líquido total gerado pela atividade OPERACIONAL. Este é o fluxo de caixa central da empresa. "
         "2. Análise Pessoal vs. Empresarial: Calcule e comente o impacto do fluxo PESSOAL (saídas PESSOAIS, como pró-labore, retiradas indevidas) no caixa da empresa. O saldo operacional foi suficiente para cobrir as retiradas? "
         "3. Sugestões Estratégicas: Sugestões acionáveis para otimizar o capital de giro e melhorar o fluxo operacional com base nas categorias de maior gasto. "
-        "Use apenas texto simples e Markdown básico (como negrito `**`). Não use listas, headings ou símbolos de moeda (R$) no corpo do relatório."
+        
+        # MUDANÇA AQUI: Instruindo o modelo a usar o formato BRL nos relatórios
+        "Use apenas texto simples e Markdown básico (como negrito `**`). Ao citar valores monetários, utilize o formato brasileiro (ponto para milhares e vírgula para decimais) e o prefixo R$. Não use listas ou headings."
+        
         "\n\n--- DADOS CONSOLIDADOS (JSON) ---\n"
         f"{transacoes_json}"
     )
@@ -495,7 +522,8 @@ with tab1:
                 column_config={
                     # Data: Exibida como string, mas formatada para edição
                     "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
-                    "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f", required=True),
+                    # A coluna valor usa a formatação padrão do Streamlit (US), mas os KPIs usarão a função BRL
+                    "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f", required=True), 
                     "tipo_movimentacao": st.column_config.SelectboxColumn(
                         "Tipo", 
                         options=["CREDITO", "DEBITO"], 
@@ -535,8 +563,8 @@ with tab1:
                 st.success("Relatório gerado! Acesse a aba **Dashboard & Fluxo de Caixa** para ver os gráficos e a análise completa.")
             
             
-        elif uploaded_files and 'df_transacoes_editado' not in st.session_state:
-            st.info("Pressione o botão 'Executar Extração e Classificação' para iniciar a análise.")
+            elif uploaded_files and 'df_transacoes_editado' not in st.session_state:
+                st.info("Pressione o botão 'Executar Extração e Classificação' para iniciar a análise.")
 
 with tab2:
     st.markdown("## 6. Relatórios Gerenciais e Dashboard")
@@ -556,18 +584,21 @@ with tab2:
         
         with kpi_col1:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Total de Créditos", f"R$ {total_credito:,.2f}")
+            # APLICAÇÃO DA FUNÇÃO DE FORMATAÇÃO BRL
+            st.metric("Total de Créditos", formatar_brl(total_credito)) 
             st.markdown('</div>', unsafe_allow_html=True)
 
         with kpi_col2:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            st.metric("Total de Débitos", f"R$ {total_debito:,.2f}")
+            # APLICAÇÃO DA FUNÇÃO DE FORMATAÇÃO BRL
+            st.metric("Total de Débitos", formatar_brl(total_debito))
             st.markdown('</div>', unsafe_allow_html=True)
 
         with kpi_col3:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
             delta_color = "normal" if saldo_periodo >= 0 else "inverse"
-            st.metric("Resultado do Período", f"R$ {saldo_periodo:,.2f}", delta_color=delta_color)
+            # APLICAÇÃO DA FUNÇÃO DE FORMATAÇÃO BRL
+            st.metric("Resultado do Período", formatar_brl(saldo_periodo), delta_color=delta_color)
             st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown("---")
