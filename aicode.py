@@ -180,7 +180,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-pro',
+            model='gemini-2.5-flash', # ALTERADO DE gemini-2.5-pro PARA gemini-2.5-flash
             contents=[pdf_part, prompt_analise],
             config=config,
         )
@@ -253,7 +253,7 @@ def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional:
     
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-pro',
+            model='gemini-2.5-flash', # ALTERADO DE gemini-2.5-pro PARA gemini-2.5-flash
             contents=[prompt_analise],
             config=config,
         )
@@ -604,7 +604,7 @@ try:
         st.markdown(
             """
             <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">
-                Análise de Extrato Empresarial | Dados extraídos e classificados com Gemini 2.5 Pro.
+                Análise de Extrato Empresarial | Dados extraídos e classificados com Gemini 2.5 Flash.
             </p>
             """,
             unsafe_allow_html=True
@@ -614,9 +614,8 @@ except Exception:
     st.markdown(
         """
         <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">
-            Análise de Extrato Empresarial | Dados extraídos e classificados com Gemini 2.5 Pro.
+            Análise de Extrato Empresarial | Dados extraídos e classificados com Gemini 2.5 Flash.
         </p>
         """,
         unsafe_allow_html=True
     )
-            
