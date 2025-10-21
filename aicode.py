@@ -8,6 +8,7 @@ from typing import List, Optional
 from google import genai
 from google.genai import types
 import calendar
+import time # IMPORTADO PARA USAR time.sleep()
 
 # --- 1. CONFIGURAÇÃO DE SEGURANÇA E TEMA ---
 
@@ -154,10 +155,9 @@ class ExtratoBancarioCompleto(BaseModel):
 
 # --- 3. FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO ---
 
-# CORREÇÃO CRÍTICA: Adiciona hash_funcs={genai.Client: lambda _: None} para evitar o UnhashableParamError
 @st.cache_data(show_spinner=False, hash_funcs={genai.Client: lambda _: None})
 def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> dict:
-    """Chama a Gemini API para extrair dados estruturados e classificar DCF e Entidade."""
+    """Chama a Gemini API para extrair dados estruturados e classificar DCF e Entidade, com retentativas."""
     
     pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type='application/pdf')
 
@@ -178,35 +178,64 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
         temperature=0.2 # Baixa temperatura para foco na extração
     )
 
-    try:
-        response = client.models.generate_content(
-            model='gemini-2.5-pro',
-            contents=[pdf_part, prompt_analise],
-            config=config,
-        )
-        
-        response_json = json.loads(response.text)
-        dados_pydantic = ExtratoBancarioCompleto(**response_json)
-        
-        return dados_pydantic.model_dump()
+    MAX_RETRIES = 4
     
-    except Exception as e:
-        st.error(f"Erro ao chamar a Gemini API para {filename}: {e}")
-        st.info("Verifique se o PDF está legível ou se a API Key está configurada corretamente.")
-        return {
-            'transacoes': [], 
-            'saldo_final': 0.0, 
-            'relatorio_analise': f"**Falha na Extração:** Ocorreu um erro ao processar o arquivo {filename}. Motivo: {e}"
-        }
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = client.models.generate_content(
+                model='gemini-2.5-pro',
+                contents=[pdf_part, prompt_analise],
+                config=config,
+            )
+            
+            # Se a resposta for bem-sucedida, processa e sai do loop
+            response_json = json.loads(response.text)
+            dados_pydantic = ExtratoBancarioCompleto(**response_json)
+            
+            return dados_pydantic.model_dump()
+        
+        except Exception as e:
+            error_message = str(e)
+            
+            # Verifica se o erro é temporário (503 UNAVAILABLE ou similar, como sobrecarga do modelo)
+            is_transient_error = "503 UNAVAILABLE" in error_message or "overloaded" in error_message
+            
+            if is_transient_error and attempt < MAX_RETRIES - 1:
+                # Loga o aviso e espera um tempo exponencialmente maior
+                wait_time = 2 ** attempt  # Espera: 1s, 2s, 4s, ...
+                st.warning(f"Erro temporário (503/sobrecarga) ao processar {filename}. Tentativa {attempt + 1}/{MAX_RETRIES}. Retentando em {wait_time} segundos...")
+                time.sleep(wait_time)
+            elif is_transient_error:
+                # Última tentativa falhou com erro transiente
+                st.error(f"Erro persistente (503/sobrecarga) ao chamar a Gemini API para {filename} após {MAX_RETRIES} tentativas. O modelo está indisponível.")
+                return {
+                    'transacoes': [], 
+                    'saldo_final': 0.0, 
+                    'relatorio_analise': f"**Falha na Extração:** Ocorreu um erro persistente (503 - Modelo indisponível) ao processar o arquivo {filename}."
+                }
+            else:
+                # Erro não-transiente (KeyError, problema de schema, etc.)
+                st.error(f"Erro não-transiente ao chamar a Gemini API para {filename}: {error_message}")
+                st.info("Verifique se o PDF está legível ou se a estrutura de dados (schema Pydantic) do Gemini falhou.")
+                return {
+                    'transacoes': [], 
+                    'saldo_final': 0.0, 
+                    'relatorio_analise': f"**Falha na Extração:** Ocorreu um erro não-transiente ao processar o arquivo {filename}. Motivo: {e}"
+                }
+                
+    # Fallback caso o loop termine sem sucesso
+    return {
+        'transacoes': [], 
+        'saldo_final': 0.0, 
+        'relatorio_analise': f"**Falha na Extração:** Limite de retentativas atingido para o arquivo {filename}."
+    }
 
 # --- 3.1. FUNÇÃO DE GERAÇÃO DE RELATÓRIO CONSOLIDADO ---
 
-# Esta função não precisa de hash_funcs, pois é chamada fora do cache
 def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional: str, client: genai.Client) -> str:
     """Gera o relatório de análise consolidado, agora mais conciso e focado no split Entidade/DCF."""
     
     # Prepara os dados para análise (JSON)
-    # Nota: Usar 'iso' para datas em JSON é o padrão recomendado.
     transacoes_json = df_transacoes.to_json(orient='records', date_format='iso', indent=2)
     
     # Adiciona o contexto do usuário ao prompt
@@ -390,7 +419,7 @@ with tab1:
                 
                 pdf_bytes = uploaded_file.getvalue()
                 with extraction_status:
-                    # Chama a função, que agora é cacheável corretamente
+                    # Chama a função, que agora tem retentativas
                     dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client)
 
                 todas_transacoes.extend(dados_dict['transacoes'])
@@ -411,7 +440,7 @@ with tab1:
                 # Converte para datetime e mantém o tipo nativo do Pandas.
                 df_transacoes['data'] = pd.to_datetime(df_transacoes['data'], errors='coerce', dayfirst=True)
                 
-                # NOVO: Limpeza e garantia de tipos (Robustez contra dados faltantes do Gemini)
+                # Limpeza e garantia de tipos (Robustez contra dados faltantes do Gemini)
                 df_transacoes['valor'] = df_transacoes['valor'].fillna(0)
                 df_transacoes['tipo_movimentacao'] = df_transacoes['tipo_movimentacao'].fillna('DEBITO')
                 df_transacoes['entidade'] = df_transacoes['entidade'].fillna('EMPRESARIAL') # Default mais seguro
