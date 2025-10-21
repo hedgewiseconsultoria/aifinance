@@ -336,13 +336,12 @@ def criar_dashboard(df: pd.DataFrame):
         # Calcula o Fluxo de Caixa Total
         df_pivot['Fluxo_Caixa_Total'] = df_pivot['EMPRESARIAL'] + df_pivot['PESSOAL']
 
-        # Gráfico de barras com a separação por entidade (fluxo de cada um)
+        # CORREÇÃO CRÍTICA: st.bar_chart não aceita dicionário para color. 
+        # Passamos as colunas Y e uma lista de cores na ordem correta.
         st.bar_chart(
-            df_pivot[['EMPRESARIAL', 'PESSOAL']],
-            color={
-                "EMPRESARIAL": PRIMARY_COLOR,
-                "PESSOAL": NEGATIVE_COLOR,
-            },
+            df_pivot,
+            y=['EMPRESARIAL', 'PESSOAL'], # Colunas Y explícitas
+            color=[PRIMARY_COLOR, NEGATIVE_COLOR], # Lista de cores na mesma ordem
             height=350
         )
         st.caption("O fluxo **PESSOAL** representa as retiradas ou gastos do sócio (geralmente negativo). O fluxo **EMPRESARIAL** (negócio principal) deve ser positivo.")
