@@ -154,7 +154,9 @@ class ExtratoBancarioCompleto(BaseModel):
 
 # --- 3. FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO ---
 
-@st.cache_data(show_spinner=False) # Spinner é gerenciado manualmente para melhor feedback
+# CORREÇÃO CRÍTICA: Adiciona hash_funcs={genai.Client: lambda _: None} para evitar o UnhashableParamError, 
+# pois o objeto 'client' não é hashable e é constante.
+@st.cache_data(show_spinner=False, hash_funcs={genai.Client: lambda _: None})
 def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> dict:
     """Chama a Gemini API para extrair dados estruturados e classificar DCF e Entidade."""
     
@@ -381,6 +383,7 @@ with tab1:
                 
                 pdf_bytes = uploaded_file.getvalue()
                 with extraction_status:
+                    # Chama a função, que agora é cacheável corretamente
                     dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client)
 
                 todas_transacoes.extend(dados_dict['transacoes'])
