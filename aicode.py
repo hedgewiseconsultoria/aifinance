@@ -109,7 +109,7 @@ st.markdown(
             margin-top: 20px;
             margin-bottom: 20px;
         }}
-        /* CORREÇÃO DO RELATÓRIO: Garante fundo branco e fonte preta, remove label */
+        /* CORREÇÃO FINAL DO RELATÓRIO: Garante fonte PRETA e remove label */
         .report-textarea > div > label {{
             display: none; /* Remove o label do text_area */
         }}
@@ -119,8 +119,13 @@ st.markdown(
             box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
             font-family: Arial, sans-serif !important; 
             font-size: 1.0em !important;
-            color: {SECONDARY_COLOR} !important; /* Cor da fonte preta */
+            /* **FORÇA A COR PRETA COM IMPORTANT** */
+            color: #000000 !important; 
             border: 1px solid #ddd;
+        }}
+        /* Garante que o texto dentro do text_area seja preto */
+        .report-textarea textarea {{
+             color: #000000 !important; 
         }}
     </style>
     """,
@@ -137,7 +142,6 @@ if 'contexto_adicional' not in st.session_state:
 
 # Inicializa o cliente Gemini
 try:
-    # A API key deve estar em st.secrets
     api_key = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=api_key)
 except (KeyError, AttributeError):
@@ -245,7 +249,7 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
     if contexto_adicional:
         contexto_prompt = f"\n\n--- CONTEXTO ADICIONAL DO EMPREENDEDOR ---\n{contexto_adicional}\n--- FIM DO CONTEXTO ---\n"
         
-    # PROMPT DE RELATÓRIO OTIMIZADO - RIGOROSO CONTRA NEGRITO (**)
+    # PROMPT DE RELATÓRIO OTIMIZADO - RIGOROSO CONTRA NEGRITO (**) E TEXTO SIMPLES
     prompt_analise = (
         "Você é um consultor financeiro inteligente especializado em PME (Pequenas e Médias Empresas). "
         "Sua tarefa é analisar os KPIs CALCULADOS e CONSOLIDADOS fornecidos abaixo. "
@@ -255,7 +259,7 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
         
         "Use o seguinte formato, com quebras de linha (enter) após cada parágrafo. "
         "**NÃO USE NEGRITO (**) ou outros caracteres especiais (exceto R$ e vírgulas) no corpo do texto.** "
-        "O texto deve ser plano e fácil de ler. Garanta que o texto siga estritamente este formato: "
+        "O texto deve ser plano, simples e sem formatação Markdown. Garanta que o texto siga estritamente este formato: "
         
         "Prezado(a) cliente,\n"
         "Segue análise concisa dos KPIs para sua PME, focada em gestão de caixa e sustentabilidade:\n\n"
@@ -304,7 +308,7 @@ def load_header():
 def criar_dashboard(df: pd.DataFrame):
     """
     Cria os gráficos de fluxo de caixa mensal, focando no comparativo Operacional vs. Pessoal (barras agrupadas).
-    CORRIGIDO O ERRO DO GRÁFICO AGRUPADO usando o x e xOffset de forma canônica no Altair.
+    CORRIGIDO O GRÁFICO AGRUPADO utilizando column para o mês e x para o tipo.
     """
     st.subheader("Dashboard: Fluxo de Caixa Mensal por Entidade e DCF")
     
@@ -352,14 +356,14 @@ def criar_dashboard(df: pd.DataFrame):
         domain_order = ['Operacional Empresarial', 'Fluxo Pessoal (Retiradas)']
         range_colors = [ACCENT_COLOR, NEGATIVE_COLOR]
         
-        # Definição do gráfico Altair Corrigido
+        # Definição do gráfico Altair Corrigido: Usamos column para o mês e x para o tipo.
         chart = alt.Chart(df_kpi_comparativo_long).mark_bar().encode(
-            # Eixo X principal (Mês/Ano) - Define a posição do grupo
-            x=alt.X('mes_ano_str:N', title='Mês/Ano'),
-            # Sub-agrupamento no eixo X (Tipo) - Define o deslocamento da barra
-            xOffset=alt.XOffset('Tipo:N', scale=alt.Scale(domain=domain_order)),
+            # Eixo X: Tipo de fluxo (agrupamento dentro do mês) - Garante barras vizinhas
+            x=alt.X('Tipo:N', title='Tipo de Fluxo', axis=None), 
             # Eixo Y: O Valor do Fluxo
             y=alt.Y('Valor:Q', title='Fluxo de Caixa (R$)', axis=alt.Axis(format='s', titlePadding=10)),
+            # Coluna: Mês/Ano (cria a repetição do agrupamento por mês)
+            column=alt.Column('mes_ano_str:N', header=alt.Header(title='Mês/Ano', titleOrient="bottom", labelOrient="bottom")),
             # Cor: Definida pelo campo 'Tipo'
             color=alt.Color('Tipo:N', scale=alt.Scale(
                 domain=domain_order,
@@ -367,9 +371,13 @@ def criar_dashboard(df: pd.DataFrame):
             ), legend=alt.Legend(title="Tipo de Fluxo")), 
             tooltip=['mes_ano_str', 'Tipo', alt.Tooltip('Valor', format='R$ ,.2f')]
         ).properties(
-            title='Comparativo Operacional vs. Pessoal por Mês'
+            title=''
         ).configure_view(
+            # Remove a borda para visualização mais limpa
             stroke=None
+        ).configure_header(
+            titleFontSize=14,
+            labelFontSize=12
         ).interactive() # Permite zoom e pan
         
         st.altair_chart(chart, use_container_width=True)
@@ -554,11 +562,11 @@ with tab2:
         
         st.markdown("---")
 
-        # 6.1. Exibe o Relatório de Análise (CORRIGIDO PARA ST.TEXT_AREA SEM LABEL)
+        # 6.1. Exibe o Relatório de Análise (CORRIGIDO CSS PARA PRETO, SEM LABEL)
         if st.session_state['relatorio_consolidado'] and st.session_state['relatorio_consolidado'] not in ["Aguardando análise de dados...", "Aguardando geração do relatório..."]:
             st.subheader("Relatório de Análise Consolidada")
             
-            # CORREÇÃO DA FORMATAÇÃO: Removido o label, mantida a área de texto não-editável
+            # CORREÇÃO DA FORMATAÇÃO: Removido o label e ajustado o CSS para forçar o preto
             st.markdown('<div class="report-textarea">', unsafe_allow_html=True)
             st.text_area(
                 label="", # Label vazio
