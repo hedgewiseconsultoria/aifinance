@@ -13,11 +13,10 @@ import calendar
 def formatar_brl(valor: float) -> str:
     """
     Formata um valor float para a moeda Real Brasileiro (R$ xx.xxx,xx).
-    Esta função usa uma abordagem manual para garantir a portabilidade do separador de milhares (ponto) 
-    e separador decimal (vírgula).
     """
-    # Arredonda o valor e usa formatação US (vírgula para milhar, ponto para decimal)
-    # Ex: 12345.67 -> '12,345.67'
+    # Usa a formatação nativa (locale) com uma abordagem manual simples
+    # para garantir a portabilidade do separador de milhares (ponto) 
+    # e separador decimal (vírgula).
     valor_us = f"{valor:,.2f}"
     
     # 1. Troca o separador de milhares US (vírgula) por um temporário
@@ -121,7 +120,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Inicializa o estado da sessão para armazenar o DataFrame
+# Inicializa o estado da sessão
 if 'df_transacoes_editado' not in st.session_state:
     st.session_state['df_transacoes_editado'] = pd.DataFrame()
 if 'relatorio_consolidado' not in st.session_state:
@@ -139,46 +138,49 @@ except (KeyError, AttributeError):
     st.stop()
 
 
-# --- 2. DEFINIÇÃO DO SCHEMA PYDANTIC (Estrutura de Saída) ---
+# --- 2. DEFINIÇÃO DO SCHEMA PYDANTIC (Estrutura de Saída ÚNICA E OTIMIZADA) ---
 
 class Transacao(BaseModel):
     """Representa uma única transação no extrato bancário."""
     data: str = Field(
-        description="A data da transação no formato 'DD/MM/AAAA' ou 'AAAA-MM-DD'."
+        # OTIMIZAÇÃO: Descrição mais curta
+        description="A data da transação no formato 'DD/MM/AAAA'."
     )
     descricao: str = Field(
-        description="Descrição detalhada da transação, como o nome do estabelecimento ou tipo de serviço."
+        description="Descrição detalhada da transação."
     )
     valor: float = Field(
-        description="O valor numérico da transação. Sempre positivo. Ex: 150.75"
+        description="O valor numérico da transação. Sempre positivo."
     )
     tipo_movimentacao: str = Field(
         description="Classificação da movimentação: 'DEBITO' ou 'CREDITO'."
     )
     categoria_sugerida: str = Field(
-        description="Sugestão de categoria mais relevante para esta transação (Ex: 'Alimentação', 'Transporte', 'Salário', 'Investimento', 'Serviços')."
+        # OTIMIZAÇÃO: Exemplos de categorias mais concisos
+        description="Sugestão de categoria mais relevante (Ex: Alimentação, Salário, Investimento, Serviço)."
     )
     categoria_dcf: str = Field( 
-        description="Classificação da transação para o Demonstrativo de Fluxo de Caixa (DCF): 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO'."
+        description="Classificação DCF: 'OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO'."
     )
     entidade: str = Field(
-        description="Classificação binária para identificar a origem/destino da movimentação: 'EMPRESARIAL' (relacionada ao negócio) ou 'PESSOAL' (retiradas dos sócios ou gastos pessoais detectados)."
+        description="Classificação binária: 'EMPRESARIAL' ou 'PESSOAL'."
     )
 
-class ExtratoBancarioCompleto(BaseModel):
-    """Contém a lista de transações e o relatório de análise."""
+class AnaliseCompleta(BaseModel):
+    """Contém a lista de transações E o relatório de análise inicial."""
     transacoes: List[Transacao] = Field(
         description="Uma lista de objetos 'Transacao' extraídos do documento."
+    )
+    relatorio_inicial: str = Field(
+        # Instrução para um relatório inicial conciso (confirmação)
+        description="Confirmação de extração dos dados deste extrato. Use: 'Extração concluída. Saldo final: [Valor Formatado em BRL].'"
     )
     saldo_final: float = Field(
         description="O saldo final da conta no extrato. Use zero se não for encontrado."
     )
-    relatorio_analise: str = Field(
-        description="Confirmação de extração dos dados deste extrato. Use 'Extração de dados concluída com sucesso.'"
-    )
 
 
-# --- 3. FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO ---
+# --- 3. FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO E RELATÓRIO INICIAL ---
 
 @st.cache_data(show_spinner=False, hash_funcs={genai.Client: lambda _: None})
 def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> dict:
@@ -186,102 +188,115 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
     
     pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type='application/pdf')
 
+    # PROMPT DE EXTRAÇÃO OTIMIZADO (FOCADO E CONCISO)
     prompt_analise = (
         f"Você é um especialista em extração e classificação de dados financeiros. "
-        f"Seu trabalho é extrair todas as transações deste extrato bancário em PDF do arquivo '{filename}' e "
-        "classificar cada transação rigorosamente em uma 'categoria_dcf' ('OPERACIONAL', 'INVESTIMENTO' ou 'FINANCIAMENTO') E "
-        "em uma 'entidade' ('EMPRESARIAL' ou 'PESSOAL'). "
-        "Use o contexto de que a maioria das movimentações devem ser EMPRESARIAIS, mas qualquer retirada para sócios, pagamento de contas pessoais ou compras não relacionadas ao CNPJ deve ser classificada como PESSOAL. "
-        "Não gere relatórios. Preencha apenas a estrutura JSON rigorosamente. "
-        "Use sempre o valor positivo para 'valor' e classifique estritamente como 'DEBITO' ou 'CREDITO'."
+        f"Extraia todas as transações deste extrato bancário em PDF ('{filename}') e "
+        "classifique cada transação rigorosamente nas categorias 'categoria_dcf' (OPERACIONAL, INVESTIMENTO, FINANCIAMENTO) "
+        "e 'entidade' (EMPRESARIAL ou PESSOAL). "
+        "A maioria das movimentações deve ser EMPRESARIAL, mas retiradas de sócios ou gastos pessoais devem ser PESSOAL. "
+        "Preencha a estrutura JSON rigorosamente. Use valor POSITIVO para 'valor' e classifique estritamente como 'DEBITO' ou 'CREDITO'."
     )
     
     config = types.GenerateContentConfig(
         response_mime_type="application/json",
-        response_schema=ExtratoBancarioCompleto,
+        response_schema=AnaliseCompleta, # NOVO SCHEMA
         temperature=0.2 # Baixa temperatura para foco na extração
     )
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash', # ALTERADO DE gemini-2.5-pro PARA gemini-2.5-flash
+            model='gemini-2.5-flash', 
             contents=[pdf_part, prompt_analise],
             config=config,
         )
         
         response_json = json.loads(response.text)
-        dados_pydantic = ExtratoBancarioCompleto(**response_json)
+        dados_pydantic = AnaliseCompleta(**response_json)
         
         return dados_pydantic.model_dump()
-    
+        
     except Exception as e:
         error_message = str(e)
         
         # TRATAMENTO ESPECÍFICO PARA ERRO DE SOBRECARGA DA API (503 UNAVAILABLE)
         if "503 UNAVAILABLE" in error_message or "model is overloaded" in error_message:
             st.error(f"⚠️ ERRO DE CAPACIDADE DA API: O modelo Gemini está sobrecarregado (503 UNAVAILABLE) ao processar {filename}.")
-            st.info("Este é um erro temporário do servidor da API. Por favor, tente novamente em alguns minutos. O problema não está no seu código ou no seu PDF.")
+            st.info("Este é um erro temporário do servidor da API. Por favor, tente novamente em alguns minutos.")
         else:
-            # Erro genérico (API Key errada, PDF ilegível, etc.)
             print(f"Erro ao chamar a Gemini API para {filename}: {error_message}")
 
         return {
             'transacoes': [], 
             'saldo_final': 0.0, 
-            'relatorio_analise': f"**Falha na Extração:** Ocorreu um erro ao processar o arquivo {filename}. Motivo: {error_message}"
+            'relatorio_inicial': f"**Falha na Extração:** Ocorreu um erro ao processar o arquivo {filename}. Motivo: {error_message}"
         }
 
-# --- 3.1. FUNÇÃO DE GERAÇÃO DE RELATÓRIO CONSOLIDADO ---
 
-def gerar_relatorio_consolidado(df_transacoes: pd.DataFrame, contexto_adicional: str, client: genai.Client) -> str:
-    """Gera o relatório de análise consolidado, agora mais conciso e focado no split Entidade/DCF. 
-        Aplica filtro de colunas e formatação de data para reduzir o payload de JSON."""
+# --- 3.1. FUNÇÃO DE GERAÇÃO DE RELATÓRIO CONSOLIDADO (ECONÔMICO) ---
+
+def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicional: str, client: genai.Client) -> str:
+    """Gera o relatório final, enviando apenas os KPIs e a distribuição de fluxo (texto/tabela),
+    NÃO O JSON COMPLETO do DataFrame, para máxima economia de tokens."""
     
-    # CRITICAL FIX: Criar uma cópia do DF e formatar/filtrar colunas para reduzir o tamanho do JSON payload
-    df_temp = df_transacoes.copy()
+    # 1. Pré-cálculo dos KPIs no Python (Tokens Zero)
     
-    # 1. Formatar a data para uma string simples (YYYY-MM-DD) antes de serializar
-    df_temp['data'] = df_temp['data'].dt.strftime('%Y-%m-%d')
+    # Cria a coluna de Fluxo
+    df_transacoes['fluxo'] = df_transacoes.apply(
+        lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'], 
+        axis=1
+    )
     
-    # 2. Selecionar apenas as colunas essenciais para a análise do LLM
-    df_analise = df_temp[['data', 'descricao', 'valor', 'tipo_movimentacao', 
-                          'categoria_sugerida', 'categoria_dcf', 'entidade']]
+    # Resumo por DCF e Entidade (o que o LLM precisa analisar)
+    resumo_dcf = df_transacoes.groupby('categoria_dcf')['fluxo'].sum()
+    resumo_entidade = df_transacoes.groupby('entidade')['fluxo'].sum()
     
-    # Gerar o JSON a partir do DF filtrado (muito menor)
-    transacoes_json = df_analise.to_json(orient='records', date_format='iso', indent=2)
+    # Cálculo do saldo operacional
+    saldo_operacional = resumo_dcf.get('OPERACIONAL', 0.0)
     
-    # Adiciona o contexto do usuário ao prompt
+    # Geração de texto conciso de contexto para o Prompt
+    texto_resumo = f"""
+    1. Saldo Líquido do Período: {formatar_brl(df_transacoes['fluxo'].sum())}
+    2. Saldo Operacional (DCF): {formatar_brl(saldo_operacional)}
+    3. Resumo por Entidade (Fluxo):
+       - Empresarial: {formatar_brl(resumo_entidade.get('EMPRESARIAL', 0.0))}
+       - Pessoal (Retiradas): {formatar_brl(resumo_entidade.get('PESSOAL', 0.0))}
+    4. Distribuição por DCF (Fluxo):
+       - Operacional: {formatar_brl(resumo_dcf.get('OPERACIONAL', 0.0))}
+       - Investimento: {formatar_brl(resumo_dcf.get('INVESTIMENTO', 0.0))}
+       - Financiamento: {formatar_brl(resumo_dcf.get('FINANCIAMENTO', 0.0))}
+    """
+    
     contexto_prompt = ""
     if contexto_adicional:
         contexto_prompt = f"\n\n--- CONTEXTO ADICIONAL DO EMPREENDEDOR ---\n{contexto_adicional}\n--- FIM DO CONTEXTO ---\n"
-    
-    # Prompt de relatório ajustado (INCLUI INSTRUÇÃO PARA FORMATO BRL)
+        
+    # PROMPT DE RELATÓRIO OTIMIZADO (FOCADO EM VALOR DE NEGÓCIOS E CONCISÃO)
     prompt_analise = (
-        "Você é um analista financeiro de elite, especializado em PME (Pequenas e Médias Empresas). "
-        "Seu trabalho é analisar o conjunto de transações CONSOLIDADAS (incluindo as correções manuais do usuário) fornecido abaixo em JSON. "
-        "Todas as transações estão classificadas em 'OPERACIONAL', 'INVESTIMENTO', 'FINANCIAMENTO' (DCF) e 'EMPRESARIAL' ou 'PESSOAL' (Entidade). "
-        "Gere um relatório de análise EXTREMAMENTE CONCISO, FOCADO E ACIONÁVEL, voltado para a gestão de caixa. "
+        "Você é um consultor financeiro inteligente especializado em PME (Pequenas e Médias Empresas). "
+        "Sua tarefa é analisar os KPIs CALCULADOS e CONSOLIDADOS fornecidos abaixo, que já incorporam as correções do usuário. "
+        "Gere um relatório EXTREMAMENTE CONCISO e ACIONÁVEL, com **no máximo 180 palavras**, focado em gestão de caixa e sustentabilidade. "
         
         f"{contexto_prompt}"
         
         "É mandatório que você inclua as seguintes análises, separadas por parágrafos curtos: "
-        "1. Desempenho Operacional: Calcule e detalhe o saldo líquido total gerado pela atividade OPERACIONAL. Este é o fluxo de caixa central da empresa. "
-        "2. Análise Pessoal vs. Empresarial: Calcule e comente o impacto do fluxo PESSOAL (saídas PESSOAIS, como pró-labore, retiradas indevidas) no caixa da empresa. O saldo operacional foi suficiente para cobrir as retiradas? "
-        "3. Sugestões Estratégicas: Sugestões acionáveis para otimizar o capital de giro e melhorar o fluxo operacional com base nas categorias de maior gasto. "
+        "1. Desempenho Operacional: Calcule e comente o saldo líquido gerado pela atividade OPERACIONAL (saúde do negócio). "
+        "2. Análise Pessoal vs. Empresarial: Comente o impacto do fluxo PESSOAL no caixa. O saldo operacional é suficiente para cobrir as retiradas? "
+        "3. Sugestões Estratégicas: Sugestões acionáveis para otimizar o capital de giro, com base nas categorias de maior gasto (se perceptível). "
+        "4. Remuneração Ideal / Projeção: Comente se as retiradas atuais são sustentáveis e estime um valor ideal de pró-labore mensal para os próximos 3 meses, sem comprometer o negócio."
         
-        # MUDANÇA AQUI: Instruindo o modelo a usar o formato BRL nos relatórios
-        "Use apenas texto simples e Markdown básico (como negrito `**`). Ao citar valores monetários, utilize o formato brasileiro (ponto para milhares e vírgula para decimais) e o prefixo R$. Não use listas ou headings."
+        "Use apenas texto simples e Markdown básico (como negrito `**`). Use o formato brasileiro (ponto para milhares e vírgula para decimais) e o prefixo R$."
         
-        "\n\n--- DADOS CONSOLIDADOS (JSON) ---\n"
-        f"{transacoes_json}"
+        "\n\n--- DADOS CONSOLIDADOS (KPIs) ---\n"
+        f"{texto_resumo}"
     )
     
     config = types.GenerateContentConfig(temperature=0.4)
     
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash', # ALTERADO DE gemini-2.5-pro PARA gemini-2.5-flash
-            contents=[prompt_analise],
+            model='gemini-2.5-flash', 
+            contents=[prompt_analise], # Chamada muito mais leve (só texto)
             config=config,
         )
         return response.text
@@ -317,12 +332,12 @@ def load_header():
         st.markdown("---")
 
 
-# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD ---
+# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD (COM AJUSTE PARA BARRAS DUPLAS) ---
 
 def criar_dashboard(df: pd.DataFrame):
     """
     Cria os gráficos de fluxo de caixa mensal, incluindo a comparação por Entidade 
-    e a comparação mensal entre os fluxos Operacional, Investimento e Financiamento (DCF).
+    (barras duplas) e a comparação mensal entre os fluxos Operacional, Investimento e Financiamento (DCF).
     """
     st.subheader("Dashboard: Fluxo de Caixa Mensal por Entidade e DCF")
     
@@ -332,8 +347,6 @@ def criar_dashboard(df: pd.DataFrame):
 
     try:
         # 1. Pré-processamento e Cálculo do Fluxo
-        # Converte a data para datetime e extrai Mês/Ano (garantindo que só datas válidas prossigam)
-        # Usa dayfirst=True para tratar formato brasileiro DD/MM/AAAA
         df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True) 
         df.dropna(subset=['data'], inplace=True) # Remove linhas com data inválida
         
@@ -347,7 +360,6 @@ def criar_dashboard(df: pd.DataFrame):
         df['mes_ano_str'] = df['data'].dt.to_period('M').astype(str) # Converte para Period e depois para String (YYYY-MM)
         
         # 2. Agrupamento e Pivotação dos Dados (Por Entidade)
-        # Usa 'mes_ano_str' para agrupamento
         df_agrupado = df.groupby(['mes_ano_str', 'entidade'])['fluxo'].sum().reset_index()
 
         # Pivota a tabela para ter Entidades como colunas para o gráfico
@@ -362,10 +374,10 @@ def criar_dashboard(df: pd.DataFrame):
         # Reordena o índice para garantir a ordem cronológica
         df_pivot_entidade.sort_index(inplace=True)
         
-        # 3. Criação do Primeiro Gráfico (Fluxo de Caixa Mensal por Entidade)
+        # 3. Criação do Primeiro Gráfico (Fluxo de Caixa Mensal por Entidade) - BARRAS DUPLAS
         st.markdown("### Comparativo Mensal de Fluxo por Entidade (R$)")
         
-        # Bar chart for Entity
+        # O st.bar_chart com múltiplas colunas Y e o índice como X JÁ GERA BARRAS AGRUPADAS.
         st.bar_chart(
             df_pivot_entidade,
             y=['EMPRESARIAL', 'PESSOAL'], # Colunas Y explícitas
@@ -408,11 +420,9 @@ def criar_dashboard(df: pd.DataFrame):
 
 
     except Exception as e:
-        # Adiciona logging para rastrear outros erros potenciais
         import traceback
         st.error(f"Erro ao gerar o dashboard: {e}")
         st.code(f"Detalhes do erro:\n{traceback.format_exc()}")
-        st.info("Verifique se as colunas 'entidade', 'valor' e 'data' estão preenchidas corretamente no Data Editor.")
 
 
 # --- 6. INTERFACE STREAMLIT PRINCIPAL ---
@@ -441,7 +451,7 @@ with tab1:
         # Caixa de texto para contexto adicional
         contexto_adicional_input = st.text_area(
             "2. Contexto Adicional para a Análise (Opcional)",
-            value=st.session_state['contexto_adicional'], # Mantém o valor
+            value=st.session_state.get('contexto_adicional', ''), 
             placeholder="Ex: 'Todos os depósitos em dinheiro (cash) são provenientes de vendas diretas.'",
             key="contexto_input",
             help="Use este campo para fornecer à IA informações contextuais que não estão nos extratos."
@@ -449,7 +459,7 @@ with tab1:
 
 
     # Verifica se o contexto foi alterado e o atualiza no estado
-    if contexto_adicional_input != st.session_state['contexto_adicional']:
+    if contexto_adicional_input != st.session_state.get('contexto_adicional', ''):
         st.session_state['contexto_adicional'] = contexto_adicional_input
 
 
@@ -469,7 +479,6 @@ with tab1:
                 
                 pdf_bytes = uploaded_file.getvalue()
                 with extraction_status:
-                    # Chama a função, que agora é cacheável corretamente
                     dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client)
 
                 todas_transacoes.extend(dados_dict['transacoes'])
@@ -517,12 +526,9 @@ with tab1:
             # st.data_editor permite a edição interativa dos dados
             edited_df = st.data_editor(
                 st.session_state['df_transacoes_editado'],
-                # FIX: Substitui use_container_width=True por width='stretch'
                 width='stretch',
                 column_config={
-                    # Data: Exibida como string, mas formatada para edição
                     "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
-                    # A coluna valor usa a formatação padrão do Streamlit (US), mas os KPIs usarão a função BRL
                     "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f", required=True), 
                     "tipo_movimentacao": st.column_config.SelectboxColumn(
                         "Tipo", 
@@ -549,9 +555,9 @@ with tab1:
                 # 1. Armazena a versão editada no estado
                 st.session_state['df_transacoes_editado'] = edited_df
                 
-                # 2. Geração do Relatório Consolidado (SEGUNDA CHAMADA AO GEMINI)
-                with st.spinner("Gerando Relatório de Análise Consolidada (usando dados corrigidos)..."):
-                    relatorio_consolidado = gerar_relatorio_consolidado(
+                # 2. Geração do Relatório Consolidado (CHAMADA ÚNICA E ECONÔMICA)
+                with st.spinner("Gerando Relatório de Análise Consolidada (com dados corrigidos e KPIs calculados no Python)..."):
+                    relatorio_consolidado = gerar_relatorio_final_economico(
                         edited_df, 
                         st.session_state.get('contexto_adicional', ''), 
                         client
@@ -584,20 +590,17 @@ with tab2:
         
         with kpi_col1:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            # APLICAÇÃO DA FUNÇÃO DE FORMATAÇÃO BRL
             st.metric("Total de Créditos", formatar_brl(total_credito)) 
             st.markdown('</div>', unsafe_allow_html=True)
 
         with kpi_col2:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-            # APLICAÇÃO DA FUNÇÃO DE FORMATAÇÃO BRL
             st.metric("Total de Débitos", formatar_brl(total_debito))
             st.markdown('</div>', unsafe_allow_html=True)
 
         with kpi_col3:
             st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
             delta_color = "normal" if saldo_periodo >= 0 else "inverse"
-            # APLICAÇÃO DA FUNÇÃO DE FORMATAÇÃO BRL
             st.metric("Resultado do Período", formatar_brl(saldo_periodo), delta_color=delta_color)
             st.markdown('</div>', unsafe_allow_html=True)
         
@@ -620,18 +623,14 @@ with tab2:
 # --- Rodapé ---
 st.markdown("---")
 try:
-    # 1. Tenta carregar a imagem local (PNG)
     footer_logo = Image.open(LOGO_FILENAME)
     
-    # 2. Cria colunas para o rodapé: uma pequena para a logo e o restante para o texto
     footer_col1, footer_col2 = st.columns([1, 4]) 
     
     with footer_col1:
-        # Exibe a logo (tamanho reduzido para rodapé)
         st.image(footer_logo, width=40)
         
     with footer_col2:
-        # Exibe o texto de informação (com um pequeno padding para alinhar com o logo)
         st.markdown(
             """
             <p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">
@@ -650,4 +649,3 @@ except Exception:
         """,
         unsafe_allow_html=True
     )
-
