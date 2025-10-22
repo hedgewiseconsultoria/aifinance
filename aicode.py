@@ -28,10 +28,10 @@ NEGATIVE_COLOR = "#DC3545" # Vermelho (Gráfico Pessoal)
 FINANCING_COLOR = "#FFC107" # Amarelo/Dourado
 
 LOGO_FILENAME = "logo_hedgewise.png"
-
+#📈
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
-    page_icon="📈",
+    page_icon="LOGO_FILENAME",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -497,3 +497,4 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
