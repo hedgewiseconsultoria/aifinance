@@ -8,6 +8,7 @@ from typing import List, Optional
 from google import genai
 from google.genai import types
 import altair as alt
+import plotly.express as px  # Adicionado para gráficos interativos mais profissionais
 
 # --- FUNÇÃO DE FORMATAÇÃO BRL ---
 def formatar_brl(valor: float) -> str:
@@ -42,30 +43,26 @@ LOGO_FILENAME = "logo_hedgewise.png"
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
     page_icon="📈",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"  # Sidebar expandida por padrão para navegação
 )
 
-# Adiciona CSS customizado para o tema
+# Adiciona CSS customizado para o tema - Expandido para mais profissionalismo
 st.markdown(
     f"""
     <style>
-        /* Estilo para o Botão Principal */
-        .stButton>button {{
-            background-color: {PRIMARY_COLOR};
-            color: white;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-weight: bold;
-            border: none;
-            transition: background-color 0.3s;
-        }}
-        .stButton>button:hover {{
-            background-color: #1C3757; 
-            color: white;
-        }}
         /* Fundo da Aplicação */
         .stApp {{
             background-color: {BACKGROUND_COLOR};
+        }}
+        /* Sidebar */
+        [data-testid="stSidebar"] {{
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }}
+        [data-testid="stSidebar"] .stButton>button {{
+            width: 100%;
+            margin-bottom: 10px;
         }}
         /* Header Principal */
         .main-header {{
@@ -109,7 +106,21 @@ st.markdown(
             margin-top: 20px;
             margin-bottom: 20px;
         }}
-        
+        /* Botões */
+        .stButton>button {{
+            background-color: {PRIMARY_COLOR};
+            color: white;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: bold;
+            border: none;
+            transition: background-color 0.3s, transform 0.2s;
+        }}
+        .stButton>button:hover {{
+            background-color: #1C3757; 
+            color: white;
+            transform: scale(1.05);
+        }}
         /* CORREÇÃO DO RELATÓRIO FINAL: Garante fundo BRANCO e cor PRETA */
         .report-textarea > div > label {{
             display: none; /* Remove o label do text_area */
@@ -118,7 +129,7 @@ st.markdown(
             background-color: white !important;
             border-radius: 8px !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
-            font-family: Arial, sans-serif !important; 
+            font-family: Roboto, sans-serif !important; 
             font-size: 1.0em !important;
             color: #000000 !important; 
             border: 1px solid #ddd;
@@ -134,7 +145,13 @@ st.markdown(
             color: #000000 !important;
             border: 1px solid #ddd !important;
         }}
+        /* Gráficos */
+        .stPlotlyChart {{
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }}
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     """,
     unsafe_allow_html=True
 )
@@ -311,14 +328,16 @@ def load_header():
         st.markdown("---")
 
 
-# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD (SIMPLIFICADA) ---
+# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD (MELHORADA) ---
 
 def criar_dashboard(df: pd.DataFrame):
     """
-    Cria o gráfico de fluxo de caixa mensal pelo método DCF (Operacional, Investimento, Financiamento).
-    EXCLUÍDO o gráfico de barras agrupadas "Geração de Caixa".
+    Cria um dashboard enriquecido com múltiplas visualizações interativas usando Plotly para profissionalismo.
+    - Gráfico de linha DCF (mantido, mas com Plotly para interatividade)
+    - Pie chart para distribuição de categorias sugeridas
+    - Bar chart agrupado para fluxo por entidade e mês
     """
-    st.subheader("Dashboard: Fluxo de Caixa Mensal por DCF")
+    st.subheader("Dashboard: Análise de Fluxo de Caixa")
     
     if df.empty:
         st.info("Nenhum dado disponível para o dashboard. Por favor, analise e confirme as transações na aba anterior.")
@@ -336,30 +355,63 @@ def criar_dashboard(df: pd.DataFrame):
 
         df['mes_ano_str'] = df['data'].dt.strftime('%Y-%m')
         
-        # 2. Análise DCF (Gráfico de Linhas - MANTIDO)
-        st.markdown("### Comparativo Mensal de Fluxo de Caixa pelo Método DCF (Operacional, Investimento, Financiamento)")
+        # 2. Gráfico de Linha DCF com Plotly para interatividade
+        st.markdown("### Comparativo Mensal de Fluxo de Caixa pelo Método DCF")
         
         df_dcf_agrupado = df.groupby(['mes_ano_str', 'categoria_dcf'])['fluxo'].sum().reset_index()
-        df_dcf_pivot = df_dcf_agrupado.pivot(index='mes_ano_str', columns='categoria_dcf', values='fluxo').fillna(0)
         
-        # Garante que as colunas DCF existam no dataframe pivotado, mesmo se vazias
-        dcf_columns = ['OPERACIONAL', 'INVESTIMENTO', 'FINANCIAMENTO']
-        for col in dcf_columns:
-            if col not in df_dcf_pivot.columns:
-                df_dcf_pivot[col] = 0.0
-                
-        DCF_COLORS = [
-            PRIMARY_COLOR, 
-            ACCENT_COLOR,   
-            FINANCING_COLOR 
-        ]
-
-        st.line_chart(
-            df_dcf_pivot[dcf_columns], 
-            color=DCF_COLORS,
-            height=350
+        fig_dcf = px.line(
+            df_dcf_agrupado, 
+            x='mes_ano_str', 
+            y='fluxo', 
+            color='categoria_dcf',
+            title='Fluxo de Caixa por DCF',
+            labels={'fluxo': 'Fluxo (R$)', 'mes_ano_str': 'Mês/Ano', 'categoria_dcf': 'Categoria DCF'},
+            color_discrete_map={
+                'OPERACIONAL': ACCENT_COLOR,
+                'INVESTIMENTO': PRIMARY_COLOR,
+                'FINANCIAMENTO': FINANCING_COLOR
+            }
         )
+        fig_dcf.update_layout(height=400, plot_bgcolor='white', font=dict(family="Roboto"))
+        st.plotly_chart(fig_dcf, use_container_width=True)
         st.caption("O fluxo **OPERACIONAL** é o principal indicador de saúde (o negócio em si).")
+
+        # 3. Novo: Pie Chart para Distribuição de Categorias Sugeridas (Despesas)
+        st.markdown("### Distribuição de Despesas por Categoria Sugerida")
+        df_despesas = df[df['tipo_movimentacao'] == 'DEBITO'].groupby('categoria_sugerida')['valor'].sum().reset_index()
+        if not df_despesas.empty:
+            fig_pie = px.pie(
+                df_despesas, 
+                values='valor', 
+                names='categoria_sugerida',
+                title='Distribuição de Despesas',
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            fig_pie.update_layout(height=400, font=dict(family="Roboto"))
+            st.plotly_chart(fig_pie, use_container_width=True)
+        else:
+            st.info("Nenhuma despesa encontrada para distribuição.")
+
+        # 4. Novo: Bar Chart Agrupado para Fluxo por Entidade e Mês
+        st.markdown("### Fluxo por Entidade (Empresarial vs. Pessoal)")
+        df_entidade_agrupado = df.groupby(['mes_ano_str', 'entidade'])['fluxo'].sum().reset_index()
+        fig_bar = px.bar(
+            df_entidade_agrupado, 
+            x='mes_ano_str', 
+            y='fluxo', 
+            color='entidade',
+            barmode='group',
+            title='Fluxo por Entidade',
+            labels={'fluxo': 'Fluxo (R$)', 'mes_ano_str': 'Mês/Ano', 'entidade': 'Entidade'},
+            color_discrete_map={
+                'EMPRESARIAL': ACCENT_COLOR,
+                'PESSOAL': NEGATIVE_COLOR
+            }
+        )
+        fig_bar.update_layout(height=400, plot_bgcolor='white', font=dict(family="Roboto"))
+        st.plotly_chart(fig_bar, use_container_width=True)
+        st.caption("Analise o impacto das retiradas pessoais no fluxo empresarial.")
 
     except Exception as e:
         import traceback
@@ -371,9 +423,11 @@ def criar_dashboard(df: pd.DataFrame):
 
 load_header()
 
-tab1, tab2 = st.tabs(["📊 Análise e Correção de Dados", "📈 Dashboard & Fluxo de Caixa"])
+# Sidebar para navegação profissional
+st.sidebar.title("Navegação")
+page = st.sidebar.radio("Seções", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
 
-with tab1:
+if page == "Upload e Extração":
     st.markdown("## 1. Upload e Extração de Dados")
     st.markdown("Faça o upload dos extratos em PDF. O sistema irá extrair as transações e classificá-las em DCF e Entidade (Empresarial/Pessoal).")
 
@@ -445,47 +499,49 @@ with tab1:
                 
                 st.rerun()
 
+elif page == "Revisão de Dados":
+    if not st.session_state['df_transacoes_editado'].empty:
         
-        if not st.session_state['df_transacoes_editado'].empty:
-            
-            st.markdown("---")
-            st.markdown("## 4. Revisão e Correção Manual dos Dados")
-            st.info("⚠️ **IMPORTANTE:** Revise as colunas **'Entidade'** (Empresarial/Pessoal) e **'Classificação DCF'** e corrija manualmente qualquer erro.")
-            
-            edited_df = st.data_editor(
-                st.session_state['df_transacoes_editado'],
-                width='stretch',
-                column_config={
-                    "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
-                    "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f", required=True), 
-                    "tipo_movimentacao": st.column_config.SelectboxColumn("Tipo", options=["CREDITO", "DEBITO"], required=True),
-                    "categoria_dcf": st.column_config.SelectboxColumn("Classificação DCF", options=["OPERACIONAL", "INVESTIMENTO", "FINANCIAMENTO"], required=True),
-                    "entidade": st.column_config.SelectboxColumn("Entidade", options=["EMPRESARIAL", "PESSOAL"], required=True),
-                },
-                num_rows="dynamic",
-                key="data_editor_transacoes"
-            )
+        st.markdown("---")
+        st.markdown("## 4. Revisão e Correção Manual dos Dados")
+        st.info("⚠️ **IMPORTANTE:** Revise as colunas **'Entidade'** (Empresarial/Pessoal) e **'Classificação DCF'** e corrija manualmente qualquer erro.")
+        
+        edited_df = st.data_editor(
+            st.session_state['df_transacoes_editado'],
+            width='stretch',
+            column_config={
+                "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
+                "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f", required=True), 
+                "tipo_movimentacao": st.column_config.SelectboxColumn("Tipo", options=["CREDITO", "DEBITO"], required=True),
+                "categoria_dcf": st.column_config.SelectboxColumn("Classificação DCF", options=["OPERACIONAL", "INVESTIMENTO", "FINANCIAMENTO"], required=True),
+                "entidade": st.column_config.SelectboxColumn("Entidade", options=["EMPRESARIAL", "PESSOAL"], required=True),
+            },
+            num_rows="dynamic",
+            key="data_editor_transacoes"
+        )
 
-            if st.button("5. Gerar Relatório e Dashboard com Dados Corrigidos", key="generate_report_btn"):
-                
-                st.session_state['df_transacoes_editado'] = edited_df
-                
-                with st.spinner("Gerando Relatório de Análise Consolidada..."):
-                    relatorio_consolidado = gerar_relatorio_final_economico(
-                        edited_df, 
-                        st.session_state.get('contexto_adicional', ''), 
-                        client
-                    )
-                
-                st.session_state['relatorio_consolidado'] = relatorio_consolidado
-                
-                st.success("Relatório gerado! Acesse a aba **Dashboard & Fluxo de Caixa** para ver os gráficos e a análise completa.")
+        if st.button("5. Gerar Relatório e Dashboard com Dados Corrigidos", key="generate_report_btn"):
             
+            st.session_state['df_transacoes_editado'] = edited_df
             
-            elif uploaded_files and 'df_transacoes_editado' not in st.session_state:
-                st.info("Pressione o botão 'Executar Extração e Classificação' para iniciar a análise.")
+            with st.spinner("Gerando Relatório de Análise Consolidada..."):
+                relatorio_consolidado = gerar_relatorio_final_economico(
+                    edited_df, 
+                    st.session_state.get('contexto_adicional', ''), 
+                    client
+                )
+            
+            st.session_state['relatorio_consolidado'] = relatorio_consolidado
+            
+            st.success("Relatório gerado! Acesse a seção **Dashboard & Relatórios** para ver os gráficos e a análise completa.")
+        
+        
+        elif uploaded_files and 'df_transacoes_editado' not in st.session_state:
+            st.info("Pressione o botão 'Executar Extração e Classificação' para iniciar a análise.")
+    else:
+        st.warning("Nenhum dado processado encontrado. Volte para a seção **Upload e Extração** e execute a extração dos seus arquivos PDF.")
 
-with tab2:
+elif page == "Dashboard & Relatórios":
     st.markdown("## 6. Relatórios Gerenciais e Dashboard")
 
     if not st.session_state['df_transacoes_editado'].empty:
@@ -532,13 +588,23 @@ with tab2:
             st.markdown('</div>', unsafe_allow_html=True)
             st.markdown("---")
         else:
-            st.warning("Pressione o botão **'Gerar Relatório e Dashboard com Dados Corrigidos'** na aba anterior para gerar a análise em texto.")
+            st.warning("Pressione o botão **'Gerar Relatório e Dashboard com Dados Corrigidos'** na seção anterior para gerar a análise em texto.")
             st.markdown("---")
 
-        # 6.2. Cria os Gráficos (APENAS DCF)
+        # 6.2. Cria os Gráficos Enriquecidos
         criar_dashboard(df_final)
+        
+        # Novo: Botão para Exportar Relatório
+        if st.button("Exportar Relatório como CSV"):
+            csv = df_final.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Baixar CSV",
+                data=csv,
+                file_name="relatorio_hedgewise.csv",
+                mime="text/csv"
+            )
     else:
-        st.warning("Nenhum dado processado encontrado. Volte para a aba **Análise e Correção de Dados** e execute a extração dos seus arquivos PDF.")
+        st.warning("Nenhum dado processado encontrado. Volte para a seção **Upload e Extração** e execute a extração dos seus arquivos PDF.")
 
 # --- Rodapé ---
 st.markdown("---")
