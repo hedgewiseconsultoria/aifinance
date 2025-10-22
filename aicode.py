@@ -1,3 +1,4 @@
+```python
 import streamlit as st
 import pandas as pd
 import json
@@ -28,7 +29,7 @@ NEGATIVE_COLOR = "#DC3545" # Vermelho (Gráfico Pessoal)
 FINANCING_COLOR = "#FFC107" # Amarelo/Dourado
 
 LOGO_FILENAME = "logo_hedgewise.png"
-#📈
+
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
     page_icon="logo_hedgewise.png",
@@ -105,7 +106,7 @@ st.markdown(
         .report-textarea > div > label {{
             display: none;
         }}
-        .report-textarea > div > div, .report-textarea textarea {{
+        .report-textarea, .report-textarea > div, .report-textarea textarea {{
             background-color: white !important;
             border-radius: 8px !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
@@ -235,7 +236,7 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
         "**NÃO USE NEGRITO (**) ou outros caracteres especiais (exceto R$ e vírgulas) no corpo do texto.** "
         "O texto deve ser plano, simples e sem formatação Markdown. Garanta que o texto siga estritamente este formato: "
         "Prezado(a) cliente,\n"
-        "Segue análise concisa dos KPIs para sua PME, focada em gestão de caixa e sustentabilidade:\n\n"
+        "Segue análise concisa focada em gestão de caixa e sustentabilidade:\n\n"
         "1. Desempenho Operacional: (Comente o saldo líquido gerado pela atividade OPERACIONAL). "
         "2. Análise Pessoal vs. Empresarial: (Comente o impacto do fluxo PESSOAL no caixa. Use o valor R$ X para o pessoal e R$ Y para o operacional). "
         "3. Sugestões Estratégicas: (Sugestões acionáveis para otimizar o capital de giro, focando em Financiamento e Pessoal). "
@@ -497,5 +498,4 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
-
-
+```
