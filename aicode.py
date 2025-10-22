@@ -109,14 +109,18 @@ st.markdown(
             margin-top: 20px;
             margin-bottom: 20px;
         }}
-        /* NOVO: Estilo para o Bloco de Relatório (Corrigido para st.text_area) */
+        /* CORREÇÃO DO RELATÓRIO: Garante fundo branco e fonte preta, remove label */
+        .report-textarea > div > label {{
+            display: none; /* Remove o label do text_area */
+        }}
         .report-textarea > div > div {{
             background-color: white !important;
             border-radius: 8px !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
             font-family: Arial, sans-serif !important; 
             font-size: 1.0em !important;
-            color: {SECONDARY_COLOR} !important;
+            color: {SECONDARY_COLOR} !important; /* Cor da fonte preta */
+            border: 1px solid #ddd;
         }}
     </style>
     """,
@@ -241,7 +245,7 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
     if contexto_adicional:
         contexto_prompt = f"\n\n--- CONTEXTO ADICIONAL DO EMPREENDEDOR ---\n{contexto_adicional}\n--- FIM DO CONTEXTO ---\n"
         
-    # PROMPT DE RELATÓRIO OTIMIZADO
+    # PROMPT DE RELATÓRIO OTIMIZADO - RIGOROSO CONTRA NEGRITO (**)
     prompt_analise = (
         "Você é um consultor financeiro inteligente especializado em PME (Pequenas e Médias Empresas). "
         "Sua tarefa é analisar os KPIs CALCULADOS e CONSOLIDADOS fornecidos abaixo. "
@@ -249,7 +253,9 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
         
         f"{contexto_prompt}"
         
-        "Use o seguinte formato, com quebras de linha (enter) após cada parágrafo, sem listas ou caracteres especiais. Não use negrito em valores ou frases, apenas o prefixo R$. O texto deve ser plano e fácil de ler. Garanta que o texto siga estritamente este formato: "
+        "Use o seguinte formato, com quebras de linha (enter) após cada parágrafo. "
+        "**NÃO USE NEGRITO (**) ou outros caracteres especiais (exceto R$ e vírgulas) no corpo do texto.** "
+        "O texto deve ser plano e fácil de ler. Garanta que o texto siga estritamente este formato: "
         
         "Prezado(a) cliente,\n"
         "Segue análise concisa dos KPIs para sua PME, focada em gestão de caixa e sustentabilidade:\n\n"
@@ -298,7 +304,7 @@ def load_header():
 def criar_dashboard(df: pd.DataFrame):
     """
     Cria os gráficos de fluxo de caixa mensal, focando no comparativo Operacional vs. Pessoal (barras agrupadas).
-    CORRIGIDO O ERRO DO XOFFSET E ALTERADO A LÓGICA DO GRÁFICO AGRUPADO.
+    CORRIGIDO O ERRO DO GRÁFICO AGRUPADO usando o x e xOffset de forma canônica no Altair.
     """
     st.subheader("Dashboard: Fluxo de Caixa Mensal por Entidade e DCF")
     
@@ -324,7 +330,7 @@ def criar_dashboard(df: pd.DataFrame):
         df_operacional = df[df['categoria_dcf'] == 'OPERACIONAL']
         df_op_mensal = df_operacional.groupby('mes_ano_str')['fluxo'].sum().reset_index()
         df_op_mensal.rename(columns={'fluxo': 'Valor'}, inplace=True)
-        df_op_mensal['Tipo'] = 'Operacional Empresarial' # Nome alterado para evitar caps lock
+        df_op_mensal['Tipo'] = 'Operacional Empresarial'
 
         # B) Fluxo Pessoal (Entidade = PESSOAL) - Agrupado
         df_pessoal = df[df['entidade'] == 'PESSOAL']
@@ -346,24 +352,24 @@ def criar_dashboard(df: pd.DataFrame):
         domain_order = ['Operacional Empresarial', 'Fluxo Pessoal (Retiradas)']
         range_colors = [ACCENT_COLOR, NEGATIVE_COLOR]
         
-        # Definição do gráfico Altair Corrigido: Usamos 'Tipo' no eixo X e 'mes_ano_str' no 'column' para agrupar.
+        # Definição do gráfico Altair Corrigido
         chart = alt.Chart(df_kpi_comparativo_long).mark_bar().encode(
-            # X: Tipo de fluxo (agrupamento dentro do mês)
-            x=alt.X('Tipo:N', title='Tipo de Fluxo', axis=None), 
-            # Y: Valor
-            y=alt.Y('Valor:Q', title='Fluxo de Caixa (R$)', axis=alt.Axis(format='s', titlePadding=10)), 
-            # Coluna: Mês/Ano (o que cria a repetição do agrupamento por mês)
-            column=alt.Column('mes_ano_str:N', header=alt.Header(title='Mês/Ano', titleOrient="bottom", labelOrient="bottom")),
-            # Cor
+            # Eixo X principal (Mês/Ano) - Define a posição do grupo
+            x=alt.X('mes_ano_str:N', title='Mês/Ano'),
+            # Sub-agrupamento no eixo X (Tipo) - Define o deslocamento da barra
+            xOffset=alt.XOffset('Tipo:N', scale=alt.Scale(domain=domain_order)),
+            # Eixo Y: O Valor do Fluxo
+            y=alt.Y('Valor:Q', title='Fluxo de Caixa (R$)', axis=alt.Axis(format='s', titlePadding=10)),
+            # Cor: Definida pelo campo 'Tipo'
             color=alt.Color('Tipo:N', scale=alt.Scale(
                 domain=domain_order,
                 range=range_colors
             ), legend=alt.Legend(title="Tipo de Fluxo")), 
             tooltip=['mes_ano_str', 'Tipo', alt.Tooltip('Valor', format='R$ ,.2f')]
         ).properties(
-            title=''
+            title='Comparativo Operacional vs. Pessoal por Mês'
         ).configure_view(
-            stroke=None # Remove a borda do gráfico
+            stroke=None
         ).interactive() # Permite zoom e pan
         
         st.altair_chart(chart, use_container_width=True)
@@ -548,15 +554,15 @@ with tab2:
         
         st.markdown("---")
 
-        # 6.1. Exibe o Relatório de Análise (CORRIGIDO PARA ST.TEXT_AREA)
+        # 6.1. Exibe o Relatório de Análise (CORRIGIDO PARA ST.TEXT_AREA SEM LABEL)
         if st.session_state['relatorio_consolidado'] and st.session_state['relatorio_consolidado'] not in ["Aguardando análise de dados...", "Aguardando geração do relatório..."]:
-            st.subheader("Relatório de Análise Consolidada (Texto)")
+            st.subheader("Relatório de Análise Consolidada")
             
-            # **CORREÇÃO DA FORMATAÇÃO:** Usamos st.text_area não-editável para forçar a formatação limpa e exata.
+            # CORREÇÃO DA FORMATAÇÃO: Removido o label, mantida a área de texto não-editável
             st.markdown('<div class="report-textarea">', unsafe_allow_html=True)
             st.text_area(
-                "Relatório de Análise:", 
-                st.session_state['relatorio_consolidado'], 
+                label="", # Label vazio
+                value=st.session_state['relatorio_consolidado'], 
                 height=300, 
                 key="final_report_display", 
                 disabled=True
