@@ -431,37 +431,35 @@ if page == "Upload e Extração":
     st.markdown("## 1. Upload e Extração de Dados")
     st.markdown("Faça o upload dos extratos em PDF. O sistema irá extrair as transações e classificá-las em DCF e Entidade (Empresarial/Pessoal).")
 
-    col_upload, col_contexto = st.columns([1, 1])
-    
-    with col_upload:
-        uploaded_files = st.file_uploader(
-            "Selecione os arquivos PDF dos seus extratos bancários",
-            type="pdf",
-            accept_multiple_files=True,
-            key="pdf_uploader",
-            help="Os PDFs devem ter texto selecionável. Você pode selecionar múltiplos arquivos para uma análise consolidada."
-        )
+    with st.expander("Upload de Arquivos", expanded=True):
+        col_upload, col_contexto = st.columns([1, 1])
+        
+        with col_upload:
+            uploaded_files = st.file_uploader(
+                "Selecione os arquivos PDF dos seus extratos bancários",
+                type="pdf",
+                accept_multiple_files=True,
+                key="pdf_uploader",
+                help="Os PDFs devem ter texto selecionável. Você pode selecionar múltiplos arquivos para uma análise consolidada."
+            )
 
-    with col_contexto:
-        # APLICAÇÃO DA CLASSE CSS PARA MUDAR O FUNDO PARA BRANCO
-        st.markdown('<div class="context-input">', unsafe_allow_html=True)
-        contexto_adicional_input = st.text_area(
-            "2. Contexto Adicional para a Análise (Opcional)",
-            value=st.session_state.get('contexto_adicional', ''), 
-            placeholder="Ex: 'Todos os depósitos em dinheiro (cash) são provenientes de vendas diretas.'",
-            key="contexto_input",
-            help="Use este campo para fornecer à IA informações contextuais que não estão nos extratos."
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
+        with col_contexto:
+            # APLICAÇÃO DA CLASSE CSS PARA MUDAR O FUNDO PARA BRANCO
+            st.markdown('<div class="context-input">', unsafe_allow_html=True)
+            contexto_adicional_input = st.text_area(
+                "2. Contexto Adicional para a Análise (Opcional)",
+                value=st.session_state.get('contexto_adicional', ''), 
+                placeholder="Ex: 'Todos os depósitos em dinheiro (cash) são provenientes de vendas diretas.'",
+                key="contexto_input",
+                help="Use este campo para fornecer à IA informações contextuais que não estão nos extratos."
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
 
     if contexto_adicional_input != st.session_state.get('contexto_adicional', ''):
         st.session_state['contexto_adicional'] = contexto_adicional_input
 
     if uploaded_files: 
-        
         if st.button(f"3. Executar Extração e Classificação ({len(uploaded_files)} arquivos)", key="analyze_btn"):
-            
             todas_transacoes = []
             saldos_finais = 0.0
             
@@ -500,44 +498,35 @@ if page == "Upload e Extração":
                 st.rerun()
 
 elif page == "Revisão de Dados":
+    st.markdown("## 4. Revisão e Correção Manual dos Dados")
     if not st.session_state['df_transacoes_editado'].empty:
-        
-        st.markdown("---")
-        st.markdown("## 4. Revisão e Correção Manual dos Dados")
         st.info("⚠️ **IMPORTANTE:** Revise as colunas **'Entidade'** (Empresarial/Pessoal) e **'Classificação DCF'** e corrija manualmente qualquer erro.")
         
-        edited_df = st.data_editor(
-            st.session_state['df_transacoes_editado'],
-            width='stretch',
-            column_config={
-                "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
-                "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f", required=True), 
-                "tipo_movimentacao": st.column_config.SelectboxColumn("Tipo", options=["CREDITO", "DEBITO"], required=True),
-                "categoria_dcf": st.column_config.SelectboxColumn("Classificação DCF", options=["OPERACIONAL", "INVESTIMENTO", "FINANCIAMENTO"], required=True),
-                "entidade": st.column_config.SelectboxColumn("Entidade", options=["EMPRESARIAL", "PESSOAL"], required=True),
-            },
-            num_rows="dynamic",
-            key="data_editor_transacoes"
-        )
+        with st.expander("Editar Transações", expanded=True):
+            edited_df = st.data_editor(
+                st.session_state['df_transacoes_editado'],
+                width='stretch',
+                column_config={
+                    "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
+                    "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %0.2f", required=True), 
+                    "tipo_movimentacao": st.column_config.SelectboxColumn("Tipo", options=["CREDITO", "DEBITO"], required=True),
+                    "categoria_dcf": st.column_config.SelectboxColumn("Classificação DCF", options=["OPERACIONAL", "INVESTIMENTO", "FINANCIAMENTO"], required=True),
+                    "entidade": st.column_config.SelectboxColumn("Entidade", options=["EMPRESARIAL", "PESSOAL"], required=True),
+                },
+                num_rows="dynamic",
+                key="data_editor_transacoes"
+            )
 
         if st.button("5. Gerar Relatório e Dashboard com Dados Corrigidos", key="generate_report_btn"):
-            
             st.session_state['df_transacoes_editado'] = edited_df
-            
             with st.spinner("Gerando Relatório de Análise Consolidada..."):
                 relatorio_consolidado = gerar_relatorio_final_economico(
                     edited_df, 
                     st.session_state.get('contexto_adicional', ''), 
                     client
                 )
-            
             st.session_state['relatorio_consolidado'] = relatorio_consolidado
-            
             st.success("Relatório gerado! Acesse a seção **Dashboard & Relatórios** para ver os gráficos e a análise completa.")
-        
-        
-        elif uploaded_files and 'df_transacoes_editado' not in st.session_state:
-            st.info("Pressione o botão 'Executar Extração e Classificação' para iniciar a análise.")
     else:
         st.warning("Nenhum dado processado encontrado. Volte para a seção **Upload e Extração** e execute a extração dos seus arquivos PDF.")
 
