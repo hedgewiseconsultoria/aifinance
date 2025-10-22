@@ -31,7 +31,7 @@ LOGO_FILENAME = "logo_hedgewise.png"
 #📈
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
-    page_icon="LOGO_FILENAME",
+    page_icon="logo_hedgewise.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -497,4 +497,5 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
