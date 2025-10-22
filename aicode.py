@@ -8,7 +8,7 @@ from typing import List, Optional
 from google import genai
 from google.genai import types
 import calendar
-import altair as alt # Importação necessária para o novo gráfico
+import altair as alt
 
 # --- FUNÇÃO DE FORMATAÇÃO BRL ---
 def formatar_brl(valor: float) -> str:
@@ -110,14 +110,15 @@ st.markdown(
             margin-top: 20px;
             margin-bottom: 20px;
         }}
-        /* NOVO: Estilo para o Bloco de Relatório (Formatação Fixa) */
-        .report-box {{
+        /* NOVO: Estilo para o Bloco de Relatório (Ajuste para st.text/st.code) */
+        .report-code-box {{
             background-color: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            font-family: Arial, sans-serif; /* Fonte padronizada */
-            line-height: 1.6; /* Espaçamento de linha melhor */
+            font-family: monospace; /* Fonte monoespaçada para forçar formatação de texto */
+            line-height: 1.6;
+            white-space: pre-wrap; /* Garante quebras de linha e espaço em branco */
         }}
     </style>
     """,
@@ -241,21 +242,25 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
     if contexto_adicional:
         contexto_prompt = f"\n\n--- CONTEXTO ADICIONAL DO EMPREENDEDOR ---\n{contexto_adicional}\n--- FIM DO CONTEXTO ---\n"
         
-    # PROMPT DE RELATÓRIO OTIMIZADO
+    # PROMPT DE RELATÓRIO OTIMIZADO - Ajustado para garantir formatação mais limpa
     prompt_analise = (
         "Você é um consultor financeiro inteligente especializado em PME (Pequenas e Médias Empresas). "
         "Sua tarefa é analisar os KPIs CALCULADOS e CONSOLIDADOS fornecidos abaixo, que já incorporam as correções do usuário. "
-        "Gere um relatório EXTREMAMENTE CONCISO e ACIONÁVEL, com **no máximo 180 palavras**, focado em gestão de caixa e sustentabilidade. "
+        "Gere um relatório EXTREMAMENTE CONCISO e ACIONÁVEL, com **no máximo 180 palavras**. "
         
         f"{contexto_prompt}"
         
-        "É mandatório que você inclua as seguintes análises, separadas por parágrafos curtos: "
-        "1. Desempenho Operacional: Calcule e comente o saldo líquido gerado pela atividade OPERACIONAL (saúde do negócio). "
-        "2. Análise Pessoal vs. Empresarial: Comente o impacto do fluxo PESSOAL no caixa. O saldo operacional é suficiente para cobrir as retiradas? "
-        "3. Sugestões Estratégicas: Sugestões acionáveis para otimizar o capital de giro, com base nas categorias de maior gasto (se perceptível). "
-        "4. Remuneração Ideal / Projeção: Comente se as retiradas atuais são sustentáveis e estime um valor ideal de pró-labore mensal para os próximos 3 meses, sem comprometer o negócio."
+        "Use o seguinte formato, com quebras de linha (enter) após cada parágrafo, sem listas ou caracteres especiais além de R$ e números: "
         
-        "Use apenas texto simples e Markdown básico (como negrito `**`). EVITE listas complexas ou tabelas. Use o formato brasileiro (ponto para milhares e vírgula para decimais) e o prefixo R$."
+        "Prezado(a) cliente,\n"
+        "Segue análise concisa dos KPIs para sua PME, focada em gestão de caixa e sustentabilidade:\n"
+        
+        "1. Desempenho Operacional: Comente o saldo líquido gerado pela atividade OPERACIONAL (saúde do negócio). Use: 'A atividade operacional gerou um saldo líquido...' "
+        "2. Análise Pessoal vs. Empresarial: Comente o impacto do fluxo PESSOAL no caixa. Use: 'As retiradas pessoais de R$ X superam/são cobertas pelo saldo operacional...' "
+        "3. Sugestões Estratégicas: Sugestões acionáveis para otimizar o capital de giro, focando em Financiamento e Pessoal. Use: 'O alto fluxo de Financiamento e as retiradas pessoais...' "
+        "4. Remuneração Ideal / Projeção: Comente se as retiradas atuais são sustentáveis e estime um valor ideal de pró-labore mensal para os próximos 3 meses. Use: 'As retiradas atuais são insustentáveis/sustentáveis... Para os próximos 3 meses, um pró-labore ideal seria de R$ Y...' "
+        
+        "Use o formato brasileiro (ponto para milhares e vírgula para decimais) e o prefixo R$. **NÃO** use negrito (**) no meio das frases, apenas para os títulos e valores iniciais se necessário."
         
         "\n\n--- DADOS CONSOLIDADOS (KPIs) ---\n"
         f"{texto_resumo}"
@@ -289,7 +294,7 @@ def load_header():
         st.markdown("---")
 
 
-# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD (COM ALTAIR PARA BARRAS AGRUPADAS) ---
+# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD (COM ALTAIR CORRIGIDO) ---
 
 def criar_dashboard(df: pd.DataFrame):
     """
@@ -311,17 +316,18 @@ def criar_dashboard(df: pd.DataFrame):
             axis=1
         )
 
-        df['mes_ano_str'] = df['data'].dt.to_period('M').astype(str)
+        # Usar nome do Mês para melhor visualização (garante ordenação correta se a coluna 'mes_ano_str' for usada)
+        df['mes_ano_str'] = df['data'].dt.strftime('%Y-%m')
         
         # 2. Agrupamento e Pivotação dos Dados para o KPI FOCADO: Operacional Líquido vs. Pessoal
         
-        # A) Fluxo Operacional (DCF = OPERACIONAL)
+        # A) Fluxo Operacional (DCF = OPERACIONAL) - Agrupado
         df_operacional = df[df['categoria_dcf'] == 'OPERACIONAL']
         df_op_mensal = df_operacional.groupby('mes_ano_str')['fluxo'].sum().reset_index()
         df_op_mensal.rename(columns={'fluxo': 'Valor'}, inplace=True)
         df_op_mensal['Tipo'] = 'OPERACIONAL EMPRESARIAL'
 
-        # B) Fluxo Pessoal (Entidade = PESSOAL)
+        # B) Fluxo Pessoal (Entidade = PESSOAL) - Agrupado
         df_pessoal = df[df['entidade'] == 'PESSOAL']
         df_pessoal_mensal = df_pessoal.groupby('mes_ano_str')['fluxo'].sum().reset_index()
         df_pessoal_mensal.rename(columns={'fluxo': 'Valor'}, inplace=True)
@@ -333,30 +339,32 @@ def criar_dashboard(df: pd.DataFrame):
         # Garante a ordenação
         df_kpi_comparativo_long.sort_values(by='mes_ano_str', inplace=True)
         
-        # 3. Criação do Primeiro Gráfico (KPI FOCADO) - ALTAIR CHART PARA BARRAS AGRUPADAS
+        # 3. Criação do Primeiro Gráfico (KPI FOCADO) - ALTAIR COM xOffset CORRIGIDO
         st.markdown("### 📊 Geração de Caixa: O Operacional Suporta o Pessoal?")
-        st.info("Este gráfico (Barras Agrupadas) compara o resultado líquido da sua atividade principal (Azul) com o total de retiradas e gastos pessoais (Vermelho) a cada mês.")
+        st.info("Este gráfico (Barras Agrupadas) compara o resultado líquido da sua atividade principal (**Azul**) com o total de retiradas e gastos pessoais (**Vermelho**) a cada mês.")
         
         
-        # Definição do gráfico Altair (Cores baseadas nos constantes ACCENT_COLOR e NEGATIVE_COLOR)
+        # Cria um novo campo 'order' para usar no xOffset
+        domain_order = ['OPERACIONAL EMPRESARIAL', 'FLUXO PESSOAL']
+        range_colors = [ACCENT_COLOR, NEGATIVE_COLOR]
+        
+        # Definição do gráfico Altair
         chart = alt.Chart(df_kpi_comparativo_long).mark_bar().encode(
-            # Eixo X: Mês/Ano e Coluna para Agrupamento (o que coloca as barras lado a lado)
+            # Eixo X: Mês/Ano (Nominal)
             x=alt.X('mes_ano_str:N', axis=alt.Axis(title='Mês/Ano')), 
+            # Eixo Y: O Valor do Fluxo
             y=alt.Y('Valor:Q', title='Fluxo de Caixa (R$)'), 
-            # Coluna para agrupar as barras (lado a lado)
-            column=alt.Column('Tipo:N', header=alt.Header(titleOrient="bottom", labelOrient="bottom")),
+            # AGORA USAMOS xOffset para colocar as barras lado a lado NO MESMO EIXO X
+            xOffset=alt.XOffset('Tipo:N', scale=alt.Scale(domain=domain_order), padding=5),
             # Cor: Definida pelo campo 'Tipo'
             color=alt.Color('Tipo:N', scale=alt.Scale(
-                domain=['OPERACIONAL EMPRESARIAL', 'FLUXO PESSOAL'],
-                range=[ACCENT_COLOR, NEGATIVE_COLOR]
-            ), legend=None),
-            tooltip=['mes_ano_str', 'Tipo', alt.Tooltip('Valor', format='$,.2f')]
+                domain=domain_order,
+                range=range_colors
+            ), legend=alt.Legend(title="Tipo de Fluxo")), 
+            tooltip=['mes_ano_str', 'Tipo', alt.Tooltip('Valor', format='R$ ,.2f')]
         ).properties(
             title=''
-        ).configure_header(
-            titleOrient="bottom", 
-            labelOrient="bottom"
-        ).interactive()
+        ).interactive() # Permite zoom e pan
         
         st.altair_chart(chart, use_container_width=True)
         
@@ -375,7 +383,7 @@ def criar_dashboard(df: pd.DataFrame):
                 df_dcf_pivot[col] = 0.0
                 
         DCF_COLORS = [
-            PRIMARY_COLOR,  
+            PRIMARY_COLOR, 
             ACCENT_COLOR,   
             FINANCING_COLOR 
         ]
@@ -394,7 +402,7 @@ def criar_dashboard(df: pd.DataFrame):
         st.code(f"Detalhes do erro:\n{traceback.format_exc()}")
 
 
-# --- 6. INTERFACE STREAMLIT PRINCIPAL ---
+# --- 6. INTERFACE STREAMLIT PRINCIPAL (COM AJUSTE NA EXIBIÇÃO DO RELATÓRIO) ---
 
 load_header()
 
@@ -540,14 +548,15 @@ with tab2:
         
         st.markdown("---")
 
-        # 6.1. Exibe o Relatório de Análise (COM AJUSTE FINAL DE FORMATAÇÃO CSS)
+        # 6.1. Exibe o Relatório de Análise (CORRIGIDO PARA ST.TEXT / ST.CODE)
         if st.session_state['relatorio_consolidado'] and st.session_state['relatorio_consolidado'] not in ["Aguardando análise de dados...", "Aguardando geração do relatório..."]:
             st.subheader("Relatório de Análise Consolidada (Texto)")
             
-            # **USO DO CSS INJETADO 'report-box' para formatação limpa**
+            # **CORREÇÃO DA FORMATAÇÃO:** Usamos st.code/st.text dentro de um container HTML
+            # com white-space: pre-wrap para forçar a renderização exata das quebras de linha e espaços.
             st.markdown(
                 f"""
-                <div class="report-box">
+                <div class="report-code-box">
                     {st.session_state['relatorio_consolidado']}
                 </div>
                 """,
