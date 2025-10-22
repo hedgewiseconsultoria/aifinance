@@ -26,6 +26,7 @@ BACKGROUND_COLOR = "#F0F2F6" # Cinza Claro
 ACCENT_COLOR = "#007BFF" # Azul de Destaque (Gráfico Operacional)
 NEGATIVE_COLOR = "#DC3545" # Vermelho (Gráfico Pessoal)
 FINANCING_COLOR = "#FFC107" # Amarelo/Dourado
+REPORT_BACKGROUND = "#F9F5EB" # Bege Claro para o Relatório
 
 LOGO_FILENAME = "logo_hedgewise.png"
 
@@ -102,11 +103,8 @@ st.markdown(
             color: white;
             transform: scale(1.05);
         }}
-        .report-textarea > div > label {{
-            display: none;
-        }}
         .report-textarea, .report-textarea > div, .report-textarea textarea {{
-            background-color: white !important;
+            background-color: {REPORT_BACKGROUND} !important;
             border-radius: 8px !important;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
             font-family: Roboto, sans-serif !important;
@@ -114,10 +112,12 @@ st.markdown(
             color: {SECONDARY_COLOR} !important;
             border: 1px solid #ddd !important;
         }}
-        .context-input > div > textarea {{
+        .context-input > div, .context-input > div > textarea {{
             background-color: white !important;
             color: {SECONDARY_COLOR} !important;
             border: 1px solid #ddd !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
         }}
         .stPlotlyChart {{
             border-radius: 8px;
