@@ -109,7 +109,8 @@ st.markdown(
             margin-top: 20px;
             margin-bottom: 20px;
         }}
-        /* CORREÇÃO FINAL DO RELATÓRIO: Garante fonte PRETA e remove label */
+        
+        /* CORREÇÃO DO RELATÓRIO FINAL: Garante fundo BRANCO e cor PRETA */
         .report-textarea > div > label {{
             display: none; /* Remove o label do text_area */
         }}
@@ -119,13 +120,19 @@ st.markdown(
             box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
             font-family: Arial, sans-serif !important; 
             font-size: 1.0em !important;
-            /* **FORÇA A COR PRETA COM IMPORTANT** */
             color: #000000 !important; 
             border: 1px solid #ddd;
         }}
-        /* Garante que o texto dentro do text_area seja preto */
         .report-textarea textarea {{
              color: #000000 !important; 
+             background-color: white !important; /* Garante o fundo branco */
+        }}
+        
+        /* NOVO: CORREÇÃO DO CAMPO CONTEXTO ADICIONAL PARA BRANCO */
+        .context-input > div > textarea {{
+            background-color: white !important;
+            color: #000000 !important;
+            border: 1px solid #ddd !important;
         }}
     </style>
     """,
@@ -142,6 +149,7 @@ if 'contexto_adicional' not in st.session_state:
 
 # Inicializa o cliente Gemini
 try:
+    # A API key deve estar em st.secrets
     api_key = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=api_key)
 except (KeyError, AttributeError):
@@ -303,14 +311,14 @@ def load_header():
         st.markdown("---")
 
 
-# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD (COM ALTAIR CORRIGIDO) ---
+# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD (SIMPLIFICADA) ---
 
 def criar_dashboard(df: pd.DataFrame):
     """
-    Cria os gráficos de fluxo de caixa mensal, focando no comparativo Operacional vs. Pessoal (barras agrupadas).
-    CORRIGIDO O GRÁFICO AGRUPADO utilizando column para o mês e x para o tipo.
+    Cria o gráfico de fluxo de caixa mensal pelo método DCF (Operacional, Investimento, Financiamento).
+    EXCLUÍDO o gráfico de barras agrupadas "Geração de Caixa".
     """
-    st.subheader("Dashboard: Fluxo de Caixa Mensal por Entidade e DCF")
+    st.subheader("Dashboard: Fluxo de Caixa Mensal por DCF")
     
     if df.empty:
         st.info("Nenhum dado disponível para o dashboard. Por favor, analise e confirme as transações na aba anterior.")
@@ -328,69 +336,13 @@ def criar_dashboard(df: pd.DataFrame):
 
         df['mes_ano_str'] = df['data'].dt.strftime('%Y-%m')
         
-        # 2. Agrupamento e Pivotação dos Dados para o KPI FOCADO: Operacional Líquido vs. Pessoal
-        
-        # A) Fluxo Operacional (DCF = OPERACIONAL) - Agrupado
-        df_operacional = df[df['categoria_dcf'] == 'OPERACIONAL']
-        df_op_mensal = df_operacional.groupby('mes_ano_str')['fluxo'].sum().reset_index()
-        df_op_mensal.rename(columns={'fluxo': 'Valor'}, inplace=True)
-        df_op_mensal['Tipo'] = 'Operacional Empresarial'
-
-        # B) Fluxo Pessoal (Entidade = PESSOAL) - Agrupado
-        df_pessoal = df[df['entidade'] == 'PESSOAL']
-        df_pessoal_mensal = df_pessoal.groupby('mes_ano_str')['fluxo'].sum().reset_index()
-        df_pessoal_mensal.rename(columns={'fluxo': 'Valor'}, inplace=True)
-        df_pessoal_mensal['Tipo'] = 'Fluxo Pessoal (Retiradas)' 
-
-        # C) Concatena e prepara o DataFrame no formato 'long' para o Altair
-        df_kpi_comparativo_long = pd.concat([df_op_mensal, df_pessoal_mensal])
-        
-        # Garante a ordenação
-        df_kpi_comparativo_long.sort_values(by='mes_ano_str', inplace=True)
-        
-        # 3. Criação do Primeiro Gráfico (KPI FOCADO) - ALTAIR CORRIGIDO
-        st.markdown("### 📊 Geração de Caixa: O Operacional Suporta o Pessoal?")
-        st.info("Este gráfico (Barras Agrupadas) compara o resultado líquido da sua atividade principal (**Azul**) com o total de retiradas e gastos pessoais (**Vermelho**) a cada mês.")
-        
-        
-        domain_order = ['Operacional Empresarial', 'Fluxo Pessoal (Retiradas)']
-        range_colors = [ACCENT_COLOR, NEGATIVE_COLOR]
-        
-        # Definição do gráfico Altair Corrigido: Usamos column para o mês e x para o tipo.
-        chart = alt.Chart(df_kpi_comparativo_long).mark_bar().encode(
-            # Eixo X: Tipo de fluxo (agrupamento dentro do mês) - Garante barras vizinhas
-            x=alt.X('Tipo:N', title='Tipo de Fluxo', axis=None), 
-            # Eixo Y: O Valor do Fluxo
-            y=alt.Y('Valor:Q', title='Fluxo de Caixa (R$)', axis=alt.Axis(format='s', titlePadding=10)),
-            # Coluna: Mês/Ano (cria a repetição do agrupamento por mês)
-            column=alt.Column('mes_ano_str:N', header=alt.Header(title='Mês/Ano', titleOrient="bottom", labelOrient="bottom")),
-            # Cor: Definida pelo campo 'Tipo'
-            color=alt.Color('Tipo:N', scale=alt.Scale(
-                domain=domain_order,
-                range=range_colors
-            ), legend=alt.Legend(title="Tipo de Fluxo")), 
-            tooltip=['mes_ano_str', 'Tipo', alt.Tooltip('Valor', format='R$ ,.2f')]
-        ).properties(
-            title=''
-        ).configure_view(
-            # Remove a borda para visualização mais limpa
-            stroke=None
-        ).configure_header(
-            titleFontSize=14,
-            labelFontSize=12
-        ).interactive() # Permite zoom e pan
-        
-        st.altair_chart(chart, use_container_width=True)
-        
-        st.caption("O ideal é que o **OPERACIONAL LÍQUIDO** (Azul) seja maior (positivo) do que o **FLUXO PESSOAL** (Vermelho, geralmente negativo) para garantir o capital de giro.")
-        
-        st.markdown("---")
-
-        # 4. Análise DCF (Gráfico de Linhas - MANTIDO)
+        # 2. Análise DCF (Gráfico de Linhas - MANTIDO)
         st.markdown("### Comparativo Mensal de Fluxo de Caixa pelo Método DCF (Operacional, Investimento, Financiamento)")
         
         df_dcf_agrupado = df.groupby(['mes_ano_str', 'categoria_dcf'])['fluxo'].sum().reset_index()
         df_dcf_pivot = df_dcf_agrupado.pivot(index='mes_ano_str', columns='categoria_dcf', values='fluxo').fillna(0)
+        
+        # Garante que as colunas DCF existam no dataframe pivotado, mesmo se vazias
         dcf_columns = ['OPERACIONAL', 'INVESTIMENTO', 'FINANCIAMENTO']
         for col in dcf_columns:
             if col not in df_dcf_pivot.columns:
@@ -408,7 +360,6 @@ def criar_dashboard(df: pd.DataFrame):
             height=350
         )
         st.caption("O fluxo **OPERACIONAL** é o principal indicador de saúde (o negócio em si).")
-
 
     except Exception as e:
         import traceback
@@ -438,6 +389,8 @@ with tab1:
         )
 
     with col_contexto:
+        # APLICAÇÃO DA CLASSE CSS PARA MUDAR O FUNDO PARA BRANCO
+        st.markdown('<div class="context-input">', unsafe_allow_html=True)
         contexto_adicional_input = st.text_area(
             "2. Contexto Adicional para a Análise (Opcional)",
             value=st.session_state.get('contexto_adicional', ''), 
@@ -445,6 +398,8 @@ with tab1:
             key="contexto_input",
             help="Use este campo para fornecer à IA informações contextuais que não estão nos extratos."
         )
+        st.markdown('</div>', unsafe_allow_html=True)
+
 
     if contexto_adicional_input != st.session_state.get('contexto_adicional', ''):
         st.session_state['contexto_adicional'] = contexto_adicional_input
@@ -562,11 +517,10 @@ with tab2:
         
         st.markdown("---")
 
-        # 6.1. Exibe o Relatório de Análise (CORRIGIDO CSS PARA PRETO, SEM LABEL)
+        # 6.1. Exibe o Relatório de Análise (Fundo BRANCO, Sem Label)
         if st.session_state['relatorio_consolidado'] and st.session_state['relatorio_consolidado'] not in ["Aguardando análise de dados...", "Aguardando geração do relatório..."]:
             st.subheader("Relatório de Análise Consolidada")
             
-            # CORREÇÃO DA FORMATAÇÃO: Removido o label e ajustado o CSS para forçar o preto
             st.markdown('<div class="report-textarea">', unsafe_allow_html=True)
             st.text_area(
                 label="", # Label vazio
@@ -581,7 +535,7 @@ with tab2:
             st.warning("Pressione o botão **'Gerar Relatório e Dashboard com Dados Corrigidos'** na aba anterior para gerar a análise em texto.")
             st.markdown("---")
 
-        # 6.2. Cria os Gráficos
+        # 6.2. Cria os Gráficos (APENAS DCF)
         criar_dashboard(df_final)
     else:
         st.warning("Nenhum dado processado encontrado. Volte para a aba **Análise e Correção de Dados** e execute a extração dos seus arquivos PDF.")
