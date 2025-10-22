@@ -9,7 +9,7 @@ from google import genai
 from google.genai import types
 import calendar
 
-# --- FUNÇÃO DE FORMATAÇÃO BRL (NOVO) ---
+# --- FUNÇÃO DE FORMATAÇÃO BRL (MANTIDA) ---
 def formatar_brl(valor: float) -> str:
     """
     Formata um valor float para a moeda Real Brasileiro (R$ xx.xxx,xx).
@@ -285,7 +285,8 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
         "3. Sugestões Estratégicas: Sugestões acionáveis para otimizar o capital de giro, com base nas categorias de maior gasto (se perceptível). "
         "4. Remuneração Ideal / Projeção: Comente se as retiradas atuais são sustentáveis e estime um valor ideal de pró-labore mensal para os próximos 3 meses, sem comprometer o negócio."
         
-        "Use apenas texto simples e Markdown básico (como negrito `**`). Use o formato brasileiro (ponto para milhares e vírgula para decimais) e o prefixo R$."
+        # INSTRUÇÃO ADICIONAL PARA EVITAR PROBLEMAS DE FORMATAÇÃO
+        "Use apenas texto simples e Markdown básico (como negrito `**`). EVITE listas complexas ou tabelas. Use o formato brasileiro (ponto para milhares e vírgula para decimais) e o prefixo R$."
         
         "\n\n--- DADOS CONSOLIDADOS (KPIs) ---\n"
         f"{texto_resumo}"
@@ -332,12 +333,11 @@ def load_header():
         st.markdown("---")
 
 
-# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD (COM AJUSTE PARA BARRAS DUPLAS) ---
+# --- 5. FUNÇÃO PARA CRIAR GRÁFICOS DO DASHBOARD (AJUSTE DO GRÁFICO OPERACIONAL VS PESSOAL) ---
 
 def criar_dashboard(df: pd.DataFrame):
     """
-    Cria os gráficos de fluxo de caixa mensal, incluindo a comparação por Entidade 
-    (barras duplas) e a comparação mensal entre os fluxos Operacional, Investimento e Financiamento (DCF).
+    Cria os gráficos de fluxo de caixa mensal, focando no comparativo Operacional vs. Pessoal.
     """
     st.subheader("Dashboard: Fluxo de Caixa Mensal por Entidade e DCF")
     
@@ -356,40 +356,50 @@ def criar_dashboard(df: pd.DataFrame):
             axis=1
         )
 
-        # FIX: Criar a coluna mes_ano_str aqui para ser usada nos dois gráficos
+        # FIX: Criar a coluna mes_ano_str aqui para ser usada nos gráficos
         df['mes_ano_str'] = df['data'].dt.to_period('M').astype(str) # Converte para Period e depois para String (YYYY-MM)
         
-        # 2. Agrupamento e Pivotação dos Dados (Por Entidade)
-        df_agrupado = df.groupby(['mes_ano_str', 'entidade'])['fluxo'].sum().reset_index()
+        # 2. Agrupamento e Pivotação dos Dados para o KPI FOCADO: Operacional Líquido vs. Pessoal
+        
+        # Filtra e agrupa o Fluxo Operacional (Geração de Caixa da Atividade Principal)
+        df_operacional = df[df['categoria_dcf'] == 'OPERACIONAL']
+        df_operacional_mensal = df_operacional.groupby('mes_ano_str')['fluxo'].sum().reset_index()
+        df_operacional_mensal.rename(columns={'fluxo': 'OPERACIONAL_LIQUIDO'}, inplace=True)
 
-        # Pivota a tabela para ter Entidades como colunas para o gráfico
-        df_pivot_entidade = df_agrupado.pivot(index='mes_ano_str', columns='entidade', values='fluxo').fillna(0)
-
-        # Garante que as colunas críticas existam
-        required_columns = ['EMPRESARIAL', 'PESSOAL']
-        for col in required_columns:
-            if col not in df_pivot_entidade.columns:
-                df_pivot_entidade[col] = 0.0
+        # Filtra e agrupa o Fluxo Pessoal (Retiradas, o peso do gasto pessoal)
+        df_pessoal = df[df['entidade'] == 'PESSOAL']
+        df_pessoal_mensal = df_pessoal.groupby('mes_ano_str')['fluxo'].sum().reset_index()
+        df_pessoal_mensal.rename(columns={'fluxo': 'FLUXO_PESSOAL'}, inplace=True)
         
-        # Reordena o índice para garantir a ordem cronológica
-        df_pivot_entidade.sort_index(inplace=True)
+        # Junta os dois DataFrames
+        df_kpi_comparativo = pd.merge(
+            df_operacional_mensal, 
+            df_pessoal_mensal, 
+            on='mes_ano_str', 
+            how='outer'
+        ).fillna(0)
         
-        # 3. Criação do Primeiro Gráfico (Fluxo de Caixa Mensal por Entidade) - BARRAS DUPLAS
-        st.markdown("### Comparativo Mensal de Fluxo por Entidade (R$)")
+        # Garante a ordenação
+        df_kpi_comparativo.sort_values(by='mes_ano_str', inplace=True)
+        df_kpi_comparativo.set_index('mes_ano_str', inplace=True)
         
-        # O st.bar_chart com múltiplas colunas Y e o índice como X JÁ GERA BARRAS AGRUPADAS.
+        # 3. Criação do Primeiro Gráfico (KPI FOCADO: Operacional vs. Pessoal) - GRÁFICO DE BARRAS AGRUPADAS
+        st.markdown("### 📊 Geração de Caixa: O Operacional Suporta o Pessoal?")
+        st.info("Este gráfico compara o resultado líquido da sua atividade principal (fluxo 'OPERACIONAL') com o total de retiradas e gastos pessoais ('FLUXO PESSOAL') a cada mês.")
+        
         st.bar_chart(
-            df_pivot_entidade,
-            y=['EMPRESARIAL', 'PESSOAL'], # Colunas Y explícitas
-            color=[PRIMARY_COLOR, NEGATIVE_COLOR], # Lista de cores na mesma ordem
+            df_kpi_comparativo,
+            y=['OPERACIONAL_LIQUIDO', 'FLUXO_PESSOAL'], 
+            # Cores: Operacional Positivo (Azul de Destaque) e Pessoal Negativo (Vermelho)
+            color=[ACCENT_COLOR, NEGATIVE_COLOR], 
             height=350
         )
-        st.caption("O fluxo **PESSOAL** representa as retiradas ou gastos do sócio (geralmente negativo). O fluxo **EMPRESARIAL** (negócio principal) deve ser positivo.")
+        st.caption("O ideal é que o **OPERACIONAL LÍQUIDO** seja significativamente maior (positivo) do que o **FLUXO PESSOAL** (geralmente negativo) para sustentar o capital de giro.")
         
         st.markdown("---")
 
 
-        # 4. NOVA ANÁLISE DCF (Gráfico de Linhas)
+        # 4. Análise DCF (Gráfico de Linhas - MANTIDO)
         st.markdown("### Comparativo Mensal de Fluxo de Caixa pelo Método DCF (Operacional, Investimento, Financiamento)")
         
         # Agrupamento DCF - Agora usando 'mes_ano_str' que existe em 'df'
@@ -606,10 +616,20 @@ with tab2:
         
         st.markdown("---")
 
-        # 6.1. Exibe o Relatório de Análise
+        # 6.1. Exibe o Relatório de Análise (COM AJUSTE DE FORMATAÇÃO)
         if st.session_state['relatorio_consolidado'] and st.session_state['relatorio_consolidado'] not in ["Aguardando análise de dados...", "Aguardando geração do relatório..."]:
             st.subheader("Relatório de Análise Consolidada (Texto)")
-            st.markdown(st.session_state['relatorio_consolidado'])
+            
+            # **AJUSTE DE FORMATAÇÃO**
+            # Usamos um bloco de Markdown com estilo para controlar a exibição do texto
+            st.markdown(
+                f"""
+                <div style="background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    {st.session_state['relatorio_consolidado']}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
             st.markdown("---")
         else:
             st.warning("Pressione o botão **'Gerar Relatório e Dashboard com Dados Corrigidos'** na aba anterior para gerar a análise em texto.")
