@@ -54,7 +54,7 @@ st.markdown(
         }}
         .main-header {{
             color: {SECONDARY_COLOR};
-            font-size: 2em;
+            font-size: 1em;
             padding-bottom: 10px;
         }}
         .kpi-container {{
@@ -497,6 +497,7 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
 
 
