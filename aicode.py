@@ -261,7 +261,7 @@ def load_header():
         logo = Image.open(LOGO_FILENAME)
         col1, col2 = st.columns([1, 6])
         with col1:
-            st.image(logo, width=100)
+            st.image(logo, width=200)
         with col2:
             st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
             st.caption("O horizonte do pequeno empreendedor")
@@ -497,3 +497,4 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
