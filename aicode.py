@@ -259,7 +259,7 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
 def load_header():
     try:
         logo = Image.open(LOGO_FILENAME)
-        col1, col2 = st.columns([1, 6])
+        col1, col2 = st.columns([1, 4])
         with col1:
             st.image(logo, width=120)
         with col2:
@@ -497,5 +497,6 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
 
