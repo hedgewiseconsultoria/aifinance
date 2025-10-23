@@ -406,7 +406,7 @@ if page == "Upload e Extração":
                 st.rerun()
 
 elif page == "Revisão de Dados":
-    st.markdown("## 4. Revisão e Correção Manual dos Dados")
+    st.markdown("### 4. Revisão e Correção Manual dos Dados")
     if not st.session_state['df_transacoes_editado'].empty:
         st.info("⚠️ **IMPORTANTE:** Revise as colunas **'Entidade'** (Empresarial/Pessoal) e **'Classificação DCF'** e corrija manualmente qualquer erro.")
         with st.expander("Editar Transações", expanded=True):
@@ -437,7 +437,7 @@ elif page == "Revisão de Dados":
         st.warning("Nenhum dado processado encontrado. Volte para a seção **Upload e Extração** e execute a extração dos seus arquivos PDF.")
 
 elif page == "Dashboard & Relatórios":
-    st.markdown("## 6. Relatórios Gerenciais e Dashboard")
+    st.markdown("### 6. Relatórios Gerenciais e Dashboard")
     if not st.session_state['df_transacoes_editado'].empty:
         df_final = st.session_state['df_transacoes_editado']
         total_credito = df_final[df_final['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
@@ -497,6 +497,7 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
 
 
