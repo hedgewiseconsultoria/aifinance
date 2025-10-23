@@ -350,7 +350,7 @@ st.sidebar.title("Navegação")
 page = st.sidebar.radio("Seções", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
 
 if page == "Upload e Extração":
-    st.markdown("## 1. Upload e Extração de Dados")
+    st.markdown("### 1. Upload e Extração de Dados")
     st.markdown("Faça o upload dos extratos em PDF. O sistema irá extrair as transações e classificá-las.")
 
     with st.expander("Upload de Arquivos", expanded=True):
@@ -497,6 +497,7 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
 
 
