@@ -45,7 +45,7 @@ st.markdown(
             background-color: {BACKGROUND_COLOR};
         }}
         [data-testid="stSidebar"] {{
-            background-color: grey;
+            background-color: white;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }}
         [data-testid="stSidebar"] .stButton>button {{
@@ -497,6 +497,7 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
 
 
