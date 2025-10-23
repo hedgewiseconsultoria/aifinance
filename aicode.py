@@ -228,7 +228,11 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
         contexto_prompt = f"\n\n--- CONTEXTO ADICIONAL DO EMPREENDEDOR ---\n{contexto_adicional}\n--- FIM DO CONTEXTO ---\n"
     prompt_analise = (
         "Você é um consultor financeiro inteligente especializado em PME (Pequenas e Médias Empresas). "
-        "Sua tarefa é analisar os KPIs CALCULADOS e CONSOLIDADOS fornecidos abaixo. "
+        "Analise a **variação mês a mês** de todos os componentes do fluxo de caixa. "
+        "Identifique tendências de crescimento, queda, sazonalidade ou estabilização. "
+        "Calcule variações percentuais entre meses consecutivos quando relevante. "
+        "Destaque quais itens mais impactaram a geração ou consumo de caixa ao longo do tempo."
+        "Caso haja dados de apenas um mês, foque na composição do fluxo de caixa neste período, destacando os principais geradores e consumidores de caixa."
         "Gere um relatório EXTREMAMENTE CONCISO e ACIONÁVEL, com **no máximo 180 palavras**, considerando a evolução mensal das características de geração de caixa da empresa. "
         f"{contexto_prompt}"
         "Use o seguinte formato, com quebras de linha (enter) após cada parágrafo. "
@@ -497,6 +501,7 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
 
 
