@@ -490,13 +490,14 @@ elif page == "Dashboard & Relatórios":
 st.markdown("---")
 try:
     footer_logo = Image.open(LOGO_FILENAME)
-    footer_col1, footer_col2 = st.columns([1, 10])
+    footer_col1, footer_col2 = st.columns([1, 15])
     with footer_col1:
         st.image(footer_logo, width=40)
     with footer_col2:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 5px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 10px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
 
 
