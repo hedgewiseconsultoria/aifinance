@@ -229,7 +229,7 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
     prompt_analise = (
         "Você é um consultor financeiro inteligente especializado em PME (Pequenas e Médias Empresas). "
         "Sua tarefa é analisar os KPIs CALCULADOS e CONSOLIDADOS fornecidos abaixo. "
-        "Gere um relatório EXTREMAMENTE CONCISO e ACIONÁVEL, com **no máximo 180 palavras**. "
+        "Gere um relatório EXTREMAMENTE CONCISO e ACIONÁVEL, com **no máximo 180 palavras**, considerando a evolução mensal das características de geração de caixa da empresa. "
         f"{contexto_prompt}"
         "Use o seguinte formato, com quebras de linha (enter) após cada parágrafo. "
         "**NÃO USE NEGRITO (**) ou outros caracteres especiais (exceto R$ e vírgulas) no corpo do texto.** "
@@ -497,6 +497,7 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
 
 
