@@ -45,7 +45,7 @@ st.markdown(
             background-color: {BACKGROUND_COLOR};
         }}
         [data-testid="stSidebar"] {{
-            background-color: white;
+            background-color: grey;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }}
         [data-testid="stSidebar"] .stButton>button {{
@@ -351,7 +351,7 @@ page = st.sidebar.radio("Seções", ["Upload e Extração", "Revisão de Dados",
 
 if page == "Upload e Extração":
     st.markdown("## 1. Upload e Extração de Dados")
-    st.markdown("Faça o upload dos extratos em PDF. O sistema irá extrair as transações e classificá-las em DCF e Entidade (Empresarial/Pessoal).")
+    st.markdown("Faça o upload dos extratos em PDF. O sistema irá extrair as transações e classificá-las.")
 
     with st.expander("Upload de Arquivos", expanded=True):
         col_upload, col_contexto = st.columns([1, 1])
@@ -497,6 +497,7 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
 
 
