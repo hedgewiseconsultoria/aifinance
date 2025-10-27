@@ -428,11 +428,11 @@ def criar_dashboard(df: pd.DataFrame):
 load_header()
 
 st.sidebar.title("Navegacao")
-page = st.sidebar.radio("Secoes", ["Upload e Extracao", "Revisao de Dados", "Dashboard & Relatorios"])
+page = st.sidebar.radio("Secoes", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
 
 if page == "Upload e Extracao":
-    st.markdown("### 1. Upload e Extracao de Dados")
-    st.markdown("Faça o upload dos extratos em PDF. O sistema ira extrair as transacoes e classificalas.")
+    st.markdown("### 1. Upload e Extração de Dados")
+    st.markdown("Faça o upload dos extratos em PDF. O sistema irá extrair as transações e classificá-las.")
 
     with st.expander("Upload de Arquivos", expanded=True):
         col_upload, col_contexto = st.columns([1, 1])
@@ -442,16 +442,16 @@ if page == "Upload e Extracao":
                 type="pdf",
                 accept_multiple_files=True,
                 key="pdf_uploader",
-                help="Os PDFs devem ter texto selecionavel. Você pode selecionar múltiplos arquivos para uma analise consolidada."
+                help="Os PDFs devem ter texto selecionável. Você pode selecionar múltiplos arquivos para uma análise consolidada."
             )
         with col_contexto:
             st.markdown('<div class="context-input">', unsafe_allow_html=True)
             contexto_adicional_input = st.text_area(
                 "2. Contexto Adicional para a Analise (Opcional)",
                 value=st.session_state.get('contexto_adicional', ''),
-                placeholder="Ex: 'Todos os depositos em dinheiro (cash) sao provenientes de vendas diretas.'",
+                placeholder="Ex: 'Todos os depósitos em dinheiro (cash) são provenientes de vendas diretas.'",
                 key="contexto_input",
-                help="Use este campo para fornecer a IA informacoes contextuais que nao estao nos extratos."
+                help="Use este campo para fornecer a IA informações contextuais que não estão nos extratos."
             )
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -565,7 +565,7 @@ elif page == "Dashboard & Relatorios":
                 mime="text/csv"
             )
     else:
-        st.warning("Nenhum dado processado encontrado. Volte para a secao **Upload e Extracao** e execute a extracao dos seus arquivos PDF.")
+        st.warning("Nenhum dado processado encontrado. Volte para a seção **Upload e Extração** e execute a extração dos seus arquivos PDF.")
 
 # --- Rodape (mantido) ---
 st.markdown("---")
@@ -578,4 +578,5 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>""", unsafe_allow_html=True)
+
 
