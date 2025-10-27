@@ -329,16 +329,16 @@ def load_header():
         with col1:
             st.image(logo, width=120)
         with col2:
-            st.markdown('<div class="main-header">Analise Financeira Inteligente</div>', unsafe_allow_html=True)
+            st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
             st.caption("O horizonte do pequeno empreendedor")
         st.markdown("---")
     except Exception:
-        st.title("Hedgewise | Analise Financeira Inteligente")
+        st.title("Hedgewise | Análise Financeira Inteligente")
         st.markdown("---")
 
 # --- 5. FUNCAO PARA CRIAR GRÁFICOS DO DASHBOARD (AJUSTADA PARA INCLUIR GRAFICO DE INDICADORES) ---
 def criar_dashboard(df: pd.DataFrame):
-    st.subheader("Dashboard: Analise de Fluxo de Caixa")
+    st.subheader("Dashboard: Análise de Fluxo de Caixa")
     if df.empty:
         st.info("Nenhum dado disponivel para o dashboard. Por favor, analise e confirme as transacoes na aba anterior.")
         return
@@ -578,4 +578,3 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Analise de Extrato Empresarial | Dados extraidos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Analise de Extrato Empresarial | Dados extraidos e classificados com IA.</p>""", unsafe_allow_html=True)
-
