@@ -63,7 +63,7 @@ REPORT_BACKGROUND = "#F9F5EB"
 LOGO_FILENAME = "logo_hedgewise.png"
 
 st.set_page_config(
-    page_title="Hedgewise | Analise Financeira Inteligente",
+    page_title="Hedgewise | Análise Financeira Inteligente",
     page_icon="logo_hedgewise.png",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -319,7 +319,7 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
         # Retorna o texto diretamente
         return response.text
     except Exception as e:
-        return f"**Falha na Geracao do Relatorio Consolidado:** Ocorreu um erro ao gerar o relatorio analitico. Motivo: {e}"
+        return f"**Falha na Geracao do Relatorio Consolidado:** Ocorreu um erro ao gerar o relatório analitico. Motivo: {e}"
 
 # --- 4. FUNCAO DE CABECALHO (mantida) ---
 def load_header():
@@ -442,7 +442,7 @@ if page == "Upload e Extracao":
                 type="pdf",
                 accept_multiple_files=True,
                 key="pdf_uploader",
-                help="Os PDFs devem ter texto selecionavel. Você pode selecionar multiplos arquivos para uma analise consolidada."
+                help="Os PDFs devem ter texto selecionavel. Você pode selecionar múltiplos arquivos para uma analise consolidada."
             )
         with col_contexto:
             st.markdown('<div class="context-input">', unsafe_allow_html=True)
@@ -513,9 +513,9 @@ elif page == "Revisao de Dados":
                     client
                 )
             st.session_state['relatorio_consolidado'] = relatorio_consolidado
-            st.success("Relatorio gerado! Acesse a secao **Dashboard & Relatorios** para ver os graficos e a analise completa.")
+            st.success("Relatorio gerado! Acesse a secao **Dashboard & Relatórios** para ver os gráficos e a análise completa.")
     else:
-        st.warning("Nenhum dado processado encontrado. Volte para a secao **Upload e Extracao** e execute a extracao dos seus arquivos PDF.")
+        st.warning("Nenhum dado processado encontrado. Volte para a secao **Upload e Extracao** e execute a extração dos seus arquivos PDF.")
 
 elif page == "Dashboard & Relatorios":
     st.markdown("### 6. Relatorios Gerenciais e Dashboard")
@@ -578,3 +578,4 @@ try:
         st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Analise de Extrato Empresarial | Dados extraidos e classificados com IA.</p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">Analise de Extrato Empresarial | Dados extraidos e classificados com IA.</p>""", unsafe_allow_html=True)
+
