@@ -309,17 +309,16 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
     indicadores = rel['indicadores']
 
     linhas_ag = []
-for _, row in agregados.iterrows():
-    linhas_ag.append(f"{row['mes_ano']}: OPERACIONAL={row.get('OPERACIONAL',0):.2f}, INVESTIMENTO={row.get('INVESTIMENTO',0):.2f}, FINANCIAMENTO={row.get('FINANCIAMENTO',0):.2f}")
+    for _, row in agregados.iterrows():
+        linhas_ag.append(f"{row['mes_ano']}: OPERACIONAL={row.get('OPERACIONAL',0):.2f}, INVESTIMENTO={row.get('INVESTIMENTO',0):.2f}, FINANCIAMENTO={row.get('FINANCIAMENTO',0):.2f}")
 
-resumo_text = "\n".join(linhas_ag)
+    resumo_text = "\n".join(linhas_ag)
 
-    contexto_prompt = f"
-
+    contexto_prompt = f"""
 --- CONTEXTO ADICIONAL ---
 {contexto_adicional}
 --- FIM DO CONTEXTO ---
-" if contexto_adicional else ""
+""" if contexto_adicional else ""
 
     prompt_analise = f"""
 Voce e um consultor financeiro para PMEs. Abaixo ha dados sinteticos mensais do fluxo por tipo (OPERACIONAL, INVESTIMENTO, FINANCIAMENTO).
@@ -337,13 +336,11 @@ INDICADORES_POR_MES:
 
     if client is None:
         # fallback local
-        texto = "Prezado(a) cliente,
+        texto = """Prezado(a) cliente,
 Segue analise sintetica: 
-"
-        texto += "
-".join(linhas_ag[:6])
-        texto += "
-Sem acesso ao modelo de linguagem para analise textual automatizada."
+"""
+        texto += "\n".join(linhas_ag[:6])
+        texto += "\nSem acesso ao modelo de linguagem para analise textual automatizada."
         return texto
 
     config = types.GenerateContentConfig(temperature=0.4)
@@ -535,4 +532,3 @@ try:
         st.markdown('<p style="font-size:0.8rem;color:#6c757d">Analise de Extrato Empresarial | Dados extraidos e classificados com IA.</p>', unsafe_allow_html=True)
 except Exception:
     st.markdown('<p style="font-size:0.8rem;color:#6c757d">Analise de Extrato Empresarial | Dados extraidos e classificados com IA.</p>', unsafe_allow_html=True)
-
