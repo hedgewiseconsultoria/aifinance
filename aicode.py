@@ -201,7 +201,7 @@ INSTRUÇÕES CRÍTICAS:
 5. Despesas operacionais: OP-04 (CMV), OP-05 (administrativas), OP-06 (comerciais), OP-08 (impostos), OP-09 (tarifas)
 6. Investimentos: INV-01 (compra de ativos), INV-02 (aplicações), INV-03 (venda de ativos)
 7. Financiamentos: FIN-01 (empréstimos recebidos), FIN-02 (pagamento de empréstimos), FIN-03 (juros)
-8. Transferências internas: NE-01 ou NE-02
+8. **IMPORTANTE - Transferências NEUTRAS (NE-01 ou NE-02)**: Use APENAS quando detectar uma saída de uma conta corrente E uma entrada de MESMO VALOR em outra conta no MESMO DIA. Isso evita classificação errônea como receita ou despesa. Se não houver correspondência exata de valores e datas, classifique normalmente nas outras categorias.
 
 Use valor POSITIVO para 'valor' e classifique como 'DEBITO' ou 'CREDITO'.
 """
@@ -264,7 +264,7 @@ def enriquecer_com_plano_contas(df: pd.DataFrame) -> pd.DataFrame:
 
 # --- 6. FUNÇÃO PARA CRIAR RELATÓRIO DE FLUXO DE CAIXA ---
 def criar_relatorio_fluxo_caixa(df: pd.DataFrame):
-    """Cria um relatório detalhado de fluxo de caixa por mês."""
+    """Cria um relatório detalhado de fluxo de caixa por mês com contas analíticas."""
     st.subheader("Relatório de Fluxo de Caixa")
     
     if df.empty:
@@ -280,53 +280,105 @@ def criar_relatorio_fluxo_caixa(df: pd.DataFrame):
         axis=1
     )
     
+    # Filtrar apenas operações válidas (excluir NEUTRO)
+    df_fluxo = df[df['tipo_fluxo'] != 'NEUTRO'].copy()
+    
     # Agrupar por mês e tipo de fluxo
-    meses = sorted(df['mes_ano'].unique())
+    meses = sorted(df_fluxo['mes_ano'].unique())
     
-    relatorio_data = []
-    caixa_acumulado = 0
-    
+    # Criar estrutura do relatório
     for mes in meses:
-        df_mes = df[df['mes_ano'] == mes]
-        mes_str = mes.strftime('%m/%Y')
+        df_mes = df_fluxo[df_fluxo['mes_ano'] == mes]
+        mes_str = mes.strftime('%B/%Y')
         
-        # Fluxos por tipo
-        op = df_mes[df_mes['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
-        inv = df_mes[df_mes['tipo_fluxo'] == 'INVESTIMENTO']['fluxo'].sum()
-        fin = df_mes[df_mes['tipo_fluxo'] == 'FINANCIAMENTO']['fluxo'].sum()
-        neutro = df_mes[df_mes['tipo_fluxo'] == 'NEUTRO']['fluxo'].sum()
+        st.markdown(f"### 📅 {mes_str}")
         
-        caixa_mes = op + inv + fin + neutro
-        caixa_acumulado += caixa_mes
+        relatorio_data = []
         
-        relatorio_data.append({
-            'Mês': mes_str,
-            'Caixa Operacional': op,
-            'Caixa Investimento': inv,
-            'Caixa Financiamento': fin,
-            'Caixa Gerado no Mês': caixa_mes,
-            'Caixa Acumulado': caixa_acumulado
-        })
+        # 1. ATIVIDADES OPERACIONAIS
+        df_op = df_mes[df_mes['tipo_fluxo'] == 'OPERACIONAL']
+        if not df_op.empty:
+            relatorio_data.append({'Categoria': '**ATIVIDADES OPERACIONAIS**', 'Valor': ''})
+            
+            contas_op = df_op.groupby(['conta_analitica', 'nome_conta'])['fluxo'].sum().reset_index()
+            for _, row in contas_op.iterrows():
+                relatorio_data.append({
+                    'Categoria': f"  {row['conta_analitica']} - {row['nome_conta']}", 
+                    'Valor': row['fluxo']
+                })
+            
+            total_op = df_op['fluxo'].sum()
+            relatorio_data.append({'Categoria': '**Total Caixa Operacional**', 'Valor': total_op})
+            relatorio_data.append({'Categoria': '', 'Valor': ''})  # Linha em branco
+        
+        # 2. ATIVIDADES DE INVESTIMENTO
+        df_inv = df_mes[df_mes['tipo_fluxo'] == 'INVESTIMENTO']
+        if not df_inv.empty:
+            relatorio_data.append({'Categoria': '**ATIVIDADES DE INVESTIMENTO**', 'Valor': ''})
+            
+            contas_inv = df_inv.groupby(['conta_analitica', 'nome_conta'])['fluxo'].sum().reset_index()
+            for _, row in contas_inv.iterrows():
+                relatorio_data.append({
+                    'Categoria': f"  {row['conta_analitica']} - {row['nome_conta']}", 
+                    'Valor': row['fluxo']
+                })
+            
+            total_inv = df_inv['fluxo'].sum()
+            relatorio_data.append({'Categoria': '**Total Caixa de Investimento**', 'Valor': total_inv})
+            relatorio_data.append({'Categoria': '', 'Valor': ''})  # Linha em branco
+        
+        # 3. ATIVIDADES DE FINANCIAMENTO
+        df_fin = df_mes[df_mes['tipo_fluxo'] == 'FINANCIAMENTO']
+        if not df_fin.empty:
+            relatorio_data.append({'Categoria': '**ATIVIDADES DE FINANCIAMENTO**', 'Valor': ''})
+            
+            contas_fin = df_fin.groupby(['conta_analitica', 'nome_conta'])['fluxo'].sum().reset_index()
+            for _, row in contas_fin.iterrows():
+                relatorio_data.append({
+                    'Categoria': f"  {row['conta_analitica']} - {row['nome_conta']}", 
+                    'Valor': row['fluxo']
+                })
+            
+            total_fin = df_fin['fluxo'].sum()
+            relatorio_data.append({'Categoria': '**Total Caixa de Financiamento**', 'Valor': total_fin})
+            relatorio_data.append({'Categoria': '', 'Valor': ''})  # Linha em branco
+        
+        # 4. CAIXA GERADO NO MÊS
+        total_op = df_op['fluxo'].sum() if not df_op.empty else 0
+        total_inv = df_inv['fluxo'].sum() if not df_inv.empty else 0
+        total_fin = df_fin['fluxo'].sum() if not df_fin.empty else 0
+        caixa_gerado = total_op + total_inv + total_fin
+        
+        relatorio_data.append({'Categoria': '═' * 50, 'Valor': ''})
+        relatorio_data.append({'Categoria': '**CAIXA GERADO NO MÊS**', 'Valor': caixa_gerado})
+        
+        # Criar DataFrame para exibição
+        df_relatorio = pd.DataFrame(relatorio_data)
+        
+        # Formatar valores
+        def formatar_valor_relatorio(row):
+            if row['Valor'] == '' or pd.isna(row['Valor']):
+                return ''
+            else:
+                return formatar_brl(row['Valor'])
+        
+        df_relatorio['Valor Formatado'] = df_relatorio.apply(formatar_valor_relatorio, axis=1)
+        
+        # Exibir tabela
+        st.markdown('<div class="fluxo-table">', unsafe_allow_html=True)
+        st.dataframe(
+            df_relatorio[['Categoria', 'Valor Formatado']],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Categoria": st.column_config.TextColumn("Descrição", width="large"),
+                "Valor Formatado": st.column_config.TextColumn("Valor (R$)", width="medium")
+            }
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("---")
     
-    df_relatorio = pd.DataFrame(relatorio_data)
-    
-    # Formatar valores
-    colunas_valores = ['Caixa Operacional', 'Caixa Investimento', 'Caixa Financiamento', 
-                       'Caixa Gerado no Mês', 'Caixa Acumulado']
-    
-    df_display = df_relatorio.copy()
-    for col in colunas_valores:
-        df_display[col] = df_display[col].apply(formatar_brl)
-    
-    st.markdown('<div class="fluxo-table">', unsafe_allow_html=True)
-    st.dataframe(
-        df_display,
-        use_container_width=True,
-        hide_index=True
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    return df_relatorio
+    return None
 
 # --- 7. FUNÇÃO PARA CRIAR GRÁFICO DE INDICADORES ---
 def criar_grafico_indicadores(df: pd.DataFrame):
@@ -346,11 +398,14 @@ def criar_grafico_indicadores(df: pd.DataFrame):
         axis=1
     )
     
-    meses = sorted(df['mes_ano'].unique())
+    # Filtrar apenas operações válidas (excluir NEUTRO)
+    df_fluxo = df[df['tipo_fluxo'] != 'NEUTRO'].copy()
+    
+    meses = sorted(df_fluxo['mes_ano'].unique())
     indicadores_data = []
     
     for mes in meses:
-        df_mes = df[df['mes_ano'] == mes]
+        df_mes = df_fluxo[df_fluxo['mes_ano'] == mes]
         mes_str = mes.strftime('%m/%Y')
         
         # Calcular componentes
@@ -428,7 +483,8 @@ def criar_grafico_indicadores(df: pd.DataFrame):
         **Intensidade de Financiamento**: Percentual do caixa de financiamento em relação ao caixa operacional. 
         Indica a dependência de fontes externas de capital.
         """)
-
+    
+    st.markdown("---")
 # --- 8. FUNÇÃO PARA CRIAR DASHBOARD ---
 def criar_dashboard(df: pd.DataFrame):
     """Cria dashboard com gráficos de análise."""
@@ -448,10 +504,13 @@ def criar_dashboard(df: pd.DataFrame):
         )
         df['mes_ano_str'] = df['data'].dt.strftime('%Y-%m')
         
+        # Filtrar apenas operações válidas (excluir NEUTRO)
+        df_fluxo = df[df['tipo_fluxo'] != 'NEUTRO'].copy()
+        
         # 1. Gráfico de Barras por Tipo de Fluxo
         st.markdown("### Fluxo de Caixa Mensal por Categoria DCF")
         
-        df_fluxo_agrupado = df.groupby(['mes_ano_str', 'tipo_fluxo'])['fluxo'].sum().reset_index()
+        df_fluxo_agrupado = df_fluxo.groupby(['mes_ano_str', 'tipo_fluxo'])['fluxo'].sum().reset_index()
         
         fig_dcf = px.bar(
             df_fluxo_agrupado,
@@ -464,17 +523,18 @@ def criar_dashboard(df: pd.DataFrame):
             color_discrete_map={
                 'OPERACIONAL': ACCENT_COLOR,
                 'INVESTIMENTO': INVESTMENT_COLOR,
-                'FINANCIAMENTO': FINANCING_COLOR,
-                'NEUTRO': '#6c757d'
+                'FINANCIAMENTO': FINANCING_COLOR
             }
         )
         fig_dcf.update_layout(height=400, plot_bgcolor='white', font=dict(family="Roboto"))
         st.plotly_chart(fig_dcf, use_container_width=True)
+        
+        st.markdown("---")
 
         # 2. Gráfico de Pizza: Caixa Operacional vs Retiradas Pessoais
         st.markdown("### Comparativo: Caixa Operacional vs Retiradas Pessoais")
         
-        caixa_operacional = df[df['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
+        caixa_operacional = df_fluxo[df_fluxo['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
         
         # Retiradas pessoais são da conta FIN-05 e devem ser negativas (débitos)
         retiradas_pessoais = abs(df[
@@ -534,7 +594,7 @@ def criar_dashboard(df: pd.DataFrame):
         
         # 3. Distribuição de Despesas por Conta Analítica
         st.markdown("### Distribuição de Despesas por Conta")
-        df_despesas = df[df['tipo_movimentacao'] == 'DEBITO'].groupby('nome_conta')['valor'].sum().reset_index()
+        df_despesas = df_fluxo[df_fluxo['tipo_movimentacao'] == 'DEBITO'].groupby('nome_conta')['valor'].sum().reset_index()
         df_despesas = df_despesas.sort_values('valor', ascending=False).head(10)
         
         if not df_despesas.empty:
@@ -686,15 +746,12 @@ elif page == "Dashboard & Relatórios":
         df_final = st.session_state['df_transacoes_editado'].copy()
         
         # Relatório de Fluxo de Caixa
-        st.markdown("---")
-        df_relatorio = criar_relatorio_fluxo_caixa(df_final)
+        criar_relatorio_fluxo_caixa(df_final)
         
         # Gráfico de Indicadores
-        st.markdown("---")
         criar_grafico_indicadores(df_final)
         
         # Dashboard com gráficos
-        st.markdown("---")
         criar_dashboard(df_final)
         
         # Exportar dados
@@ -710,17 +767,6 @@ elif page == "Dashboard & Relatórios":
                     file_name="transacoes_hedgewise.csv",
                     mime="text/csv"
                 )
-        
-        with col2:
-            if df_relatorio is not None and not df_relatorio.empty:
-                if st.button("📥 Exportar Relatório de Fluxo (CSV)"):
-                    csv_relatorio = df_relatorio.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="Baixar CSV do Relatório",
-                        data=csv_relatorio,
-                        file_name="relatorio_fluxo_caixa.csv",
-                        mime="text/csv"
-                    )
     else:
         st.warning("Nenhum dado processado encontrado. Volte para a seção **Upload e Extração**.")
 
