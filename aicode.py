@@ -264,7 +264,7 @@ def enriquecer_com_plano_contas(df: pd.DataFrame) -> pd.DataFrame:
 
 # --- 6. FUNÇÃO PARA CRIAR RELATÓRIO DE FLUXO DE CAIXA ---
 def criar_relatorio_fluxo_caixa(df: pd.DataFrame):
-    """Cria um relatório detalhado de fluxo de caixa por mês com contas analíticas."""
+    """Cria um relatório detalhado de fluxo de caixa com meses em colunas lado a lado."""
     st.subheader("Relatório de Fluxo de Caixa")
     
     if df.empty:
@@ -283,100 +283,150 @@ def criar_relatorio_fluxo_caixa(df: pd.DataFrame):
     # Filtrar apenas operações válidas (excluir NEUTRO)
     df_fluxo = df[df['tipo_fluxo'] != 'NEUTRO'].copy()
     
-    # Agrupar por mês e tipo de fluxo
+    # Obter meses únicos ordenados
     meses = sorted(df_fluxo['mes_ano'].unique())
     
-    # Criar estrutura do relatório
+    # Dicionário para mapear meses em português
+    meses_pt = {
+        1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
+        5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
+        9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+    }
+    
+    # Criar colunas de meses formatadas
+    colunas_meses = []
     for mes in meses:
-        df_mes = df_fluxo[df_fluxo['mes_ano'] == mes]
-        mes_str = mes.strftime('%B/%Y')
+        mes_nome = meses_pt[mes.month]
+        ano = mes.year % 100  # Pega apenas os 2 últimos dígitos do ano
+        colunas_meses.append(f"{mes_nome}/{ano:02d}")
+    
+    # Coletar todas as contas únicas por tipo de fluxo
+    todas_contas = df_fluxo.groupby(['tipo_fluxo', 'conta_analitica', 'nome_conta']).size().reset_index()[
+        ['tipo_fluxo', 'conta_analitica', 'nome_conta']
+    ]
+    
+    # Criar estrutura do relatório
+    relatorio_linhas = []
+    
+    # 1. ATIVIDADES OPERACIONAIS
+    relatorio_linhas.append({'Categoria': '**ATIVIDADES OPERACIONAIS**', 'tipo': 'header'})
+    
+    contas_op = todas_contas[todas_contas['tipo_fluxo'] == 'OPERACIONAL'].sort_values('conta_analitica')
+    for _, conta in contas_op.iterrows():
+        linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+        for mes in meses:
+            df_mes_conta = df_fluxo[
+                (df_fluxo['mes_ano'] == mes) & 
+                (df_fluxo['conta_analitica'] == conta['conta_analitica'])
+            ]
+            valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+            linha[mes_col] = valor
+        relatorio_linhas.append(linha)
+    
+    # Total Operacional
+    linha_total_op = {'Categoria': '**Total Caixa Operacional**', 'tipo': 'total'}
+    for mes in meses:
+        df_mes_op = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'OPERACIONAL')]
+        valor = df_mes_op['fluxo'].sum() if not df_mes_op.empty else 0
+        mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+        linha_total_op[mes_col] = valor
+    relatorio_linhas.append(linha_total_op)
+    relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
+    
+    # 2. ATIVIDADES DE INVESTIMENTO
+    contas_inv = todas_contas[todas_contas['tipo_fluxo'] == 'INVESTIMENTO'].sort_values('conta_analitica')
+    if not contas_inv.empty:
+        relatorio_linhas.append({'Categoria': '**ATIVIDADES DE INVESTIMENTO**', 'tipo': 'header'})
         
-        st.markdown(f"### 📅 {mes_str}")
+        for _, conta in contas_inv.iterrows():
+            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+            for mes in meses:
+                df_mes_conta = df_fluxo[
+                    (df_fluxo['mes_ano'] == mes) & 
+                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
+                ]
+                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+                linha[mes_col] = valor
+            relatorio_linhas.append(linha)
         
-        relatorio_data = []
+        # Total Investimento
+        linha_total_inv = {'Categoria': '**Total Caixa de Investimento**', 'tipo': 'total'}
+        for mes in meses:
+            df_mes_inv = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'INVESTIMENTO')]
+            valor = df_mes_inv['fluxo'].sum() if not df_mes_inv.empty else 0
+            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+            linha_total_inv[mes_col] = valor
+        relatorio_linhas.append(linha_total_inv)
+        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
+    
+    # 3. ATIVIDADES DE FINANCIAMENTO
+    contas_fin = todas_contas[todas_contas['tipo_fluxo'] == 'FINANCIAMENTO'].sort_values('conta_analitica')
+    if not contas_fin.empty:
+        relatorio_linhas.append({'Categoria': '**ATIVIDADES DE FINANCIAMENTO**', 'tipo': 'header'})
         
-        # 1. ATIVIDADES OPERACIONAIS
-        df_op = df_mes[df_mes['tipo_fluxo'] == 'OPERACIONAL']
-        if not df_op.empty:
-            relatorio_data.append({'Categoria': '**ATIVIDADES OPERACIONAIS**', 'Valor': ''})
-            
-            contas_op = df_op.groupby(['conta_analitica', 'nome_conta'])['fluxo'].sum().reset_index()
-            for _, row in contas_op.iterrows():
-                relatorio_data.append({
-                    'Categoria': f"  {row['conta_analitica']} - {row['nome_conta']}", 
-                    'Valor': row['fluxo']
-                })
-            
-            total_op = df_op['fluxo'].sum()
-            relatorio_data.append({'Categoria': '**Total Caixa Operacional**', 'Valor': total_op})
-            relatorio_data.append({'Categoria': '', 'Valor': ''})  # Linha em branco
+        for _, conta in contas_fin.iterrows():
+            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+            for mes in meses:
+                df_mes_conta = df_fluxo[
+                    (df_fluxo['mes_ano'] == mes) & 
+                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
+                ]
+                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+                linha[mes_col] = valor
+            relatorio_linhas.append(linha)
         
-        # 2. ATIVIDADES DE INVESTIMENTO
-        df_inv = df_mes[df_mes['tipo_fluxo'] == 'INVESTIMENTO']
-        if not df_inv.empty:
-            relatorio_data.append({'Categoria': '**ATIVIDADES DE INVESTIMENTO**', 'Valor': ''})
-            
-            contas_inv = df_inv.groupby(['conta_analitica', 'nome_conta'])['fluxo'].sum().reset_index()
-            for _, row in contas_inv.iterrows():
-                relatorio_data.append({
-                    'Categoria': f"  {row['conta_analitica']} - {row['nome_conta']}", 
-                    'Valor': row['fluxo']
-                })
-            
-            total_inv = df_inv['fluxo'].sum()
-            relatorio_data.append({'Categoria': '**Total Caixa de Investimento**', 'Valor': total_inv})
-            relatorio_data.append({'Categoria': '', 'Valor': ''})  # Linha em branco
-        
-        # 3. ATIVIDADES DE FINANCIAMENTO
-        df_fin = df_mes[df_mes['tipo_fluxo'] == 'FINANCIAMENTO']
-        if not df_fin.empty:
-            relatorio_data.append({'Categoria': '**ATIVIDADES DE FINANCIAMENTO**', 'Valor': ''})
-            
-            contas_fin = df_fin.groupby(['conta_analitica', 'nome_conta'])['fluxo'].sum().reset_index()
-            for _, row in contas_fin.iterrows():
-                relatorio_data.append({
-                    'Categoria': f"  {row['conta_analitica']} - {row['nome_conta']}", 
-                    'Valor': row['fluxo']
-                })
-            
-            total_fin = df_fin['fluxo'].sum()
-            relatorio_data.append({'Categoria': '**Total Caixa de Financiamento**', 'Valor': total_fin})
-            relatorio_data.append({'Categoria': '', 'Valor': ''})  # Linha em branco
-        
-        # 4. CAIXA GERADO NO MÊS
-        total_op = df_op['fluxo'].sum() if not df_op.empty else 0
-        total_inv = df_inv['fluxo'].sum() if not df_inv.empty else 0
-        total_fin = df_fin['fluxo'].sum() if not df_fin.empty else 0
-        caixa_gerado = total_op + total_inv + total_fin
-        
-        relatorio_data.append({'Categoria': '═' * 50, 'Valor': ''})
-        relatorio_data.append({'Categoria': '**CAIXA GERADO NO MÊS**', 'Valor': caixa_gerado})
-        
-        # Criar DataFrame para exibição
-        df_relatorio = pd.DataFrame(relatorio_data)
-        
-        # Formatar valores
-        def formatar_valor_relatorio(row):
-            if row['Valor'] == '' or pd.isna(row['Valor']):
-                return ''
-            else:
-                return formatar_brl(row['Valor'])
-        
-        df_relatorio['Valor Formatado'] = df_relatorio.apply(formatar_valor_relatorio, axis=1)
-        
-        # Exibir tabela
-        st.markdown('<div class="fluxo-table">', unsafe_allow_html=True)
-        st.dataframe(
-            df_relatorio[['Categoria', 'Valor Formatado']],
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Categoria": st.column_config.TextColumn("Descrição", width="large"),
-                "Valor Formatado": st.column_config.TextColumn("Valor (R$)", width="medium")
-            }
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown("---")
+        # Total Financiamento
+        linha_total_fin = {'Categoria': '**Total Caixa de Financiamento**', 'tipo': 'total'}
+        for mes in meses:
+            df_mes_fin = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'FINANCIAMENTO')]
+            valor = df_mes_fin['fluxo'].sum() if not df_mes_fin.empty else 0
+            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+            linha_total_fin[mes_col] = valor
+        relatorio_linhas.append(linha_total_fin)
+        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
+    
+    # 4. CAIXA GERADO NO MÊS
+    linha_separador = {'Categoria': '═' * 50, 'tipo': 'separator'}
+    for mes_col in colunas_meses:
+        linha_separador[mes_col] = ''
+    relatorio_linhas.append(linha_separador)
+    
+    linha_caixa_gerado = {'Categoria': '**CAIXA GERADO NO MÊS**', 'tipo': 'total'}
+    for mes in meses:
+        df_mes_total = df_fluxo[df_fluxo['mes_ano'] == mes]
+        valor = df_mes_total['fluxo'].sum() if not df_mes_total.empty else 0
+        mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+        linha_caixa_gerado[mes_col] = valor
+    relatorio_linhas.append(linha_caixa_gerado)
+    
+    # Criar DataFrame
+    df_relatorio = pd.DataFrame(relatorio_linhas)
+    
+    # Formatar valores monetários
+    for col in colunas_meses:
+        if col in df_relatorio.columns:
+            df_relatorio[col] = df_relatorio[col].apply(
+                lambda x: formatar_brl(x) if isinstance(x, (int, float)) and x != 0 else ('' if pd.isna(x) or x == 0 else x)
+            )
+    
+    # Remover coluna 'tipo'
+    df_display = df_relatorio.drop(columns=['tipo'])
+    
+    # Exibir tabela
+    st.markdown('<div class="fluxo-table">', unsafe_allow_html=True)
+    st.dataframe(
+        df_display,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Categoria": st.column_config.TextColumn("Categoria", width="large"),
+            **{col: st.column_config.TextColumn(col, width="medium") for col in colunas_meses}
+        }
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
     
     return None
 
