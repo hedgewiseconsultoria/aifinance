@@ -24,7 +24,7 @@ PLANO_DE_CONTAS = {
                 {"codigo": "OP-01", "nome": "Receitas de Vendas"},
                 {"codigo": "OP-02", "nome": "Receitas de Servicos"},
                 {"codigo": "OP-03", "nome": "Outras Receitas Operacionais"},
-                {"codigo": "OP-04", "nome": "Custos de Mercadorias Vendidas (CMV)"},
+                {"codigo": "OP-04", "nome": "Custos Operacionais"},
                 {"codigo": "OP-05", "nome": "Despesas Administrativas"},
                 {"codigo": "OP-06", "nome": "Despesas Comerciais"},
                 {"codigo": "OP-07", "nome": "Despesas Pessoais Misturadas"},
@@ -838,3 +838,4 @@ except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
