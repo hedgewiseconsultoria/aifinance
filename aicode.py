@@ -405,11 +405,14 @@ def criar_relatorio_fluxo_caixa(df: pd.DataFrame):
     # Criar DataFrame
     df_relatorio = pd.DataFrame(relatorio_linhas)
     
+    # Preencher NaN com valores vazios antes de formatar
+    df_relatorio = df_relatorio.fillna('')
+    
     # Formatar valores monetários
     for col in colunas_meses:
         if col in df_relatorio.columns:
             df_relatorio[col] = df_relatorio[col].apply(
-                lambda x: formatar_brl(x) if isinstance(x, (int, float)) and x != 0 else ('' if pd.isna(x) or x == 0 else x)
+                lambda x: formatar_brl(x) if isinstance(x, (int, float)) and x != 0 else ''
             )
     
     # Remover coluna 'tipo'
