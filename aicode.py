@@ -66,9 +66,13 @@ PLANO_DE_CONTAS = {
     ]
 }
 
+# ----------------------
 # utilitarias para acessar listas
+# ----------------------
+
 def listar_sinteticos_options():
     return [f"{s['codigo']} - {s['nome']}" for s in PLANO_DE_CONTAS['sinteticos']]
+
 
 def listar_analiticas_options():
     opts = []
@@ -87,6 +91,7 @@ CATEGORIA_TO_SINTETICO = {
 # ----------------------
 # formata BRL
 # ----------------------
+
 def formatar_brl(valor: float) -> str:
     try:
         valor_us = f"{valor:,.2f}"
@@ -146,7 +151,7 @@ except Exception:
     client = None
 
 # ----------------------
-# Pydantic schemas (mantidos)
+# Pydantic schemas
 # ----------------------
 class Transacao(BaseModel):
     data: str
@@ -163,23 +168,34 @@ class AnaliseCompleta(BaseModel):
     saldo_final: float
 
 # ----------------------
-# chamada API (inclui plano de contas para orientar classificacao)
+# chamada API (corrigida com string multilinha segura)
 # ----------------------
 @st.cache_data(show_spinner=False, hash_funcs={genai.Client: lambda _: None})
 def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> dict:
     pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type='application/pdf')
     plano_str = json.dumps(PLANO_DE_CONTAS, ensure_ascii=False)
-    prompt_analise = (
-        f"Voce e um especialista em extracao e classificacao de dados financeiros. "
-        f"Extraia todas as transacoes deste extrato bancario em PDF ('{filename}') e classifique cada transacao nas seguintes chaves: 'categoria_sugerida' (descricao curta), 'categoria_dcf' (OPERACIONAL, INVESTIMENTO ou FINANCIAMENTO) e 'entidade' (EMPRESARIAL ou PESSOAL). "
-        "Use o plano de contas abaixo como referencia para sugerir uma conta analitica e sintetica apropriada. Retorne JSON estrito conforme o schema.
 
-"
-        f"PLANO_DE_CONTAS={plano_str}
+    prompt_analise = f"""
+Você é um especialista em extração e classificação de dados financeiros.
+Extraia todas as transações do extrato bancário em PDF ('{filename}') e, para cada transação, preencha os campos:
+- data (DD/MM/AAAA)
+- descricao
+- valor (positivo)
+- tipo_movimentacao (CREDITO ou DEBITO)
+- categoria_sugerida (descrição curta)
+- categoria_dcf (OPERACIONAL, INVESTIMENTO ou FINANCIAMENTO)
+- entidade (EMPRESARIAL ou PESSOAL)
 
-"
-        "Regras: valor deve ser positivo; tipo_movimentacao: CREDITO ou DEBITO; categoria_dcf deve ser uma das tres opcoes."
-    )
+Utilize o PLANO_DE_CONTAS abaixo como referência para sugerir uma conta analítica e a conta sintética correspondente. NÃO MODIFIQUE O PLANO DE CONTAS.
+
+PLANO_DE_CONTAS = {plano_str}
+
+Regras:
+- Retorne JSON estrito seguindo o schema AnaliseCompleta.
+- Use valor POSITIVO para o campo 'valor'.
+- Padronize 'tipo_movimentacao' como CREDITO ou DEBITO.
+- Se não for possível identificar, use 'OPERACIONAL' como categoria_dcf padrão.
+"""
     config = types.GenerateContentConfig(
         response_mime_type="application/json",
         response_schema=AnaliseCompleta,
@@ -198,34 +214,46 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
         return {'transacoes': [], 'saldo_final': 0.0, 'relatorio_inicial': f'Erro: {e}'}
 
 # ----------------------
-# Funcoes de consolidacao e indicadores (agora usam conta_sintetica/analitica)
+# Funcoes de consolidacao e indicadores
 # ----------------------
+
 def aplicar_plano_de_contas_no_df(df: pd.DataFrame) -> pd.DataFrame:
     """Garante colunas conta_sintetica e conta_analitica com defaults baseados em categoria_dcf e categoria_sugerida."""
     df = df.copy()
-    # criar fluxo (positivo para creditos, negativo para debitos)
+    df['valor'] = pd.to_numeric(df['valor'], errors='coerce').fillna(0)
     df['fluxo'] = df.apply(lambda r: r['valor'] if r['tipo_movimentacao'] == 'CREDITO' else -r['valor'], axis=1)
-    # padronizar datas
     df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
-    # conta sintetica default
+
+    # conta sintetica default via categoria_dcf
     df['conta_sintetica'] = df['categoria_dcf'].map(CATEGORIA_TO_SINTETICO).fillna('NE')
-    # tenta mapear analitica por substring na categoria_sugerida
+
+    # montar lista de analiticas para matching simples
     analiticas = listar_analiticas_options()
     nomes_analiticas = [opt.split(' - ',1)[1].lower() for opt in analiticas]
     codigos_analiticas = [opt.split(' - ',1)[0] for opt in analiticas]
+
     def achar_analitica(desc):
-        if not isinstance(desc, str):
+        if not isinstance(desc, str) or desc.strip() == '':
             return f"NE|NE-01 - Outros"
         d = desc.lower()
-        for i,n in enumerate(nomes_analiticas):
-            if n.split() and any(tok in d for tok in n.split()[:3]):
-                return codigos_analiticas[i] + ' - ' + nomes_analiticas[i].title()
-        # fallback
+        # match por termo mais longo primeiro
+        for i, nome in sorted(enumerate(nomes_analiticas), key=lambda x: -len(x[1])):
+            termos = nome.split()
+            if all(t in d for t in termos[:2]):
+                return f"{codigos_analiticas[i]} - {nomes_analiticas[i].title()}"
+        # fallback: buscar ocorrencia parcial
+        for i, nome in enumerate(nomes_analiticas):
+            for tok in nome.split():
+                if tok in d:
+                    return f"{codigos_analiticas[i]} - {nomes_analiticas[i].title()}"
         return f"NE|NE-01 - Outros"
+
     df['conta_analitica'] = df['categoria_sugerida'].apply(achar_analitica)
-    # normalize formats for select options (sintetica show as CODE - Name)
+
+    # label sintetica legivel
     sint_opts_map = {s['codigo']: f"{s['codigo']} - {s['nome']}" for s in PLANO_DE_CONTAS['sinteticos']}
     df['conta_sintetica_label'] = df['conta_sintetica'].map(sint_opts_map).fillna('NE - Ajustes/Transferencias')
+
     return df
 
 
@@ -235,18 +263,14 @@ def gerar_relatorio_mensal_e_indicadores(df_transacoes: pd.DataFrame) -> dict:
     df = df.dropna(subset=['data'])
     df['mes_ano'] = df['data'].dt.to_period('M').astype(str)
 
-    # Mapear tipo_fluxo com base em conta_sintetica
     tipo_map = {s['codigo']: s['tipo_fluxo'] for s in PLANO_DE_CONTAS['sinteticos']}
     df['tipo_fluxo'] = df['conta_sintetica'].map(tipo_map).fillna('NEUTRO')
 
-    # Agregar por mes e por tipo_fluxo
     agregados = df.groupby(['mes_ano', 'tipo_fluxo'])['fluxo'].sum().unstack(fill_value=0).reset_index()
-    # garantir colunas
     for col in ['OPERACIONAL', 'INVESTIMENTO', 'FINANCIAMENTO']:
         if col not in agregados.columns:
             agregados[col] = 0.0
 
-    # Entradas operacionais (creditos classificados como OPERACIONAL)
     entradas_operacionais = df[(df['tipo_fluxo'] == 'OPERACIONAL') & (df['fluxo'] > 0)].groupby('mes_ano')['fluxo'].sum()
     entradas_operacionais = entradas_operacionais.reindex(agregados['mes_ano']).fillna(0).values
 
@@ -276,8 +300,9 @@ def gerar_relatorio_mensal_e_indicadores(df_transacoes: pd.DataFrame) -> dict:
     return {'agregados': agregados, 'indicadores': indicadores, 'resumo': resumo}
 
 # ----------------------
-# Relatorio consolidado (prompt ajustado para incluir indicadores)
+# Relatorio consolidado (prompt seguro)
 # ----------------------
+
 def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicional: str, client: genai.Client) -> str:
     rel = gerar_relatorio_mensal_e_indicadores(df_transacoes)
     agregados = rel['agregados']
@@ -296,20 +321,22 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
 --- FIM DO CONTEXTO ---
 " if contexto_adicional else ""
 
-    prompt_analise = (
-        "Voce e um consultor financeiro para PMEs. A seguir ha dados sinteticos mensais do fluxo por tipo (OPERACIONAL, INVESTIMENTO, FINANCIAMENTO) e os indicadores calculados: margem_operacional, intensidade_investimento e intensidade_financiamento. "
-        "Interprete tendencia, identifique alertas e proponha 3 acoes praticas e priorizadas. Responda em texto simples (max 220 palavras)." 
-        f"
+    prompt_analise = f"""
+Voce e um consultor financeiro para PMEs. Abaixo ha dados sinteticos mensais do fluxo por tipo (OPERACIONAL, INVESTIMENTO, FINANCIAMENTO).
+Calcule tendencia, identifique alertas e proponha 3 acoes praticas e priorizadas.
+Forneca interpretacao dos indicadores: margem_operacional (OPERACIONAL/Entradas Operacionais), intensidade_investimento (INVESTIMENTO/OPERACIONAL) e intensidade_financiamento (FINANCIAMENTO/OPERACIONAL).
+Responda em texto simples (max 220 palavras).
 
 DADOS_SINTETICOS:
 {resumo_text}
 
 INDICADORES_POR_MES:
-{indicadores.to_csv(index=False)}{contexto_prompt}"
-    )
+{indicadores.to_csv(index=False)}
+{contexto_prompt}
+"""
 
     if client is None:
-        # fallback: gerar texto simples local
+        # fallback local
         texto = "Prezado(a) cliente,
 Segue analise sintetica: 
 "
@@ -349,7 +376,7 @@ def load_header():
         st.markdown('---')
 
 # ----------------------
-# Dashboard (usa as novas colunas)
+# Dashboard
 # ----------------------
 
 def criar_dashboard(df: pd.DataFrame):
@@ -370,7 +397,6 @@ def criar_dashboard(df: pd.DataFrame):
     st.markdown('### Comparativo Mensal de Flux de Caixa (por Tipo e Retiradas Pessoais)')
     df['mes_ano'] = df['data'].dt.to_period('M').astype(str)
     df_plot = df.groupby(['mes_ano', 'tipo_fluxo'])['fluxo'].sum().reset_index()
-    # inserir PESSOAL
     df_pessoal = df[df['entidade']=='PESSOAL'].groupby('mes_ano')['fluxo'].sum().reset_index()
     if not df_pessoal.empty:
         df_pessoal['tipo_fluxo'] = 'PESSOAL'
@@ -421,12 +447,10 @@ if page == 'Upload e Extracao':
             if df.empty:
                 st.error('Nenhuma transacao extraida.')
             else:
-                # normalizacoes basicas
                 df['valor'] = pd.to_numeric(df['valor'], errors='coerce').fillna(0)
                 df['tipo_movimentacao'] = df['tipo_movimentacao'].fillna('DEBITO')
                 df['entidade'] = df['entidade'].fillna('EMPRESARIAL')
                 df['categoria_dcf'] = df['categoria_dcf'].fillna('OPERACIONAL')
-                # aplicar plano defaults
                 df = aplicar_plano_de_contas_no_df(df)
                 st.session_state['df_transacoes_editado'] = df
                 st.success('Extracao concluida. Verifique e ajuste os lancamentos na aba Revisao de Dados.')
@@ -438,14 +462,11 @@ elif page == 'Revisao de Dados':
         st.warning('Nenhum dado processado encontrado. Execute a extracao primeiro.')
     else:
         st.info('Revise Entidade, Classificacao DCF, Conta Sintetica e Conta Analitica. Use as opcoes do plano de contas.')
-        # garantir colunas para edicao
         if 'conta_sintetica_label' not in df.columns:
             df = aplicar_plano_de_contas_no_df(df)
-        # preparar opcoes
         sint_opts = listar_sinteticos_options()
         anal_opts = listar_analiticas_options()
 
-        # data editor com selectboxes para contas
         col_config = {
             'data': st.column_config.DateColumn('Data', format='YYYY-MM-DD'),
             'valor': st.column_config.NumberColumn('Valor (R$)', format='R$ %0.2f'),
@@ -459,20 +480,18 @@ elif page == 'Revisao de Dados':
         edited = st.data_editor(df, column_config=col_config, num_rows='dynamic', use_container_width=True)
 
         if st.button('Aplicar Ajustes e Gerar Relatorio'):
-            # sincronizar conta_sintetica codigo a partir do label selecionado
             def extrair_codigo_sint(label):
                 if isinstance(label, str) and ' - ' in label:
                     return label.split(' - ',1)[0]
                 return 'NE'
             edited['conta_sintetica'] = edited['conta_sintetica_label'].apply(extrair_codigo_sint)
-            # padroniza conta_analitica para forma codigo|descricao
+
             def padroniza_analitica(val):
-                if isinstance(val, str) and '|' in val:
+                if isinstance(val, str) and ' - ' in val:
                     return val
                 return str(val)
             edited['conta_analitica'] = edited['conta_analitica'].apply(padroniza_analitica)
             st.session_state['df_transacoes_editado'] = edited
-            # gerar relatorio consolidado via IA
             with st.spinner('Gerando relatorio consolidado...'):
                 texto = gerar_relatorio_final_economico(edited, st.session_state.get('contexto_adicional',''), client)
             st.session_state['relatorio_consolidado'] = texto
