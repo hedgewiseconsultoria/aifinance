@@ -309,10 +309,10 @@ def gerar_relatorio_final_economico(df_transacoes: pd.DataFrame, contexto_adicio
     indicadores = rel['indicadores']
 
     linhas_ag = []
-    for _, row in agregados.iterrows():
-        linhas_ag.append(f"{row['mes_ano']}: OPERACIONAL={row.get('OPERACIONAL',0):.2f}, INVESTIMENTO={row.get('INVESTIMENTO',0):.2f}, FINANCIAMENTO={row.get('FINANCIAMENTO',0):.2f}")
-    resumo_text = "
-".join(linhas_ag)
+for _, row in agregados.iterrows():
+    linhas_ag.append(f"{row['mes_ano']}: OPERACIONAL={row.get('OPERACIONAL',0):.2f}, INVESTIMENTO={row.get('INVESTIMENTO',0):.2f}, FINANCIAMENTO={row.get('FINANCIAMENTO',0):.2f}")
+
+resumo_text = "\n".join(linhas_ag)
 
     contexto_prompt = f"
 
@@ -535,3 +535,4 @@ try:
         st.markdown('<p style="font-size:0.8rem;color:#6c757d">Analise de Extrato Empresarial | Dados extraidos e classificados com IA.</p>', unsafe_allow_html=True)
 except Exception:
     st.markdown('<p style="font-size:0.8rem;color:#6c757d">Analise de Extrato Empresarial | Dados extraidos e classificados com IA.</p>', unsafe_allow_html=True)
+
