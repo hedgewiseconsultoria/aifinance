@@ -539,14 +539,16 @@ def criar_grafico_indicadores(df: pd.DataFrame):
     
     st.markdown("---")
 
+
 # --- FUNÇÃO: CÁLCULO DO SCORE FINANCEIRO BASEADO EM FLUXO DE CAIXA ---
 def calcular_score_fluxo(df: pd.DataFrame):
-    """Calcula o Score Financeiro com base nos três indicadores:
+    """
+    Calcula o Score Financeiro com base nos três indicadores:
     - Margem de Caixa Operacional (MCO)
     - Intensidade de Investimentos (I_INV)
     - Intensidade de Financiamentos (I_FIN)
     Retorna um dicionário com score_final, pontos por indicador e valores dos indicadores.
-    \"\"\"
+    """
     # Preparar dados (mesma lógica usada nos gráficos)
     df = df.copy()
     df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
@@ -626,6 +628,7 @@ def calcular_score_fluxo(df: pd.DataFrame):
         'valores': {'margem_op': margem_op, 'intensidade_inv': intensidade_inv, 'intensidade_fin': intensidade_fin},
         'componentes': {'caixa_operacional': caixa_op, 'caixa_investimento': caixa_inv, 'caixa_financiamento': caixa_fin, 'entradas_operacionais': entradas_op}
     }
+
 
 # --- 8. FUNÇÃO PARA CRIAR DASHBOARD ---
 def criar_dashboard(df: pd.DataFrame):
@@ -886,8 +889,6 @@ elif page == "Dashboard & Relatórios":
     
     if not st.session_state['df_transacoes_editado'].empty:
         df_final = st.session_state['df_transacoes_editado'].copy()
-        
-
         # ------- CÁLCULO E EXIBIÇÃO DO SCORE FINANCEIRO -------
         try:
             resultado_score = calcular_score_fluxo(df_final)
@@ -899,35 +900,34 @@ elif page == "Dashboard & Relatórios":
             # Exibir métricas principais
             col_s1, col_s2, col_s3 = st.columns(3)
             with col_s1:
-                st.metric("🔹 Score Financeiro (0-100)", f\"{score}\")
+                st.metric("🔹 Score Financeiro (0-100)", f"{score}")
             with col_s2:
-                st.metric(\"🔸 Margem de Caixa Operacional\", f\"{margem_op:.1%}\")
+                st.metric("🔸 Margem de Caixa Operacional", f"{margem_op:.1%}")
             with col_s3:
-                st.metric(\"🔸 Intensidade de Investimento\", f\"{i_inv:.1%}\")
+                st.metric("🔸 Intensidade de Investimento", f"{i_inv:.1%}")
 
             # Classificação textual
             if score >= 85:
                 classe = 'A – Excelente'
-                st.success(f\"Classe: {classe} — Perfil financeiramente sustentável.\")
+                st.success(f"Classe: {classe} — Perfil financeiramente sustentável.")
             elif score >= 70:
                 classe = 'B – Muito Bom'
-                st.info(f\"Classe: {classe} — Risco moderado; oportunidade de expansão.\")
+                st.info(f"Classe: {classe} — Risco moderado; oportunidade de expansão.")
             elif score >= 55:
                 classe = 'C – OK / Estável'
-                st.warning(f\"Classe: {classe} — Avaliar garantias e limites.\")
+                st.warning(f"Classe: {classe} — Avaliar garantias e limites.")
             elif score >= 40:
                 classe = 'D – Alto Risco'
-                st.error(f\"Classe: {classe} — Liquidez pressionada; requer garantias/monitoramento.\")
+                st.error(f"Classe: {classe} — Liquidez pressionada; requer garantias/monitoramento.")
             else:
                 classe = 'E – Crítico'
-                st.error(f\"Classe: {classe} — Operação possivelmente insustentável. Rever fluxo e retiradas. \")
+                st.error(f"Classe: {classe} — Operação possivelmente insustentável. Rever fluxo e retiradas. ")
 
-            st.markdown(\"---\")
+            st.markdown("---")
         except Exception as e:
-            st.error(f\"Erro ao calcular o score: {e}\")
+            st.error(f"Erro ao calcular o score: {e}")
 
-
-
+        
         # Relatório de Fluxo de Caixa
         criar_relatorio_fluxo_caixa(df_final)
         
@@ -968,4 +968,3 @@ except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
-
