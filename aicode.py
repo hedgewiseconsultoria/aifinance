@@ -538,6 +538,95 @@ def criar_grafico_indicadores(df: pd.DataFrame):
         """)
     
     st.markdown("---")
+
+# --- FUNÇÃO: CÁLCULO DO SCORE FINANCEIRO BASEADO EM FLUXO DE CAIXA ---
+def calcular_score_fluxo(df: pd.DataFrame):
+    \"\"\"Calcula o Score Financeiro com base nos três indicadores:
+    - Margem de Caixa Operacional (MCO)
+    - Intensidade de Investimentos (I_INV)
+    - Intensidade de Financiamentos (I_FIN)
+    Retorna um dicionário com score_final, pontos por indicador e valores dos indicadores.
+    \"\"\"
+    # Preparar dados (mesma lógica usada nos gráficos)
+    df = df.copy()
+    df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
+    df.dropna(subset=['data'], inplace=True)
+    df['fluxo'] = df.apply(lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'], axis=1)
+    df_fluxo = df[df['tipo_fluxo'] != 'NEUTRO'].copy()
+
+    caixa_op = df_fluxo[df_fluxo['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
+    caixa_inv = df_fluxo[df_fluxo['tipo_fluxo'] == 'INVESTIMENTO']['fluxo'].sum()
+    caixa_fin = df_fluxo[df_fluxo['tipo_fluxo'] == 'FINANCIAMENTO']['fluxo'].sum()
+
+    entradas_op = df_fluxo[(df_fluxo['tipo_fluxo'] == 'OPERACIONAL') & (df_fluxo['tipo_movimentacao'] == 'CREDITO')]['valor'].sum()
+
+    # Indicadores (tratar divisões por zero)
+    margem_op = (caixa_op / entradas_op) if entradas_op > 0 else 0.0
+    # Intensidade de investimentos: considerar sinal natural (investimento tipicamente negativo)
+    # Queremos o percentual positivo representando "quanto do caixa operacional está sendo consumido por investimentos"
+    intensidade_inv = ((-caixa_inv) / caixa_op) if caixa_op != 0 else 0.0
+    intensidade_fin = (caixa_fin / caixa_op) if caixa_op != 0 else 0.0
+
+    # Pontuação Margem Operacional (0-100)
+    if margem_op >= 0.20:
+        p_op = 100
+    elif margem_op >= 0.15:
+        p_op = 80
+    elif margem_op >= 0.10:
+        p_op = 60
+    elif margem_op >= 0.05:
+        p_op = 40
+    elif margem_op >= 0.0:
+        p_op = 20
+    else:
+        p_op = 0
+
+    # Pontuação Intensidade de Investimentos (I_INV em proporção, ex: 0.25 = 25%)
+    # Faixas: 0-30% muito baixo risco (100), 30-70% baixo(80), 70-100%(50), >100%(20)
+    if intensidade_inv <= 0.30:
+        p_inv = 100
+    elif intensidade_inv <= 0.70:
+        p_inv = 80
+    elif intensidade_inv <= 1.0:
+        p_inv = 50
+    else:
+        p_inv = 20
+
+    # Pontuação Intensidade de Financiamentos (condicional)
+    # Se financiamento >= 0 (entradas de recursos)
+    if intensidade_fin >= 0:
+        if intensidade_fin <= 0.30:
+            p_fin = 100
+        elif intensidade_fin <= 1.0:
+            p_fin = 70
+        else:
+            # >100% -> depende da margem operacional
+            if margem_op >= 0.10:
+                p_fin = 50
+            else:
+                p_fin = 30
+    else:
+        # financiamento < 0 (saídas: amortização, distribuição)
+        if margem_op >= 0.15:
+            p_fin = 100
+        elif margem_op >= 0.10:
+            p_fin = 70
+        elif margem_op >= 0.05:
+            p_fin = 40
+        else:
+            p_fin = 10
+
+    # Score Final: pesos conforme metodologia final
+    score_final = 0.5 * p_op + 0.3 * p_fin + 0.2 * p_inv
+    score_final = round(float(score_final), 1)
+
+    return {
+        'score_final': score_final,
+        'pontos': {'margem': p_op, 'investimento': p_inv, 'financiamento': p_fin},
+        'valores': {'margem_op': margem_op, 'intensidade_inv': intensidade_inv, 'intensidade_fin': intensidade_fin},
+        'componentes': {'caixa_operacional': caixa_op, 'caixa_investimento': caixa_inv, 'caixa_financiamento': caixa_fin, 'entradas_operacionais': entradas_op}
+    }
+
 # --- 8. FUNÇÃO PARA CRIAR DASHBOARD ---
 def criar_dashboard(df: pd.DataFrame):
     """Cria dashboard com gráficos de análise."""
@@ -798,6 +887,47 @@ elif page == "Dashboard & Relatórios":
     if not st.session_state['df_transacoes_editado'].empty:
         df_final = st.session_state['df_transacoes_editado'].copy()
         
+
+        # ------- CÁLCULO E EXIBIÇÃO DO SCORE FINANCEIRO -------
+        try:
+            resultado_score = calcular_score_fluxo(df_final)
+            score = resultado_score['score_final']
+            margem_op = resultado_score['valores']['margem_op']
+            i_inv = resultado_score['valores']['intensidade_inv']
+            i_fin = resultado_score['valores']['intensidade_fin']
+
+            # Exibir métricas principais
+            col_s1, col_s2, col_s3 = st.columns(3)
+            with col_s1:
+                st.metric("🔹 Score Financeiro (0-100)", f\"{score}\")
+            with col_s2:
+                st.metric(\"🔸 Margem de Caixa Operacional\", f\"{margem_op:.1%}\")
+            with col_s3:
+                st.metric(\"🔸 Intensidade de Investimento\", f\"{i_inv:.1%}\")
+
+            # Classificação textual
+            if score >= 85:
+                classe = 'A – Excelente'
+                st.success(f\"Classe: {classe} — Perfil financeiramente sustentável.\")
+            elif score >= 70:
+                classe = 'B – Muito Bom'
+                st.info(f\"Classe: {classe} — Risco moderado; oportunidade de expansão.\")
+            elif score >= 55:
+                classe = 'C – OK / Estável'
+                st.warning(f\"Classe: {classe} — Avaliar garantias e limites.\")
+            elif score >= 40:
+                classe = 'D – Alto Risco'
+                st.error(f\"Classe: {classe} — Liquidez pressionada; requer garantias/monitoramento.\")
+            else:
+                classe = 'E – Crítico'
+                st.error(f\"Classe: {classe} — Operação possivelmente insustentável. Rever fluxo e retiradas. \")
+
+            st.markdown(\"---\")
+        except Exception as e:
+            st.error(f\"Erro ao calcular o score: {e}\")
+
+
+
         # Relatório de Fluxo de Caixa
         criar_relatorio_fluxo_caixa(df_final)
         
@@ -838,4 +968,3 @@ except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
-
