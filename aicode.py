@@ -541,7 +541,7 @@ def criar_grafico_indicadores(df: pd.DataFrame):
 
 # --- FUNÇÃO: CÁLCULO DO SCORE FINANCEIRO BASEADO EM FLUXO DE CAIXA ---
 def calcular_score_fluxo(df: pd.DataFrame):
-    \"\"\"Calcula o Score Financeiro com base nos três indicadores:
+    """Calcula o Score Financeiro com base nos três indicadores:
     - Margem de Caixa Operacional (MCO)
     - Intensidade de Investimentos (I_INV)
     - Intensidade de Financiamentos (I_FIN)
@@ -968,3 +968,4 @@ except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
