@@ -21,15 +21,15 @@ PLANO_DE_CONTAS = {
             "nome": "Atividades Operacionais",
             "tipo_fluxo": "OPERACIONAL",
             "contas": [
-                {"codigo": "OP-01", "nome": "Receitas de Vendas"},
-                {"codigo": "OP-02", "nome": "Receitas de Servicos"},
-                {"codigo": "OP-03", "nome": "Outras Receitas Operacionais"},
-                {"codigo": "OP-04", "nome": "Custos Operacionais"},
-                {"codigo": "OP-05", "nome": "Despesas Administrativas"},
-                {"codigo": "OP-06", "nome": "Despesas Comerciais"},
-                {"codigo": "OP-07", "nome": "Despesas Pessoais Misturadas"},
-                {"codigo": "OP-08", "nome": "Impostos e Contribuicoes"},
-                {"codigo": "OP-09", "nome": "Tarifas Bancarias e Servicos"}
+                {"codigo": "OP-01", "nome": "Receitas de Vendas", "descricao": "Entradas de recursos provenientes da venda de produtos ou mercadorias."},
+                {"codigo": "OP-02", "nome": "Receitas de Servicos", "descricao": "Entradas por prestação de serviços e atividades profissionais."},
+                {"codigo": "OP-03", "nome": "Outras Receitas Operacionais", "descricao": "Outras entradas ligadas à operação principal, mas não classificadas como vendas ou serviços."},
+                {"codigo": "OP-04", "nome": "Custos Operacionais", "descricao": "Pagamentos de custos diretamente relacionados à produção ou comercialização de bens e serviços."},
+                {"codigo": "OP-05", "nome": "Despesas Administrativas", "descricao": "Despesas gerais da empresa, como aluguel, telefone, internet e material de escritório."},
+                {"codigo": "OP-06", "nome": "Despesas Comerciais", "descricao": "Despesas de vendas e marketing, comissões e materiais promocionais."},
+                {"codigo": "OP-07", "nome": "Despesas Pessoais Misturadas", "descricao": "Pagamentos pessoais realizados em conta da empresa (mistura de finanças pessoais e empresariais)."},
+                {"codigo": "OP-08", "nome": "Impostos e Contribuicoes", "descricao": "Pagamentos de tributos, taxas e contribuições obrigatórias."},
+                {"codigo": "OP-09", "nome": "Tarifas Bancarias e Servicos", "descricao": "Custos com tarifas, taxas bancárias e serviços financeiros."}
             ]
         },
         {
@@ -37,9 +37,9 @@ PLANO_DE_CONTAS = {
             "nome": "Atividades de Investimento",
             "tipo_fluxo": "INVESTIMENTO",
             "contas": [
-                {"codigo": "INV-01", "nome": "Aquisicao de Imobilizado"},
-                {"codigo": "INV-02", "nome": "Aplicacoes Financeiras"},
-                {"codigo": "INV-03", "nome": "Alienacao de Ativos"}
+                {"codigo": "INV-01", "nome": "Aquisicao de Imobilizado", "descricao": "Compras de equipamentos, móveis, veículos ou outros bens permanentes."},
+                {"codigo": "INV-02", "nome": "Aplicacoes Financeiras", "descricao": "Investimentos em aplicações financeiras, como CDBs ou fundos."},
+                {"codigo": "INV-03", "nome": "Alienacao de Ativos", "descricao": "Venda de bens ou ativos permanentes."}
             ]
         },
         {
@@ -47,11 +47,11 @@ PLANO_DE_CONTAS = {
             "nome": "Atividades de Financiamento",
             "tipo_fluxo": "FINANCIAMENTO",
             "contas": [
-                {"codigo": "FIN-01", "nome": "Emprestimos Recebidos"},
-                {"codigo": "FIN-02", "nome": "Pagamento de Emprestimos"},
-                {"codigo": "FIN-03", "nome": "Juros sobre Emprestimos e Financiamentos"},
-                {"codigo": "FIN-04", "nome": "Aporte de Socios"},
-                {"codigo": "FIN-05", "nome": "Retirada de Socios / Pro-labore"}
+                {"codigo": "FIN-01", "nome": "Emprestimos Recebidos", "descricao": "Entradas de recursos provenientes de financiamentos ou empréstimos bancários."},
+                {"codigo": "FIN-02", "nome": "Pagamento de Emprestimos", "descricao": "Saídas destinadas à quitação de empréstimos ou financiamentos."},
+                {"codigo": "FIN-03", "nome": "Juros sobre Emprestimos e Financiamentos", "descricao": "Pagamentos de juros e encargos de dívidas financeiras."},
+                {"codigo": "FIN-04", "nome": "Aporte de Socios", "descricao": "Recursos injetados pelos sócios no caixa da empresa."},
+                {"codigo": "FIN-05", "nome": "Retirada de Socios / Pro-labore", "descricao": "Saídas referentes à remuneração de sócios e retiradas pessoais."}
             ]
         },
         {
@@ -59,8 +59,8 @@ PLANO_DE_CONTAS = {
             "nome": "Ajustes e Transferencias Internas",
             "tipo_fluxo": "NEUTRO",
             "contas": [
-                {"codigo": "NE-01", "nome": "Transferencias entre Contas"},
-                {"codigo": "NE-02", "nome": "Ajustes e Estornos"}
+                {"codigo": "NE-01", "nome": "Transferencias entre Contas", "descricao": "Movimentações internas entre contas da própria empresa."},
+                {"codigo": "NE-02", "nome": "Ajustes e Estornos", "descricao": "Correções, estornos e lançamentos neutros."}
             ]
         }
     ]
@@ -784,7 +784,9 @@ if page == "Upload e Extração":
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             st.markdown(f"**{sintetico['codigo']} - {sintetico['nome']}** ({sintetico['tipo_fluxo']})")
             for conta in sintetico["contas"]:
-                st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
+            st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
+            if 'descricao' in conta:
+                st.caption(f"▸ {conta['descricao']}")
 
     with st.expander("Upload de Arquivos", expanded=True):
         uploaded_files = st.file_uploader(
@@ -903,7 +905,7 @@ elif page == "Dashboard & Relatórios":
             with col_s2:
                 st.metric("🏦 Margem de Caixa Operacional", f"{margem_op:.1%}")
             with col_s3:
-                st.metric("💰 Intensidade de Investimento", f"{i_inv:.1%}")
+                st.metric("💰 Intensidade de Investimento", f"{-i_inv:.1%}" if pd.notna(i_inv) else "—")
             with col_s4:
                 st.metric("📈 Intensidade de Financiamento", f"{i_fin:.1%}" if pd.notna(i_fin) else "—")
 
