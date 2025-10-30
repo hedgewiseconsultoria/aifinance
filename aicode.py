@@ -909,15 +909,15 @@ elif page == "Dashboard & Relatórios":
 
             # --- CLASSIFICAÇÃO FINAL ---
             if score >= 85:
-                st.success("**Classe A – Excelente:** Perfil financeiramente sustentável.")
+                st.success("**Classe A – Excelente:** O seu negócio apresenta um perfil financeiramente sustentável.")
             elif score >= 70:
-                st.info("**Classe B – Muito Bom:** Risco moderado; oportunidade de expansão.")
+                st.info("**Classe B – Muito Bom:**  O seu negócio apresenta um risco moderado, com oportunidade de expansão.")
             elif score >= 55:
-                st.warning("**Classe C – Estável:** Avaliar garantias e limites de retirada.")
+                st.warning("**Classe C – Estável:** O seu negócio não parece correr perigo, porém fique atento aos limites de retiradas.")
             elif score >= 40:
-                st.error("**Classe D – Alto Risco:** Liquidez pressionada; requer monitoramento.")
+                st.error("**Classe D – Alto Risco:** O seu negócio requer muita atenção por apresentar Liquidez pressionada.")
             else:
-                st.error("**Classe E – Crítico:** Operação possivelmente insustentável.")
+                st.error("**Classe E – Crítico:** A sua operação parece ser insustentável.")
 
             st.markdown("---")
 
@@ -962,6 +962,3 @@ except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
-
-
-
