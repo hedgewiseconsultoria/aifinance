@@ -776,19 +776,19 @@ load_header()
 st.sidebar.title("Navegação")
 page = st.sidebar.radio("Seções", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
 
+
 if page == "Upload e Extração":
     st.markdown("## 1. Upload e Extração de Dados")
     st.markdown("Faça o upload dos extratos em PDF. O sistema irá extrair as transações e classificá-las conforme o plano de contas.")
 
-    
-with st.expander("Plano de Contas Utilizado", expanded=False):
-    for sintetico in PLANO_DE_CONTAS["sinteticos"]:
-        st.markdown(f"**{sintetico['codigo']} - {sintetico['nome']}** ({sintetico['tipo_fluxo']})")
-        for conta in sintetico["contas"]:
-            st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
-            if 'descricao' in conta:
-                st.caption(f"▸ {conta['descricao']}")
-        st.markdown("")  # linha em branco para espaçamento visual
+    with st.expander("Plano de Contas Utilizado", expanded=False):
+        for sintetico in PLANO_DE_CONTAS["sinteticos"]:
+            st.markdown(f"**{sintetico['codigo']} - {sintetico['nome']}** ({sintetico['tipo_fluxo']})")
+            for conta in sintetico["contas"]:
+                st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
+                if 'descricao' in conta:
+                    st.caption(f"▸ {conta['descricao']}")
+            st.markdown("")  # linha em branco para espaçamento visual
 
     with st.expander("Upload de Arquivos", expanded=True):
         uploaded_files = st.file_uploader(
@@ -799,43 +799,8 @@ with st.expander("Plano de Contas Utilizado", expanded=False):
             help="Os PDFs devem ter texto selecionável."
         )
 
-    if uploaded_files:
-        if st.button(f"Executar Extração e Classificação ({len(uploaded_files)} arquivos)", key="analyze_btn"):
-            todas_transacoes = []
-            extraction_status = st.status("Iniciando extração e classificação...", expanded=True)
-            
-            for i, uploaded_file in enumerate(uploaded_files):
-                extraction_status.write(f"Extraindo dados do arquivo {i+1} de {len(uploaded_files)}: **{uploaded_file.name}**")
-                pdf_bytes = uploaded_file.getvalue()
-                
-                with extraction_status:
-                    dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client)
-                
-                todas_transacoes.extend(dados_dict['transacoes'])
-            
-            df_transacoes = pd.DataFrame(todas_transacoes)
-            
-            if df_transacoes.empty:
-                extraction_status.error("❌ Nenhuma transação válida foi extraída.")
-                st.session_state['df_transacoes_editado'] = pd.DataFrame()
-            else:
-                extraction_status.update(
-                    label=f"✅ Extração de {len(todas_transacoes)} transações concluída!", 
-                    state="complete", 
-                    expanded=False
-                )
-                
-                df_transacoes['valor'] = pd.to_numeric(df_transacoes['valor'], errors='coerce').fillna(0)
-                df_transacoes['data'] = pd.to_datetime(df_transacoes['data'], errors='coerce', dayfirst=True)
-                df_transacoes['tipo_movimentacao'] = df_transacoes['tipo_movimentacao'].fillna('DEBITO')
-                df_transacoes['conta_analitica'] = df_transacoes['conta_analitica'].fillna('NE-02')
-                
-                # Enriquecer com plano de contas
-                df_transacoes = enriquecer_com_plano_contas(df_transacoes)
-                
-                st.session_state['df_transacoes_editado'] = df_transacoes
-                st.rerun()
 
+elif page == "Revisão de Dados":
 elif page == "Revisão de Dados":
     st.markdown("## 2. Revisão e Correção Manual dos Dados")
     
