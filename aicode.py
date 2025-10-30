@@ -879,11 +879,13 @@ elif page == "Revisão de Dados":
     else:
         st.warning("Nenhum dado processado encontrado. Volte para a seção **Upload e Extração**.")
 
+
 elif page == "Dashboard & Relatórios":
     st.markdown("## 3. Relatórios Gerenciais e Dashboard")
     
     if not st.session_state['df_transacoes_editado'].empty:
         df_final = st.session_state['df_transacoes_editado'].copy()
+
         # ------- CÁLCULO E EXIBIÇÃO DO SCORE FINANCEIRO -------
         try:
             resultado_score = calcular_score_fluxo(df_final)
@@ -892,54 +894,48 @@ elif page == "Dashboard & Relatórios":
             i_inv = resultado_score['valores']['intensidade_inv']
             i_fin = resultado_score['valores']['intensidade_fin']
 
-            # Exibir métricas principais
+            # --- BLOCO DE MÉTRICAS ---
+            st.markdown("### 📊 Indicadores-Chave de Performance (KPI)")
             col_s1, col_s2, col_s3, col_s4 = st.columns(4)
-            with col_s1:
-                st.metric("🔹 Score Financeiro (0-100)", f"{score}")
-            with col_s2:
-                st.metric("🔸 Margem de Caixa Operacional", f"{margem_op:.1%}")
-            with col_s3:
-                st.metric("🔸 Intensidade de Investimento", f"{i_inv:.1%}")
-            with col_s4:
-                st.metric("🔸 Intensidade de Financiamento", f"{i_fin:.1%}")
 
-            # Classificação textual
+            with col_s1:
+                st.metric("🔹 Score Financeiro (0–100)", f"{score:.1f}")
+            with col_s2:
+                st.metric("🏦 Margem de Caixa Operacional", f"{margem_op:.1%}")
+            with col_s3:
+                st.metric("💰 Intensidade de Investimento", f"{i_inv:.1%}")
+            with col_s4:
+                st.metric("📈 Intensidade de Financiamento", f"{i_fin:.1%}" if pd.notna(i_fin) else "—")
+
+            # --- CLASSIFICAÇÃO FINAL ---
             if score >= 85:
-                classe = 'A – Excelente'
-                st.success(f"Classe: {classe} — Perfil financeiramente sustentável.")
+                st.success("**Classe A – Excelente:** Perfil financeiramente sustentável.")
             elif score >= 70:
-                classe = 'B – Muito Bom'
-                st.info(f"Classe: {classe} — Risco moderado; oportunidade de expansão.")
+                st.info("**Classe B – Muito Bom:** Risco moderado; oportunidade de expansão.")
             elif score >= 55:
-                classe = 'C – OK / Estável'
-                st.warning(f"Classe: {classe} — Avaliar garantias e limites.")
+                st.warning("**Classe C – Estável:** Avaliar garantias e limites de retirada.")
             elif score >= 40:
-                classe = 'D – Alto Risco'
-                st.error(f"Classe: {classe} — Liquidez pressionada; requer garantias/monitoramento.")
+                st.error("**Classe D – Alto Risco:** Liquidez pressionada; requer monitoramento.")
             else:
-                classe = 'E – Crítico'
-                st.error(f"Classe: {classe} — Operação possivelmente insustentável. Rever fluxo e retiradas. ")
+                st.error("**Classe E – Crítico:** Operação possivelmente insustentável.")
 
             st.markdown("---")
+
         except Exception as e:
             st.error(f"Erro ao calcular o score: {e}")
 
-        
-        # Relatório de Fluxo de Caixa
+        # ------- RELATÓRIOS E GRÁFICOS -------
         criar_relatorio_fluxo_caixa(df_final)
-        
-        # Gráfico de Indicadores
         criar_grafico_indicadores(df_final)
-        
-        # Dashboard com gráficos
         criar_dashboard(df_final)
-        
-        # Exportar dados
+
+        # ------- EXPORTAÇÃO -------
         st.markdown("---")
+        st.markdown("### 📤 Exportar Dados")
         col1, col2 = st.columns(2)
-        
+
         with col1:
-            if st.button("📥 Exportar Transações Detalhadas (CSV)"):
+            if st.button("📥 Baixar Transações Detalhadas (CSV)"):
                 csv = df_final.to_csv(index=False).encode('utf-8')
                 st.download_button(
                     label="Baixar CSV de Transações",
@@ -947,6 +943,7 @@ elif page == "Dashboard & Relatórios":
                     file_name="transacoes_hedgewise.csv",
                     mime="text/csv"
                 )
+
     else:
         st.warning("Nenhum dado processado encontrado. Volte para a seção **Upload e Extração**.")
 
