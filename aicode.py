@@ -777,7 +777,7 @@ st.sidebar.title("Navegação")
 page = st.sidebar.radio("Seções", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
 
 if page == "Upload e Extração":
-    st.markdown("## 1. Upload e Extração de Dados")
+    st.markdown("### 1. Upload e Extração de Dados")
     st.markdown("Faça o upload dos extratos em PDF. O sistema irá extrair as transações e classificá-las conforme o plano de contas.")
 
     with st.expander("Plano de Contas Utilizado", expanded=False):
@@ -833,7 +833,7 @@ if page == "Upload e Extração":
                 st.rerun()
 
 elif page == "Revisão de Dados":
-    st.markdown("## 2. Revisão e Correção Manual dos Dados")
+    st.markdown("### 2. Revisão e Correção Manual dos Dados")
     
     if not st.session_state['df_transacoes_editado'].empty:
         st.info("⚠️ **IMPORTANTE:** Revise as classificações e corrija manualmente qualquer erro.")
@@ -881,7 +881,7 @@ elif page == "Revisão de Dados":
 
 
 elif page == "Dashboard & Relatórios":
-    st.markdown("## 3. Relatórios Gerenciais e Dashboard")
+    st.markdown("### 3. Relatórios Gerenciais e Dashboard")
     
     if not st.session_state['df_transacoes_editado'].empty:
         df_final = st.session_state['df_transacoes_editado'].copy()
@@ -962,4 +962,5 @@ except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
 
