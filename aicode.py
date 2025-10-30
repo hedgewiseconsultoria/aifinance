@@ -894,32 +894,50 @@ elif page == "Dashboard & Relatórios":
             i_inv = resultado_score['valores']['intensidade_inv']
             i_fin = resultado_score['valores']['intensidade_fin']
 
-            # --- BLOCO DE MÉTRICAS ---
+            
+            # --- NOVO CÁLCULO DE INDICADORES (baseado em média mensal) ---
+            df_final["Data"] = pd.to_datetime(df_final["Data"], errors="coerce")
+            df_final["mes_ano"] = df_final["Data"].dt.to_period("M")
+
+            indicadores_mensais = []
+            for mes, grupo in df_final.groupby("mes_ano"):
+                caixa_op = grupo.loc[grupo["Grupo"] == "Operacional", "Valor"].sum()
+                caixa_inv = grupo.loc[grupo["Grupo"] == "Investimento", "Valor"].sum()
+                caixa_fin = grupo.loc[grupo["Grupo"] == "Financiamento", "Valor"].sum()
+                entradas_op = grupo.loc[(grupo["Grupo"] == "Operacional") & (grupo["Valor"] > 0), "Valor"].sum()
+
+                margem_op = (caixa_op / entradas_op) if entradas_op != 0 else 0
+                intensidade_inv = (caixa_inv / caixa_op) if caixa_op != 0 else 0
+                intensidade_fin = (caixa_fin / caixa_op) if caixa_op != 0 else 0
+
+                indicadores_mensais.append({
+                    "Mes": str(mes),
+                    "Margem de Caixa Operacional (%)": margem_op,
+                    "Intensidade de Investimento (%)": intensidade_inv,
+                    "Intensidade de Financiamento (%)": intensidade_fin
+                })
+
+            df_indicadores = pd.DataFrame(indicadores_mensais)
+
+            # Cálculo das médias mensais (para exibição no topo do dashboard)
+            margem_media = df_indicadores["Margem de Caixa Operacional (%)"].mean()
+            inv_media = df_indicadores["Intensidade de Investimento (%)"].mean()
+            fin_media = df_indicadores["Intensidade de Financiamento (%)"].mean()
+            
+            # --- BLOCO DE MÉTRICAS (usando médias mensais) ---
             st.markdown("#### 📊 Indicadores-Chave de Performance (KPI)")
             col_s1, col_s2, col_s3, col_s4 = st.columns(4)
 
             with col_s1:
                 st.metric("🔹 Score Financeiro (0–100)", f"{score:.1f}")
             with col_s2:
-                st.metric("🏦 Margem de Caixa Operacional", f"{margem_op:.1%}")
+                st.metric("🏦 Margem de Caixa Operacional (média)", f"{margem_media:.1%}")
             with col_s3:
-                st.metric("💰 Intensidade de Investimento", f"{-i_inv:.1%}")
+                st.metric("💰 Intensidade de Investimento (média)", f"{inv_media:.1%}")
             with col_s4:
-                st.metric("📈 Intensidade de Financiamento", f"{i_fin:.1%}" if pd.notna(i_fin) else "—")
+                st.metric("📈 Intensidade de Financiamento (média)", f"{fin_media:.1%}" if pd.notna(fin_media) else "—")
 
-            # --- CLASSIFICAÇÃO FINAL ---
-            if score >= 85:
-                st.success("**Classe A – Excelente:** O seu negócio apresenta um perfil financeiramente sustentável.")
-            elif score >= 70:
-                st.info("**Classe B – Muito Bom:**  O seu negócio apresenta um risco moderado, com oportunidade de expansão.")
-            elif score >= 55:
-                st.warning("**Classe C – Estável:** O seu negócio não parece correr perigo, porém fique atento aos limites de retiradas.")
-            elif score >= 40:
-                st.error("**Classe D – Alto Risco:** O seu negócio requer muita atenção por apresentar Liquidez pressionada.")
-            else:
-                st.error("**Classe E – Crítico:** A sua operação parece ser insustentável.")
-
-            st.markdown("---")
+            st.markdown('---')
 
         except Exception as e:
             st.error(f"Erro ao calcular o score: {e}")
