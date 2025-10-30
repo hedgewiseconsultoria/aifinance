@@ -566,7 +566,7 @@ def calcular_score_fluxo(df: pd.DataFrame):
     margem_op = (caixa_op / entradas_op) if entradas_op > 0 else 0.0
     # Intensidade de investimentos: considerar sinal natural (investimento tipicamente negativo)
     # Queremos o percentual positivo representando "quanto do caixa operacional está sendo consumido por investimentos"
-    intensidade_inv = ((-caixa_inv) / caixa_op) if caixa_op != 0 else 0.0
+    intensidade_inv = (abs(min(caixa_inv, 0)) / caixa_op) if caixa_op != 0 else 0.0
     intensidade_fin = (caixa_fin / caixa_op) if caixa_op != 0 else 0.0
 
     # Pontuação Margem Operacional (0-100)
@@ -717,21 +717,16 @@ def criar_dashboard(df: pd.DataFrame):
             st.plotly_chart(fig_comparativo, use_container_width=True)
             
             # Análise contextual
-            percentual_retiradas = (retiradas_pessoais / caixa_operacional * 100) if caixa_operacional > 0 else 0
-            
-            col_info1, col_info2 = st.columns(2)
-            with col_info1:
-                st.metric("💰 Caixa Operacional Gerado", formatar_brl(caixa_operacional))
-            with col_info2:
-                st.metric("👥 Retiradas Pessoais", formatar_brl(retiradas_pessoais), 
-                         delta=f"{percentual_retiradas:.1f}% do operacional")
-            
-            if percentual_retiradas > 80:
-                st.warning("⚠️ **Atenção**: As retiradas pessoais representam mais de 80% do caixa operacional. Avalie a sustentabilidade do negócio.")
-            elif percentual_retiradas > 50:
-                st.info("ℹ️ As retiradas pessoais consomem mais de 50% do caixa operacional. Monitore a evolução deste indicador.")
+            if caixa_operacional <= 0:
+                st.error("🚨 O caixa operacional está negativo — não há sustentabilidade para retiradas pessoais neste período.")
             else:
-                st.success("✅ As retiradas pessoais estão em nível saudável em relação ao caixa operacional.")
+                percentual_retiradas = (retiradas_pessoais / caixa_operacional * 100)
+                if percentual_retiradas > 80:
+                    st.warning("⚠️ As retiradas pessoais representam mais de 80% do caixa operacional. Avalie a sustentabilidade do negócio.")
+                elif percentual_retiradas > 50:
+                    st.info("ℹ️ As retiradas pessoais consomem mais de 50% do caixa operacional. Monitore a evolução deste indicador.")
+                else:
+                    st.success("✅ As retiradas pessoais estão em nível saudável em relação ao caixa operacional.")
         else:
             st.info("Não há dados suficientes para comparação entre caixa operacional e retiradas pessoais.")
         
@@ -898,13 +893,15 @@ elif page == "Dashboard & Relatórios":
             i_fin = resultado_score['valores']['intensidade_fin']
 
             # Exibir métricas principais
-            col_s1, col_s2, col_s3 = st.columns(3)
+            col_s1, col_s2, col_s3, col_s4 = st.columns(4)
             with col_s1:
                 st.metric("🔹 Score Financeiro (0-100)", f"{score}")
             with col_s2:
                 st.metric("🔸 Margem de Caixa Operacional", f"{margem_op:.1%}")
             with col_s3:
                 st.metric("🔸 Intensidade de Investimento", f"{i_inv:.1%}")
+            with col_s4:
+                st.metric("🔸 Intensidade de Financiamento", f"{i_fin:.1%}")
 
             # Classificação textual
             if score >= 85:
