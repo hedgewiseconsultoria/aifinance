@@ -653,7 +653,7 @@ def criar_dashboard(df: pd.DataFrame):
         df_fluxo = df[df['tipo_fluxo'] != 'NEUTRO'].copy()
         
         # 1. Gráfico de Barras por Tipo de Fluxo
-        st.markdown("### Fluxo de Caixa Mensal por Categoria DCF")
+        st.markdown("#### Fluxo de Caixa Mensal por Categoria DCF")
         
         df_fluxo_agrupado = df_fluxo.groupby(['mes_ano_str', 'tipo_fluxo'])['fluxo'].sum().reset_index()
         
@@ -677,7 +677,7 @@ def criar_dashboard(df: pd.DataFrame):
         st.markdown("---")
 
         # 2. Gráfico de Pizza: Caixa Operacional vs Retiradas Pessoais
-        st.markdown("### Comparativo: Caixa Operacional vs Retiradas Pessoais")
+        st.markdown("#### Comparativo: Caixa Operacional vs Retiradas Pessoais")
         
         caixa_operacional = df_fluxo[df_fluxo['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
         
@@ -733,7 +733,7 @@ def criar_dashboard(df: pd.DataFrame):
         st.markdown("---")
         
         # 3. Distribuição de Despesas por Conta Analítica
-        st.markdown("### Distribuição de Despesas por Conta")
+        st.markdown("#### Distribuição de Despesas por Conta")
         df_despesas = df_fluxo[df_fluxo['tipo_movimentacao'] == 'DEBITO'].groupby('nome_conta')['valor'].sum().reset_index()
         df_despesas = df_despesas.sort_values('valor', ascending=False).head(10)
         
@@ -895,7 +895,7 @@ elif page == "Dashboard & Relatórios":
             i_fin = resultado_score['valores']['intensidade_fin']
 
             # --- BLOCO DE MÉTRICAS ---
-            st.markdown("### 📊 Indicadores-Chave de Performance (KPI)")
+            st.markdown("#### 📊 Indicadores-Chave de Performance (KPI)")
             col_s1, col_s2, col_s3, col_s4 = st.columns(4)
 
             with col_s1:
@@ -931,11 +931,11 @@ elif page == "Dashboard & Relatórios":
 
         # ------- EXPORTAÇÃO -------
         st.markdown("---")
-        st.markdown("### 📤 Exportar Dados")
+        st.markdown("##### 📤 Exportar Dados")
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("📥 Baixar Transações Detalhadas (CSV)"):
+            if st.button("Baixar Transações Detalhadas (CSV)"):
                 csv = df_final.to_csv(index=False).encode('utf-8')
                 st.download_button(
                     label="Baixar CSV de Transações",
@@ -962,5 +962,6 @@ except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
 
 
