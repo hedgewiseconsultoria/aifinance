@@ -780,13 +780,15 @@ if page == "Upload e Extração":
     st.markdown("## 1. Upload e Extração de Dados")
     st.markdown("Faça o upload dos extratos em PDF. O sistema irá extrair as transações e classificá-las conforme o plano de contas.")
 
-    with st.expander("Plano de Contas Utilizado", expanded=False):
-        for sintetico in PLANO_DE_CONTAS["sinteticos"]:
-            st.markdown(f"**{sintetico['codigo']} - {sintetico['nome']}** ({sintetico['tipo_fluxo']})")
-            for conta in sintetico["contas"]:
+    
+with st.expander("Plano de Contas Utilizado", expanded=False):
+    for sintetico in PLANO_DE_CONTAS["sinteticos"]:
+        st.markdown(f"**{sintetico['codigo']} - {sintetico['nome']}** ({sintetico['tipo_fluxo']})")
+        for conta in sintetico["contas"]:
             st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
             if 'descricao' in conta:
                 st.caption(f"▸ {conta['descricao']}")
+        st.markdown("")  # linha em branco para espaçamento visual
 
     with st.expander("Upload de Arquivos", expanded=True):
         uploaded_files = st.file_uploader(
