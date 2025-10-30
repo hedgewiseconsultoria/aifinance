@@ -566,7 +566,7 @@ def calcular_score_fluxo(df: pd.DataFrame):
     margem_op = (caixa_op / entradas_op) if entradas_op > 0 else 0.0
     # Intensidade de investimentos: considerar sinal natural (investimento tipicamente negativo)
     # Queremos o percentual positivo representando "quanto do caixa operacional está sendo consumido por investimentos"
-    intensidade_inv = (abs(min(caixa_inv, 0)) / caixa_op) if caixa_op != 0 else 0.0
+    intensidade_inv = (abs((caixa_inv, 0)) / caixa_op) if caixa_op != 0 else 0.0
     intensidade_fin = (caixa_fin / caixa_op) if caixa_op != 0 else 0.0
 
     # Pontuação Margem Operacional (0-100)
@@ -962,3 +962,4 @@ except Exception:
     st.markdown("""<p style="font-size: 0.8rem; color: #6c757d; margin: 0; padding-top: 15px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
