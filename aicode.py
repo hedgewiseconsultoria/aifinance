@@ -121,7 +121,7 @@ st.markdown(
         }}
         .main-header {{
             color: {SECONDARY_COLOR};
-            font-size: 1.2em;
+            font-size: 1.7em;
             padding-bottom: 2px;
             font-weight:800;
         }}
@@ -1248,6 +1248,7 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
 
 
 
