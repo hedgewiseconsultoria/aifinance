@@ -99,6 +99,7 @@ INVESTMENT_COLOR = "#28A745"
 REPORT_BACKGROUND = "#F9F5EB"
 
 LOGO_FILENAME = "logo_hedgewise.png"
+LOGO1_FILENAME = "FinanceAI_1.png"
 
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
@@ -1010,7 +1011,7 @@ def criar_dashboard(df: pd.DataFrame):
 # --- 10. FUNÇÃO DE CABEÇALHO ---
 def load_header():
     try:
-        logo = Image.open(LOGO_FILENAME)
+        logo = Image.open(LOGO1_FILENAME)
         col1, col2 = st.columns([1, 10])
         with col1:
             st.image(logo, width=120)
@@ -1026,7 +1027,7 @@ def load_header():
 load_header()
 
 st.sidebar.title("Navegação")
-page = st.sidebar.radio("Seções", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
+page = st.sidebar.radio("Seções:", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
 
 if page == "Upload e Extração":
     st.markdown("### 1. Upload e Extração de Dados")
@@ -1247,3 +1248,4 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
