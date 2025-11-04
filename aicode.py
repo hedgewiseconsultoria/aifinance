@@ -1,11 +1,3 @@
-# ===============================================
-# ARQUIVO: aicode_revisado_final.txt
-# DESCRIÇÃO: Versão revisada do app Hedgewise
-# - Textos e acentos corrigidos
-# - Linguagem acessível e profissional
-# - Score e indicadores ajustados conforme o chat
-# ===============================================
-
 import streamlit as st
 import pandas as pd
 import json
@@ -30,13 +22,13 @@ PLANO_DE_CONTAS = {
             "tipo_fluxo": "OPERACIONAL",
             "contas": [
                 {"codigo": "OP-01", "nome": "Receitas de Vendas"},
-                {"codigo": "OP-02", "nome": "Receitas de Serviços"},
+                {"codigo": "OP-02", "nome": "Receitas de Servicos"},
                 {"codigo": "OP-03", "nome": "Outras Receitas Operacionais"},
                 {"codigo": "OP-04", "nome": "Custos Operacionais"},
                 {"codigo": "OP-05", "nome": "Despesas Administrativas"},
                 {"codigo": "OP-06", "nome": "Despesas Comerciais"},
                 {"codigo": "OP-07", "nome": "Despesas Pessoais Misturadas"},
-                {"codigo": "OP-08", "nome": "Impostos e Contribuições"},
+                {"codigo": "OP-08", "nome": "Impostos e Contribuicoes"},
                 {"codigo": "OP-09", "nome": "Tarifas Bancarias e Servicos"}
             ]
         },
@@ -45,9 +37,9 @@ PLANO_DE_CONTAS = {
             "nome": "Atividades de Investimento",
             "tipo_fluxo": "INVESTIMENTO",
             "contas": [
-                {"codigo": "INV-01", "nome": "Aquisição de Imobilizado"},
-                {"codigo": "INV-02", "nome": "Aplicações Financeiras"},
-                {"codigo": "INV-03", "nome": "Alienação de Ativos"}
+                {"codigo": "INV-01", "nome": "Aquisicao de Imobilizado"},
+                {"codigo": "INV-02", "nome": "Aplicacoes Financeiras"},
+                {"codigo": "INV-03", "nome": "Alienacao de Ativos"}
             ]
         },
         {
@@ -55,19 +47,19 @@ PLANO_DE_CONTAS = {
             "nome": "Atividades de Financiamento",
             "tipo_fluxo": "FINANCIAMENTO",
             "contas": [
-                {"codigo": "FIN-01", "nome": "Empréstimos Recebidos"},
-                {"codigo": "FIN-02", "nome": "Pagamento de Empréstimos"},
-                {"codigo": "FIN-03", "nome": "Juros sobre Empréstimos e Financiamentos"},
-                {"codigo": "FIN-04", "nome": "Aporte de Sócios"},
-                {"codigo": "FIN-05", "nome": "Retirada de Sócios / Pró-labore"}
+                {"codigo": "FIN-01", "nome": "Emprestimos Recebidos"},
+                {"codigo": "FIN-02", "nome": "Pagamento de Emprestimos"},
+                {"codigo": "FIN-03", "nome": "Juros sobre Emprestimos e Financiamentos"},
+                {"codigo": "FIN-04", "nome": "Aporte de Socios"},
+                {"codigo": "FIN-05", "nome": "Retirada de Socios / Pro-labore"}
             ]
         },
         {
             "codigo": "NE",
-            "nome": "Ajustes e Transferências Internas",
+            "nome": "Ajustes e Transferencias Internas",
             "tipo_fluxo": "NEUTRO",
             "contas": [
-                {"codigo": "NE-01", "nome": "Transferências entre Contas"},
+                {"codigo": "NE-01", "nome": "Transferencias entre Contas"},
                 {"codigo": "NE-02", "nome": "Ajustes e Estornos"}
             ]
         }
@@ -179,7 +171,7 @@ class Transacao(BaseModel):
     tipo_movimentacao: str = Field(description="Classificação da movimentação: 'DEBITO' ou 'CREDITO'.")
     conta_analitica: str = Field(description="Código da conta analítica do plano de contas (ex: OP-01, INV-02, FIN-05).")
 
-class AnáliseCompleta(BaseModel):
+class AnaliseCompleta(BaseModel):
     """Contém a lista de transações extraídas."""
     transacoes: List[Transacao] = Field(description="Uma lista de objetos 'Transacao' extraídos do documento.")
     saldo_final: float = Field(description="O saldo final da conta no extrato. Use zero se não for encontrado.")
@@ -203,7 +195,7 @@ Extraia todas as transações deste extrato bancário em PDF e classifique cada 
 
 INSTRUÇÕES CRÍTICAS:
 1. Use EXATAMENTE os códigos de conta analítica listados acima (ex: OP-01, OP-05, INV-01, FIN-05, etc.)
-2. Análise cuidadosamente cada transação para determinar a conta mais apropriada
+2. Analise cuidadosamente cada transação para determinar a conta mais apropriada
 3. Retiradas de sócios e pró-labore devem ser classificados como FIN-05
 4. Receitas operacionais: OP-01 (vendas), OP-02 (serviços), OP-03 (outras)
 5. Despesas operacionais: OP-04 (CMV), OP-05 (administrativas), OP-06 (comerciais), OP-08 (impostos), OP-09 (tarifas)
@@ -224,7 +216,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
     
     config = types.GenerateContentConfig(
         response_mime_type="application/json",
-        response_schema=AnáliseCompleta,
+        response_schema=AnaliseCompleta,
         temperature=0.2
     )
     try:
@@ -234,7 +226,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
             config=config,
         )
         response_json = json.loads(response.text)
-        dados_pydantic = AnáliseCompleta(**response_json)
+        dados_pydantic = AnaliseCompleta(**response_json)
         return dados_pydantic.model_dump()
     except Exception as e:
         error_message = str(e)
