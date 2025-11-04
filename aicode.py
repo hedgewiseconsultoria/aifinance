@@ -1012,7 +1012,7 @@ def criar_dashboard(df: pd.DataFrame):
 def load_header():
     try:
         logo = Image.open(LOGO1_FILENAME)
-        col1, col2 = st.columns([2,2])
+        col1, col2 = st.columns([2,3])
         with col1:
             st.image(logo, width=600)
         with col2:
@@ -1248,6 +1248,7 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
 
 
 
