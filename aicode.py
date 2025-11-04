@@ -1,13 +1,3 @@
-# ===============================================
-# ARQUIVO: aicode_revisado_api_original_indicadores.txt
-# DESCRIÇÃO: Versão revisada do app Hedgewise com classes de indicadores
-# - Textos e acentos corrigidos
-# - Linguagem acessível e profissional
-# - Score e indicadores ajustados conforme o chat
-# - Mantida a forma original de chamada à API Gemini
-# - Adicionadas classes IndicadoresFluxo e ScoreCalculator
-# ===============================================
-
 import streamlit as st
 import pandas as pd
 import json
@@ -1248,6 +1238,7 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
 
 
 
