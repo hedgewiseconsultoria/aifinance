@@ -1073,8 +1073,7 @@ if page == "Upload e Extração":
                 
                 st.session_state['df_transacoes_editado'] = df_transacoes
                 st.success("✅ Dados carregados e classificados. Você pode revisar as entradas na seção 'Revisão de Dados'.")
-                #st.experimental_rerun()
-
+             
 elif page == "Revisão de Dados":
     st.markdown("### 2. Revisão e Correção Manual dos Dados")
     
@@ -1238,4 +1237,5 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
 
