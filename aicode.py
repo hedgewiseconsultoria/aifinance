@@ -458,7 +458,7 @@ Extraia todas as transações deste extrato bancário em PDF e classifique cada 
 INSTRUÇÕES CRÍTICAS:
 1. Use EXATAMENTE os códigos de conta analítica listados acima (ex: OP-01, OP-05, INV-01, FIN-05, etc.)
 2. Analise cuidadosamente cada transação para determinar a conta mais apropriada.
-3. Retiradas de sócios e pró-labore devem ser classificadas como FIN-05.
+3. **Retiradas de sócios** e pró-labore devem ser classificadas como FIN-05.
 4. Receitas operacionais: OP-01 (vendas), OP-02 (serviços), OP-03 (outras).
 5. Despesas operacionais: OP-04 (CMV), OP-05 (administrativas), OP-06 (comerciais), OP-08 (impostos), OP-09 (tarifas).
 6. Investimentos: INV-01 (compra de ativos), INV-02 (aplicações), INV-03 (venda de ativos).
@@ -539,6 +539,21 @@ def enriquecer_com_plano_contas(df: pd.DataFrame) -> pd.DataFrame:
     df['nome_sintetico'] = df['conta_analitica'].map(lambda x: mapa_contas.get(x, {}).get('nome_sintetico', 'Não classificado'))
     df['tipo_fluxo'] = df['conta_analitica'].map(lambda x: mapa_contas.get(x, {}).get('tipo_fluxo', 'NEUTRO'))
     
+
+    # criar label para exibição: 'CÓDIGO - Nome' (usada no editor de revisão)
+    def _label_from_code(code):
+        try:
+            if code is None or (isinstance(code, float) and pd.isna(code)):
+                return ''
+        except Exception:
+            pass
+        nome = mapa_contas.get(code, {}).get('nome_conta', '')
+        if nome:
+            return f"{code} - {nome}"
+        return str(code)
+
+    df['conta_display'] = df['conta_analitica'].map(lambda x: _label_from_code(x))
+
     return df
 
 # --- 6. FUNÇÃO PARA CRIAR RELATÓRIO DE FLUXO DE CAIXA ---
@@ -1084,16 +1099,16 @@ elif page == "Revisão de Dados":
         opcoes_contas = []
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             for conta in sintetico["contas"]:
-                opcoes_contas.append(conta["codigo"])
+                opcoes_contas.append(f"{conta['codigo']} - {conta['nome']}")
         
         with st.expander("Editar Transações", expanded=True):
             edited_df = st.data_editor(
                 st.session_state['df_transacoes_editado'][
-                    ['data', 'descricao', 'valor', 'tipo_movimentacao', 'conta_analitica', 'nome_conta', 'tipo_fluxo']
+                    ['data', 'descricao', 'valor', 'tipo_movimentacao', 'conta_display', 'nome_conta', 'tipo_fluxo']
                 ],
                 width='stretch',
                 column_config={
-                    "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
+                    "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", required=True),
                     "descricao": st.column_config.TextColumn("Descrição", width="large"),
                     "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", required=True),
                     "tipo_movimentacao": st.column_config.SelectboxColumn(
@@ -1101,10 +1116,11 @@ elif page == "Revisão de Dados":
                         options=["CREDITO", "DEBITO"], 
                         required=True
                     ),
-                    "conta_analitica": st.column_config.SelectboxColumn(
-                        "Conta Analítica", 
+                    "conta_display": st.column_config.SelectboxColumn(
+                        "Conta (código - nome)", 
                         options=opcoes_contas, 
-                        required=True
+                        required=True,
+                        help="Selecione a conta no formato código - nome"
                     ),
                     "nome_conta": st.column_config.TextColumn("Nome da Conta", disabled=True),
                     "tipo_fluxo": st.column_config.TextColumn("Tipo de Fluxo", disabled=True),
@@ -1114,6 +1130,12 @@ elif page == "Revisão de Dados":
             )
         
         if st.button("Confirmar Dados e Gerar Relatórios", key="generate_report_btn"):
+            # Extrair código da seleção 'conta_display' (formato 'CÓDIGO - Nome') e gravar em conta_analitica
+            try:
+                if 'conta_display' in edited_df.columns:
+                    edited_df['conta_analitica'] = edited_df['conta_display'].apply(lambda x: x.split(' - ')[0].strip() if isinstance(x, str) and ' - ' in x else x)
+            except Exception:
+                pass
             # Enriquecer novamente após edições
             edited_df = enriquecer_com_plano_contas(edited_df)
             st.session_state['df_transacoes_editado'] = edited_df
