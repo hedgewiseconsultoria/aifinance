@@ -1079,7 +1079,7 @@ def load_header():
             st.image(logo, width=600)
         with col2:
             st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
-            st.caption("Traduzindo números em histórias que façam sentido para o pequeno empreendedor")
+            st.caption("Traduzindo números em histórias que façam sentido...")
         st.markdown("---")
     except Exception:
         st.title("Hedgewise | Análise Financeira Inteligente")
@@ -1294,11 +1294,5 @@ try:
         st.image(footer_logo, width=40)
     with footer_col2:
         st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
-        Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
+        Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
         </p>""", unsafe_allow_html=True)
-except Exception:
-    st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
-    Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
-    #</p>""", unsafe_allow_html=True)
-
-
