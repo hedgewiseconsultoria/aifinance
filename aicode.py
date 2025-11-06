@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import json
@@ -77,6 +78,62 @@ def formatar_brl(valor: float) -> str:
         return "R$ " + valor_brl
     except Exception:
         return f"R$ {valor:.2f}"
+
+# --- FUNÇÃO LOCAL: GERAR MINI-RELATÓRIO ---
+def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], retiradas_pessoais_val: float) -> str:
+    """
+    Gera o texto do mini-relatório localmente (sem chamada à IA).
+    O texto segue o formato aprovado pelo usuário com rótulos em negrito no início das linhas.
+    """
+    # Extrair valores com segurança
+    gco = indicadores.get('gco', 0.0)
+    entradas_op = indicadores.get('entradas_operacionais', 0.0)
+    intensidade_fin = indicadores.get('intensidade_fin', 0.0)
+    autossuf = indicadores.get('autossuficiencia', 0.0)
+    margem_op = indicadores.get('margem_op', 0.0)
+    taxa_reinv = indicadores.get('taxa_reinvestimento', 0.0)
+    peso_retiradas = indicadores.get('peso_retiradas', 0.0)
+
+    # Resumo textual baseado em regras simples (sem citar "classe" explicitamente)
+    if score >= 85:
+        resumo = "Desempenho financeiro muito sólido, com geração consistente de caixa e baixo consumo por retiradas."
+    elif score >= 70:
+        resumo = "Desempenho positivo; boa geração de caixa, porém é importante monitorar retiradas e dependência de financiamento."
+    elif score >= 55:
+        resumo = "Situação razoável: a geração de caixa existe, mas há pontos a melhorar em estrutura de retiradas e reinvestimento."
+    elif score >= 40:
+        resumo = "Caixa pressionado — recomenda-se atenção imediata às retiradas e revisão das despesas fixas."
+    else:
+        resumo = "Situação crítica: priorize medidas para reforço de caixa, redução de custos e renegociação de dívidas."
+
+    # Recomendações práticas (com lógica simples baseada nos indicadores)
+    recs = []
+    if entradas_op <= 0 or gco <= 0:
+        recs.append("Revise as entradas operacionais e priorize ações que aumentem a venda ou captação de receitas.")
+    if peso_retiradas > 0.5 or retiradas_pessoais_val > 0 and (entradas_op > 0 and (retiradas_pessoais_val / entradas_op) > 0.5):
+        recs.append("Reduza retiradas pessoais para preservar caixa operacional.")
+    if intensidade_fin > 1.0:
+        recs.append("Alta dependência de financiamento — avalie custos, prazos e possibilidade de refinanciamento.")
+    if taxa_reinv >= 0.30:
+        recs.append("Bom nível de reinvestimento — mantenha disciplina para colher ganhos no médio/longo prazo.")
+    if autossuf != float('inf') and autossuf < 0.5:
+        recs.append("Aumente a autossuficiência operacional (geração interna) antes de expandir investimentos.")
+
+    if not recs:
+        recs.append("Mantenha controles atuais: controle de custos, disciplina nas retiradas e planejamento de reinvestimento.")
+
+    # Montar o texto formatado com rótulos em negrito no início das linhas
+    texto = []
+    texto.append(f"**Score Financeiro:** {score:.1f}")
+    texto.append(f"**Resumo:** {resumo}")
+    texto.append(f"**Caixa operacional gerado (período):** {formatar_brl(gco)}")
+    texto.append(f"**Retiradas de sócios:** {formatar_brl(retiradas_pessoais_val)}")
+    texto.append(f"**Intensidade de financiamento:** {intensidade_fin:.2f}")
+    texto.append(f"**Autossuficiência operacional:** {autossuf if autossuf==float('inf') else f'{autossuf:.2f}'}")
+    texto.append(f"**Recomendações práticas:** {' '.join(recs)}")
+
+    return "\n\n".join(texto)
+
 
 # --- 1. CONFIGURAÇÃO DE SEGURANÇA E TEMA ---
 PRIMARY_COLOR = "#0A2342"
@@ -449,7 +506,7 @@ def gerar_prompt_com_plano_contas() -> str:
             contas_str += f"  - {conta['codigo']}: {conta['nome']}\n"
         contas_str += "\n"
     
-    prompt = f"""Você é um especialista em extração e classificação de dados financeiros.
+    prompt = f\"\"\"Você é um especialista em extração e classificação de dados financeiros.
 
 {contas_str}
 
@@ -466,7 +523,7 @@ INSTRUÇÕES CRÍTICAS:
 8. IMPORTANTE — Transferências NEUTRAS (NE-01 ou NE-02): Use APENAS quando detectar uma saída de uma conta corrente E uma entrada de MESMO VALOR em outra conta no MESMO DIA. Caso contrário, classifique normalmente nas outras categorias.
 
 Retorne um objeto JSON com o formato do schema indicado, usando valor POSITIVO para 'valor' e classificando como 'DEBITO' ou 'CREDITO'.
-"""
+\"\"\"
     return prompt
 
 # --- 4. FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO ---
@@ -713,12 +770,13 @@ def criar_relatorio_fluxo_caixa(df: pd.DataFrame):
     # Remover coluna 'tipo'
     df_display = df_relatorio.drop(columns=['tipo'])
     
-    # Exibir tabela
+    # Exibir tabela (altura aumentada para reduzir rolagem — cerca de 30 linhas visíveis)
     st.markdown('<div class="fluxo-table">', unsafe_allow_html=True)
     st.dataframe(
         df_display,
         use_container_width=True,
         hide_index=True,
+        height=800,
         column_config={
             "Categoria": st.column_config.TextColumn("Categoria", width="large"),
             **{col: st.column_config.TextColumn(col, width="medium") for col in colunas_meses}
@@ -1174,13 +1232,19 @@ elif page == "Dashboard & Relatórios":
                 i_fin = valores.get('intensidade_fin', 0.0)
                 st.metric("📈 Intensidade de Financiamento", f"{i_fin:.1%}" if pd.notna(i_fin) else "—")
 
-            # Subscores visíveis
-            st.markdown("**Contribuição dos indicadores para o score:**")
-            cols = st.columns(len(contribs))
-            for i, (k, v) in enumerate(contribs.items()):
-                cols[i].metric(k.replace('_',' ').title(), f"{v:.1f}")
+            # --- MINI-RELATÓRIO (SUBSTITUI "CONTRIBUIÇÃO DOS INDICADORES" E "INTERPRETAÇÃO RÁPIDA") ---
+            # Calcular retiradas pessoais para exibir no relatório
+            retiradas_pessoais_val = abs(df_final[
+                (df_final['conta_analitica'] == 'FIN-05') & 
+                (df_final['tipo_movimentacao'] == 'DEBITO')
+            ]['valor'].sum())
 
-            # --- CLASSIFICAÇÃO FINAL ---
+            mini_text = gerar_mini_relatorio_local(score, valores, retiradas_pessoais_val)
+            # Exibir o mini-relatório aberto (sem expander), mantendo formatação simples e limpa
+            st.markdown("### O que este score está me dizendo?")
+            st.markdown(mini_text)
+
+            # --- CLASSIFICAÇÃO FINAL (mantida) ---
             if score >= 85:
                 st.success("Classe A – Excelente: seu negócio apresenta perfil financeiramente sustentável.")
             elif score >= 70:
@@ -1194,52 +1258,30 @@ elif page == "Dashboard & Relatórios":
 
             st.markdown("---")
 
-            # Exibir explicação amigável
-            with st.expander("📝 Interpretação rápida"):
-                msg = []
-                if score >= 85:
-                    msg.append("Seu negócio está financeiramente saudável. Mantenha o controle das retiradas e continue reinvestindo com disciplina.")
-                elif score >= 70:
-                    msg.append("Seu negócio tem boa performance. Atenção a retiradas e à dependência de financiamento.")
-                elif score >= 55:
-                    msg.append("Situação estável, porém atente-se ao equilíbrio entre retiradas e reinvestimento.")
-                elif score >= 40:
-                    msg.append("Caixa pressionado. Reduza retiradas e revise despesas fixas.")
-                else:
-                    msg.append("Atenção máxima. Reveja custos, busque reforço de caixa e priorize a operação.")
-                # Mensagens específicas a partir de indicadores
-                if valores.get('peso_retiradas',0) > 0.5:
-                    msg.append("As retiradas dos sócios são altas e impactam significativamente o caixa.")
-                if valores.get('intensidade_fin',0) > 1.0:
-                    msg.append("Dependência elevada de financiamento — avalie custo e prazo dos empréstimos.")
-                if valores.get('taxa_reinvestimento',0) >= 0.3:
-                    msg.append("Boa prática: alto reinvestimento, que pode fortalecer o negócio no médio/longo prazo.")
-                st.write("\n".join(msg))
+            # ------- RELATÓRIOS E GRÁFICOS -------
+            criar_relatorio_fluxo_caixa(df_final)
+            criar_grafico_indicadores(df_final)
+            criar_dashboard(df_final)
+
+            # ------- EXPORTAÇÃO -------
+            st.markdown("---")
+            st.markdown("##### 📤 Exportar Dados")
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button("Baixar Transações Detalhadas (CSV)"):
+                    csv = df_final.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="Baixar CSV de Transações",
+                        data=csv,
+                        file_name="transacoes_hedgewise.csv",
+                        mime="text/csv"
+                    )
 
         except Exception as e:
             st.error(f"Erro ao calcular o score: {e}")
             if DEBUG:
                 st.code(traceback.format_exc())
-
-        # ------- RELATÓRIOS E GRÁFICOS -------
-        criar_relatorio_fluxo_caixa(df_final)
-        criar_grafico_indicadores(df_final)
-        criar_dashboard(df_final)
-
-        # ------- EXPORTAÇÃO -------
-        st.markdown("---")
-        st.markdown("##### 📤 Exportar Dados")
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if st.button("Baixar Transações Detalhadas (CSV)"):
-                csv = df_final.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="Baixar CSV de Transações",
-                    data=csv,
-                    file_name="transacoes_hedgewise.csv",
-                    mime="text/csv"
-                )
 
     else:
         st.warning("Nenhum dado processado encontrado. Volte para a seção 'Upload e Extração'.")
