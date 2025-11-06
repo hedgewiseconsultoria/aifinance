@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import json
@@ -506,7 +505,7 @@ def gerar_prompt_com_plano_contas() -> str:
             contas_str += f"  - {conta['codigo']}: {conta['nome']}\n"
         contas_str += "\n"
     
-    prompt = f\"\"\"Você é um especialista em extração e classificação de dados financeiros.
+    prompt = f"""Você é um especialista em extração e classificação de dados financeiros.
 
 {contas_str}
 
@@ -1301,3 +1300,4 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
+
