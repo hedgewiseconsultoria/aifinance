@@ -1,11 +1,13 @@
 import streamlit as st
 import pandas as pd
 import json
+import io
 from PIL import Image
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any
+from typing import List, Optional, Dict, Any
 from google import genai
 from google.genai import types
+import altair as alt
 import plotly.express as px
 import plotly.graph_objects as go
 import traceback
@@ -75,7 +77,7 @@ def formatar_brl(valor: float) -> str:
     except Exception:
         return f"R$ {valor:.2f}"
 
-# --- 1. CONFIGURAÇÃO DE TEMA ---
+# --- CONFIGURAÇÃO DE CORES E INTERFACE ---
 PRIMARY_COLOR = "#0A2342"
 SECONDARY_COLOR = "#000000"
 BACKGROUND_COLOR = "#F0F2F6"
@@ -83,9 +85,7 @@ ACCENT_COLOR = "#007BFF"
 NEGATIVE_COLOR = "#DC3545"
 FINANCING_COLOR = "#FFC107"
 INVESTMENT_COLOR = "#28A745"
-
-LOGO_FILENAME = "logo_hedgewise.png"
-LOGO1_FILENAME = "FinanceAI_1.png"
+REPORT_BACKGROUND = "#F9F5EB"
 
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
@@ -94,27 +94,47 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- CSS CUSTOMIZADO ---
 st.markdown(
-    f\"\"\"<style>
-        .stApp {{ background-color: {BACKGROUND_COLOR}; }}
-        [data-testid="stSidebar"] {{ background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }}
-        .main-header {{ color: {SECONDARY_COLOR}; font-size: 1.7em; padding-bottom: 2px; font-weight:800; }}
-        .kpi-container {{ background-color: white; padding: 16px; border-radius: 12px; box-shadow: 0 6px 15px 0 rgba(0, 0, 0, 0.06); margin-bottom: 18px; }}
-        h2 {{ color: {PRIMARY_COLOR}; border-left: 5px solid {PRIMARY_COLOR}; padding-left: 10px; margin-top: 20px; margin-bottom: 16px; }}
-        .stButton>button {{ background-color: {PRIMARY_COLOR}; color: white; border-radius: 8px; padding: 10px 20px; font-weight: bold; border: none; transition: background-color 0.3s, transform 0.2s; }}
-        .stButton>button:hover {{ background-color: #1C3757; color: white; transform: scale(1.03); }}
-        .fluxo-table {{ background-color: white; border-radius: 8px; padding: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
-    </style><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">\"\"\" ,
+    f"""
+    <style>
+        .stApp {{
+            background-color: {BACKGROUND_COLOR};
+        }}
+        [data-testid="stSidebar"] {{
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }}
+        .main-header {{
+            color: {SECONDARY_COLOR};
+            font-size: 1.7em;
+            font-weight:800;
+        }}
+        h2 {{
+            color: {PRIMARY_COLOR};
+            border-left: 5px solid {PRIMARY_COLOR};
+            padding-left: 10px;
+        }}
+        .stButton>button {{
+            background-color: {PRIMARY_COLOR};
+            color: white;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: bold;
+        }}
+        .stButton>button:hover {{
+            background-color: #1C3757;
+            color: white;
+        }}
+    </style>
+    """,
     unsafe_allow_html=True
 )
 
-# Inicializa o estado da sessão
+# --- INICIALIZAÇÃO ---
 if 'df_transacoes_editado' not in st.session_state:
     st.session_state['df_transacoes_editado'] = pd.DataFrame()
-if 'contexto_adicional' not in st.session_state:
-    st.session_state['contexto_adicional'] = ""
 
-# Inicializa o cliente Gemini
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=api_key)
@@ -124,18 +144,6 @@ except (KeyError, AttributeError):
 
 DEBUG = bool(st.secrets.get("DEBUG", False))
 
-# --- 2. SCHEMA PYDANTIC ---
-class Transacao(BaseModel):
-    data: str = Field(description="A data da transação no formato 'DD/MM/AAAA'.")
-    descricao: str = Field(description="Descrição detalhada da transação.")
-    valor: float = Field(description="O valor numérico da transação. Sempre positivo.")
-    tipo_movimentacao: str = Field(description="Classificação da movimentação: 'DEBITO' ou 'CREDITO'.")
-    conta_analitica: str = Field(description="Código da conta analítica do plano de contas (ex: OP-01, INV-02, FIN-05).")
-
-class AnaliseCompleta(BaseModel):
-    transacoes: List[Transacao] = Field(description="Uma lista de objetos 'Transacao' extraídos do documento.")
-    saldo_final: float = Field(description="O saldo final da conta no extrato. Use zero se não for encontrado.")
-
 # -----------------------
 # INDICADORES E SCORE
 # -----------------------
@@ -144,44 +152,56 @@ class IndicadoresFluxo:
         self.df_raw = df.copy()
         self.df = self._prepare(df.copy())
         self.meses = self._obter_meses()
+
     def _prepare(self, df: pd.DataFrame) -> pd.DataFrame:
         df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
         df = df.dropna(subset=['data']).copy()
         df['fluxo'] = df.apply(lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'], axis=1)
         df['mes_ano'] = df['data'].dt.to_period('M')
         return df
+
     def _obter_meses(self):
         df_fluxo = self.df[self.df['tipo_fluxo'] != 'NEUTRO']
         meses = sorted(df_fluxo['mes_ano'].unique())
         return meses
+
     def total_entradas_operacionais(self):
         df_fluxo = self.df
         return df_fluxo[(df_fluxo['tipo_fluxo']=='OPERACIONAL') & (df_fluxo['tipo_movimentacao']=='CREDITO')]['valor'].sum()
+
     def caixa_operacional_total(self):
         df_fluxo = self.df
         return df_fluxo[df_fluxo['tipo_fluxo']=='OPERACIONAL']['fluxo'].sum()
+
     def caixa_investimento_total(self):
         return self.df[self.df['tipo_fluxo']=='INVESTIMENTO']['fluxo'].sum()
+
     def caixa_financiamento_total(self):
         return self.df[self.df['tipo_fluxo']=='FINANCIAMENTO']['fluxo'].sum()
+
     def retirada_pessoal_total(self):
         return abs(self.df[(self.df['conta_analitica']=='FIN-05') & (self.df['tipo_movimentacao']=='DEBITO')]['valor'].sum())
+
     def margem_caixa_operacional(self):
         entradas_op = self.total_entradas_operacionais()
         caixa_op = self.caixa_operacional_total()
         return (caixa_op / entradas_op) if entradas_op > 0 else 0.0
+
     def intensidade_investimento(self):
         caixa_op = self.caixa_operacional_total()
         caixa_inv = self.caixa_investimento_total()
         return (abs(caixa_inv) / caixa_op) if caixa_op != 0 else 0.0
+
     def intensidade_financiamento(self):
         caixa_op = self.caixa_operacional_total()
         caixa_fin = self.caixa_financiamento_total()
         return (caixa_fin / caixa_op) if caixa_op != 0 else 0.0
+
     def peso_retiradas(self):
         total_saidas = self.df[self.df['tipo_movimentacao']=='DEBITO']['valor'].sum()
         retiradas = self.retirada_pessoal_total()
         return (retiradas / total_saidas) if total_saidas != 0 else 0.0
+
     def crescimento_entradas(self):
         meses = self.meses
         if len(meses) < 2:
@@ -193,10 +213,12 @@ class IndicadoresFluxo:
         if entradas_anterior == 0:
             return (entradas_ultimo - entradas_anterior) / (entradas_ultimo) if entradas_ultimo != 0 else 0.0
         return (entradas_ultimo - entradas_anterior) / entradas_anterior
+
     def taxa_reinvestimento(self):
         caixa_op = self.caixa_operacional_total()
         caixa_inv = self.caixa_investimento_total()
         return (abs(caixa_inv) / caixa_op) if caixa_op != 0 else 0.0
+
     def autossuficiencia_operacional(self):
         gco = self.caixa_operacional_total()
         inv = abs(self.caixa_investimento_total())
@@ -205,6 +227,7 @@ class IndicadoresFluxo:
         if denom == 0:
             return float('inf') if gco > 0 else 0.0
         return gco / denom
+
     def resumo_indicadores(self) -> Dict[str, float]:
         return {
             "gco": self.caixa_operacional_total(),
@@ -233,6 +256,7 @@ class ScoreCalculator:
         if total != 100:
             for k in self.pesos:
                 self.pesos[k] = self.pesos[k] * 100.0 / total
+
     def normalizar_gco(self, gco: float, entradas_op: float) -> float:
         if entradas_op <= 0:
             return 0.0
@@ -247,8 +271,10 @@ class ScoreCalculator:
             return 40.0
         else:
             return 0.0
+
     def normalizar_margem(self, margem: float) -> float:
         return self.normalizar_gco(margem * 1.0, 1.0) if margem is not None else 0.0
+
     def normalizar_peso_retiradas(self, peso: float) -> float:
         if peso <= 0.20:
             return 100.0
@@ -260,6 +286,7 @@ class ScoreCalculator:
             return 20.0
         else:
             return 0.0
+
     def normalizar_intensidade_fin(self, intensidade: float, margem_op: float) -> float:
         if intensidade >= 0:
             if intensidade <= 0.30:
@@ -277,6 +304,7 @@ class ScoreCalculator:
                 return 40.0
             else:
                 return 10.0
+
     def normalizar_crescimento(self, crescimento: float) -> float:
         if crescimento >= 0.10:
             return 100.0
@@ -286,6 +314,7 @@ class ScoreCalculator:
             return 50.0
         else:
             return 20.0
+
     def normalizar_reinvestimento(self, taxa: float) -> float:
         if taxa >= 0.30:
             return 100.0
@@ -295,6 +324,7 @@ class ScoreCalculator:
             return 60.0
         else:
             return 20.0
+
     def normalizar_autossuficiencia(self, autossuf: float) -> float:
         if math.isinf(autossuf):
             return 100.0
@@ -306,6 +336,7 @@ class ScoreCalculator:
             return 50.0
         else:
             return 20.0
+
     def calcular_score(self, indicadores: Dict[str, float]) -> Dict[str, Any]:
         notas = {}
         notas['gco'] = self.normalizar_gco(indicadores.get('gco', 0.0), indicadores.get('entradas_operacionais', 0.0))
@@ -315,6 +346,7 @@ class ScoreCalculator:
         notas['crescimento_entradas'] = self.normalizar_crescimento(indicadores.get('crescimento_entradas', 0.0))
         notas['taxa_reinvestimento'] = self.normalizar_reinvestimento(indicadores.get('taxa_reinvestimento', 0.0))
         notas['autossuficiencia'] = self.normalizar_autossuficiencia(indicadores.get('autossuficiencia', 0.0))
+
         score = 0.0
         contributions = {}
         for key, peso in self.pesos.items():
@@ -322,23 +354,20 @@ class ScoreCalculator:
             contrib = nota * (peso / 100.0)
             contributions[key] = round(contrib, 2)
             score += contrib
+
         score = round(score, 1)
-        return {
-            "score": score,
-            "notas": notas,
-            "contribuicoes": contributions,
-            "pesos": self.pesos
-        }
+
+        return {"score": score, "notas": notas, "contribuicoes": contributions, "pesos": self.pesos}
 
 # --- 3. PROMPT COM PLANO DE CONTAS ---
 def gerar_prompt_com_plano_contas() -> str:
-    contas_str = "### PLANO DE CONTAS ###\\n\\n"
+    contas_str = "### PLANO DE CONTAS ###\n\n"
     for sintetico in PLANO_DE_CONTAS["sinteticos"]:
-        contas_str += f"{sintetico['codigo']} - {sintetico['nome']} (Tipo: {sintetico['tipo_fluxo']})\\n"
+        contas_str += f"{sintetico['codigo']} - {sintetico['nome']} (Tipo: {sintetico['tipo_fluxo']})\n"
         for conta in sintetico["contas"]:
-            contas_str += f"  - {conta['codigo']}: {conta['nome']}\\n"
-        contas_str += "\\n"
-    prompt = f\"\"\"Você é um especialista em extração e classificação de dados financeiros.
+            contas_str += f"  - {conta['codigo']}: {conta['nome']}\n"
+        contas_str += "\n"
+    prompt = f"""Você é um especialista em extração e classificação de dados financeiros.
 
 {contas_str}
 Extraia todas as transações deste extrato bancário em PDF e classifique cada transação de acordo com o PLANO DE CONTAS acima.
@@ -354,7 +383,7 @@ INSTRUÇÕES CRÍTICAS:
 8. IMPORTANTE — Transferências NEUTRAS (NE-01 ou NE-02): Use APENAS quando detectar uma saída de uma conta corrente E uma entrada de MESMO VALOR em outra conta no MESMO DIA. Caso contrário, classifique normalmente nas outras categorias.
 
 Retorne um objeto JSON com o formato do schema indicado, usando valor POSITIVO para 'valor' e classificando como 'DEBITO' ou 'CREDITO'.
-\"\"\"
+"""
     return prompt
 
 # --- 4. CHAMADA À API PARA EXTRAÇÃO ---
@@ -445,6 +474,7 @@ def criar_relatorio_fluxo_caixa(df: pd.DataFrame):
         mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
         linha_total_op[mes_col] = valor
     relatorio_linhas.append(linha_total_op)
+
     relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
     contas_inv = todas_contas[todas_contas['tipo_fluxo'] == 'INVESTIMENTO'].sort_values('conta_analitica')
     if not contas_inv.empty:
@@ -765,12 +795,12 @@ elif page == "Dashboard & Relatórios":
             st.markdown("---")
             # MINI RELATÓRIO (substitui a interpretação rápida)
             st.markdown("#### 🧾 Mini Relatório de Interpretação")
-            contexto = f"Fluxo de Caixa e Indicadores Calculados:\\n{json.dumps(valores, indent=2, ensure_ascii=False)}\\nScore Financeiro Final: {score}"
-            prompt = f\"\"\"Você é um consultor financeiro especializado em pequenos empreendedores.
+            contexto = f"Fluxo de Caixa e Indicadores Calculados:\n{json.dumps(valores, indent=2, ensure_ascii=False)}\nScore Financeiro Final: {score}"
+            prompt = f"""Você é um consultor financeiro especializado em pequenos empreendedores.
 Analise os dados abaixo e escreva um breve relatório em linguagem simples, explicando o que provocou o score obtido e sugerindo, de forma prática, onde o empreendedor deve focar melhorias. Use no máximo 200 palavras.
 
 {contexto}
-\"\"\"
+"""
             try:
                 resposta = client.models.generate_content(
                     model="gemini-2.5-flash",
@@ -798,6 +828,7 @@ Analise os dados abaixo e escreva um breve relatório em linguagem simples, expl
                 st.download_button(label="Baixar CSV de Transações", data=csv, file_name="transacoes_hedgewise.csv", mime="text/csv")
     else:
         st.warning("Nenhum dado processado encontrado. Volte para a seção 'Upload e Extração'.")
+
 # --- RODAPÉ ---
 st.markdown("---")
 try:
