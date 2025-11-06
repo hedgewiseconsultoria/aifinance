@@ -1179,7 +1179,7 @@ elif page == "Dashboard & Relatórios":
             st.markdown("---")
 
             # Geração do Mini-Relatório Explicativo (usando a API Gemini)
-	            # 1. Determinar a classe e a mensagem inicial
+            # 1. Determinar a classe e a mensagem inicial
 	            if score >= 85:
 	                classe_msg = "Excelente. Seu negócio apresenta um perfil financeiramente sustentável."
 	            elif score >= 70:
