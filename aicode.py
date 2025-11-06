@@ -1114,15 +1114,15 @@ elif page == "Revisão de Dados":
             )
         
         if st.button("Confirmar Dados e Gerar Relatórios", key="generate_report_btn"):
+            # Ajustar a coluna 'conta_analitica' para conter apenas o código (se o usuário selecionou o formato 'CODIGO - NOME')
+            def extrair_codigo(valor):
+                if isinstance(valor, str) and ' - ' in valor:
+                    return valor.split(' - ')[0]
+                return valor
+
+            edited_df['conta_analitica'] = edited_df['conta_analitica'].apply(extrair_codigo)
+            
             # Enriquecer novamente após edições
-	
-	# Ajustar a coluna 'conta_analitica' para conter apenas o código (se o usuário selecionou o formato 'CODIGO - NOME')
-	def extrair_codigo(valor):
-	    if isinstance(valor, str) and ' - ' in valor:
-	        return valor.split(' - ')[0]
-	    return valor
-	
-	edited_df['conta_analitica'] = edited_df['conta_analitica'].apply(extrair_codigo)
             edited_df = enriquecer_com_plano_contas(edited_df)
             st.session_state['df_transacoes_editado'] = edited_df
             st.success("✅ Dados confirmados! Acesse a seção 'Dashboard & Relatórios' para ver as análises.")
