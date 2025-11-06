@@ -522,7 +522,7 @@ INSTRUÇÕES CRÍTICAS:
 8. IMPORTANTE — Transferências NEUTRAS (NE-01 ou NE-02): Use APENAS quando detectar uma saída de uma conta corrente E uma entrada de MESMO VALOR em outra conta no MESMO DIA. Caso contrário, classifique normalmente nas outras categorias.
 
 Retorne um objeto JSON com o formato do schema indicado, usando valor POSITIVO para 'valor' e classificando como 'DEBITO' ou 'CREDITO'.
-\"\"\"
+"""
     return prompt
 
 # --- 4. FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO ---
@@ -1300,4 +1300,5 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     #</p>""", unsafe_allow_html=True)
+
 
