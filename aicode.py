@@ -1084,7 +1084,7 @@ elif page == "Revisão de Dados":
         opcoes_contas = []
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             for conta in sintetico["contas"]:
-                opcoes_contas.append(conta["codigo"])
+                opcoes_contas.append(f"{conta['codigo']} - {conta['nome']}")
         
         with st.expander("Editar Transações", expanded=True):
             edited_df = st.data_editor(
@@ -1093,7 +1093,7 @@ elif page == "Revisão de Dados":
                 ],
                 width='stretch',
                 column_config={
-                    "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
+                    "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", required=True),
                     "descricao": st.column_config.TextColumn("Descrição", width="large"),
                     "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", required=True),
                     "tipo_movimentacao": st.column_config.SelectboxColumn(
@@ -1103,7 +1103,7 @@ elif page == "Revisão de Dados":
                     ),
                     "conta_analitica": st.column_config.SelectboxColumn(
                         "Conta Analítica", 
-                        options=opcoes_contas, 
+                        options=opcoes_contas, display_format="markdown", 
                         required=True
                     ),
                     "nome_conta": st.column_config.TextColumn("Nome da Conta", disabled=True),
@@ -1115,6 +1115,14 @@ elif page == "Revisão de Dados":
         
         if st.button("Confirmar Dados e Gerar Relatórios", key="generate_report_btn"):
             # Enriquecer novamente após edições
+	
+	# Ajustar a coluna 'conta_analitica' para conter apenas o código (se o usuário selecionou o formato 'CODIGO - NOME')
+	def extrair_codigo(valor):
+	    if isinstance(valor, str) and ' - ' in valor:
+	        return valor.split(' - ')[0]
+	    return valor
+	
+	edited_df['conta_analitica'] = edited_df['conta_analitica'].apply(extrair_codigo)
             edited_df = enriquecer_com_plano_contas(edited_df)
             st.session_state['df_transacoes_editado'] = edited_df
             st.success("✅ Dados confirmados! Acesse a seção 'Dashboard & Relatórios' para ver as análises.")
@@ -1153,10 +1161,8 @@ elif page == "Dashboard & Relatórios":
                 st.metric("📈 Intensidade de Financiamento", f"{i_fin:.1%}" if pd.notna(i_fin) else "—")
 
             # Subscores visíveis
-            st.markdown("**Contribuição dos indicadores para o score:**")
-            cols = st.columns(len(contribs))
-            for i, (k, v) in enumerate(contribs.items()):
-                cols[i].metric(k.replace('_',' ').title(), f"{v:.1f}")
+            st.markdown("#### 📝 Análise Rápida do Score")
+# A contribuição dos indicadores será usada para gerar o mini-relatório.
 
             # --- CLASSIFICAÇÃO FINAL ---
             if score >= 85:
@@ -1172,27 +1178,56 @@ elif page == "Dashboard & Relatórios":
 
             st.markdown("---")
 
-            # Exibir explicação amigável
-            with st.expander("📝 Interpretação rápida"):
-                msg = []
-                if score >= 85:
-                    msg.append("Seu negócio está financeiramente saudável. Mantenha o controle das retiradas e continue reinvestindo com disciplina.")
-                elif score >= 70:
-                    msg.append("Seu negócio tem boa performance. Atenção a retiradas e à dependência de financiamento.")
-                elif score >= 55:
-                    msg.append("Situação estável, porém atente-se ao equilíbrio entre retiradas e reinvestimento.")
-                elif score >= 40:
-                    msg.append("Caixa pressionado. Reduza retiradas e revise despesas fixas.")
-                else:
-                    msg.append("Atenção máxima. Reveja custos, busque reforço de caixa e priorize a operação.")
-                # Mensagens específicas a partir de indicadores
-                if valores.get('peso_retiradas',0) > 0.5:
-                    msg.append("As retiradas dos sócios são altas e impactam significativamente o caixa.")
-                if valores.get('intensidade_fin',0) > 1.0:
-                    msg.append("Dependência elevada de financiamento — avalie custo e prazo dos empréstimos.")
-                if valores.get('taxa_reinvestimento',0) >= 0.3:
-                    msg.append("Boa prática: alto reinvestimento, que pode fortalecer o negócio no médio/longo prazo.")
-                st.write("\n".join(msg))
+# Geração do Mini-Relatório Explicativo (usando a API Gemini)
+	            
+	            # 1. Determinar a classe e a mensagem inicial
+	            if score >= 85:
+	                classe_msg = "Excelente. Seu negócio apresenta um perfil financeiramente sustentável."
+	            elif score >= 70:
+	                classe_msg = "Muito bom. Seu negócio demonstra um risco moderado, com oportunidades de expansão."
+	            elif score >= 55:
+	                classe_msg = "Estável. É importante ficar atento ao nível de retiradas e ao investimento."
+	            elif score >= 40:
+	                classe_msg = "Alto risco. A liquidez está pressionada, sendo recomendável uma ação corretiva imediata."
+	            else:
+	                classe_msg = "Crítico. A operação pode estar insustentável; é urgente revisar custos e entradas."
+	
+	            # 2. Preparar o prompt com as contribuições e a classe
+	            prompt_data = {
+	                "score_final": f"{score:.1f}",
+	                "classe_analise": classe_msg,
+	                "contribuicoes_indicadores": {k: f"{v:.1f}" for k, v in contribs.items()}
+	            }
+	            
+	            prompt = f"""
+	            Você é um consultor financeiro que deve explicar o resultado de um score de fluxo de caixa para um pequeno empreendedor.
+	            O score final é {prompt_data['score_final']}, e a análise geral é: {prompt_data['classe_analise']}.
+	            
+	            A pontuação final é composta pela contribuição dos seguintes indicadores (em pontos):
+	            {json.dumps(prompt_data['contribuicoes_indicadores'], indent=2)}
+	            
+	            Com base no score final e na contribuição de cada indicador, crie um mini-relatório de 3 a 4 parágrafos curtos, em linguagem simples e acessível (sem jargões técnicos como 'classe A', 'intensidade de financiamento' ou 'peso de retiradas'), que:
+	            1. Comece com a análise geral (o que o score significa para o negócio).
+	            2. Explique o que mais contribuiu positivamente para o score (os pontos fortes).
+	            3. Explique o que mais contribuiu negativamente (os pontos de atenção ou melhoria).
+	            4. Termine com uma recomendação de ação simples.
+	            
+	            O objetivo é que o empreendedor entenda o que causou o score e o que ele deve fazer a seguir.
+	            Mantenha o texto conciso e direto.
+	            """
+	            
+	            # 3. Chamar a API Gemini (usando o modelo mais leve)
+	            try:
+	                with st.spinner("Gerando análise explicativa..."):
+	                    response = client.models.generate_content(
+	                        model='gemini-2.5-flash', # Modelo mais leve para evitar consumo excessivo de tokens
+	                        contents=prompt
+	                    )
+	                st.markdown(response.text)
+	            except Exception as e:
+	                st.error(f"Erro ao gerar o mini-relatório: {e}")
+	                if DEBUG:
+	                    st.code(traceback.format_exc())
 
         except Exception as e:
             st.error(f"Erro ao calcular o score: {e}")
@@ -1237,5 +1272,3 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
-
-
