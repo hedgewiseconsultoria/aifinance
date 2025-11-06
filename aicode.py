@@ -154,6 +154,28 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ⚙️ Forçar modo claro (mesmo se navegador ou SO estiver em dark mode)
+st.markdown(
+    """
+    <style>
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stSidebar"] {
+            background-color: #F0F2F6 !important;
+            color: #000000 !important;
+        }
+        [data-testid="stSidebar"] {
+            background-color: #FFFFFF !important;
+        }
+        /* Impedir que o modo escuro do sistema altere as cores */
+        @media (prefers-color-scheme: dark) {
+            html {
+                color-scheme: light !important;
+            }
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # CSS customizado
 st.markdown(
     f"""
@@ -1300,3 +1322,4 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
