@@ -1,3 +1,4 @@
+# aicode_reescrito_para_revisao_e_dashboard.py
 import streamlit as st
 import pandas as pd
 import json
@@ -534,6 +535,17 @@ def enriquecer_com_plano_contas(df: pd.DataFrame) -> pd.DataFrame:
             }
     
     df = df.copy()
+    # Se a coluna 'conta_analitica' vier com label "OP-01 - Nome", extrair código
+    def extrair_codigo(x):
+        if pd.isna(x):
+            return x
+        if isinstance(x, str) and " - " in x:
+            return x.split(" - ")[0].strip()
+        return x.strip() if isinstance(x, str) else x
+
+    if 'conta_analitica' in df.columns:
+        df['conta_analitica'] = df['conta_analitica'].apply(extrair_codigo)
+
     df['nome_conta'] = df['conta_analitica'].map(lambda x: mapa_contas.get(x, {}).get('nome_conta', 'Não classificado'))
     df['codigo_sintetico'] = df['conta_analitica'].map(lambda x: mapa_contas.get(x, {}).get('codigo_sintetico', 'NE'))
     df['nome_sintetico'] = df['conta_analitica'].map(lambda x: mapa_contas.get(x, {}).get('nome_sintetico', 'Não classificado'))
@@ -777,28 +789,28 @@ def criar_grafico_indicadores(df: pd.DataFrame):
             y=df_indicadores['Margem de Caixa Operacional (%)'],
             mode='lines+markers',
             name='Margem de Caixa Operacional (%)',
-            line=dict(color=ACCENT_COLOR, width=3)
+            line=dict(width=3)
         ))
         fig.add_trace(go.Scatter(
             x=df_indicadores['Mês'],
             y=df_indicadores['Intensidade de Investimento (%)'],
             mode='lines+markers',
             name='Intensidade de Investimento (%)',
-            line=dict(color=INVESTMENT_COLOR, width=3)
+            line=dict(width=3)
         ))
         fig.add_trace(go.Scatter(
             x=df_indicadores['Mês'],
             y=df_indicadores['Intensidade de Financiamento (%)'],
             mode='lines+markers',
             name='Intensidade de Financiamento (%)',
-            line=dict(color=FINANCING_COLOR, width=3)
+            line=dict(width=3)
         ))
         fig.add_trace(go.Scatter(
             x=df_indicadores['Mês'],
             y=df_indicadores['Peso de Retiradas (%)'],
             mode='lines+markers',
             name='Peso de Retiradas (%)',
-            line=dict(color=NEGATIVE_COLOR, width=3, dash='dash')
+            line=dict(width=3, dash='dash')
         ))
     
     fig.update_layout(
@@ -872,7 +884,121 @@ def calcular_score_fluxo(df: pd.DataFrame):
             'componentes': {}
         }
 
-# --- 9. FUNÇÃO PARA CRIAR DASHBOARD ---
+# --- 9. Mini-relatório em linguagem simples (regra local) ---
+def gerar_mini_relatorio_local(resultado_score: Dict[str, Any], df: pd.DataFrame) -> str:
+    """
+    Gera um mini-relatório amigável em linguagem simples baseado nos indicadores.
+    Regras simples, explicativas e voltadas ao pequeno empreendedor.
+    """
+    score = resultado_score.get('score_final', 0.0)
+    valores = resultado_score.get('valores', {})
+    contribs = resultado_score.get('contribuicoes', {})
+    
+    partes = []
+    partes.append(f"Score Financeiro: {score:.1f}/100.")
+    
+    # Mensagem geral sem citar 'classe'
+    if score >= 85:
+        partes.append("Resumo: a operação apresenta forte geração de caixa e boa saúde financeira no período analisado.")
+    elif score >= 70:
+        partes.append("Resumo: performance boa, porém fique atento a sinais de dependência de financiamento ou retiradas elevadas.")
+    elif score >= 55:
+        partes.append("Resumo: situação razoável. Recomenda-se monitoramento próximo do caixa e disciplina nas retiradas.")
+    elif score >= 40:
+        partes.append("Resumo: caixa sob pressão. Reduza despesas não essenciais e reveja retiradas até normalizar o fluxo.")
+    else:
+        partes.append("Resumo: atenção imediata necessária. Priorize a operação e busque reforço de caixa ou renegociação de dívidas.")
+    
+    # Pontos baseados em indicadores
+    gco = valores.get('gco', 0.0)
+    entradas = valores.get('entradas_operacionais', 0.0)
+    margem = valores.get('margem_op', 0.0)
+    intensidade_inv = valores.get('intensidade_inv', 0.0)
+    intensidade_fin = valores.get('intensidade_fin', 0.0)
+    peso_retiradas = valores.get('peso_retiradas', 0.0)
+    taxa_reinv = valores.get('taxa_reinvestimento', 0.0)
+    autossuf = valores.get('autossuficiencia', 0.0)
+    
+    # contextualizar números (com formatação)
+    partes.append(f"Caixa operacional gerado (período): {formatar_brl(gco)}.")
+    if entradas > 0:
+        partes.append(f"Entradas operacionais (total): {formatar_brl(entradas)}; margem operacional de caixa ≈ {margem:.1%}.")
+    if peso_retiradas > 0:
+        partes.append(f"Retiradas de sócios representam aproximadamente {peso_retiradas:.1%} das saídas — se isso estiver elevado, reduz o caixa disponível.")
+    if taxa_reinv > 0:
+        partes.append(f"Taxa de reinvestimento: {taxa_reinv:.1%} do caixa operacional foi direcionada a investimentos (pode ser positivo para crescimento no médio prazo).")
+    if intensidade_fin is not None:
+        partes.append(f"Intensidade de financiamento: {intensidade_fin:.1%} (indica dependência de fontes externas).")
+    if autossuf is not None:
+        if math.isinf(autossuf):
+            partes.append("Autossuficiência operacional: sem necessidade de financiamento externo detectada no período.")
+        else:
+            partes.append(f"Autossuficiência operacional: {autossuf:.2f} (maior que 1 significa que o caixa operacional cobre investimentos e retiradas).")
+    
+    # Ações práticas recomendadas
+    acoes = []
+    if peso_retiradas > 0.5:
+        acoes.append("Reduzir temporariamente retiradas dos sócios até recuperar folga de caixa.")
+    if intensidade_fin > 1.0:
+        acoes.append("Rever custos e prazos de empréstimos: alto financiamento pode gerar custos que pesam no caixa.")
+    if taxa_reinv >= 0.3:
+        acoes.append("Continuar com investimentos planejados, se sustentáveis; garanta reservas para operações.")
+    if margem < 0.05:
+        acoes.append("Buscar aumento de vendas ou contenção de custos, pois a margem de caixa está baixa.")
+    if gco < 0:
+        acoes.append("Priorizar geração de caixa operacional (vendas/recebíveis) e adiar investimentos não essenciais.")
+    
+    if acoes:
+        partes.append("Recomendações práticas: " + " ".join(acoes))
+    else:
+        partes.append("Recomendações práticas: manter disciplina financeira e monitorar mensalmente os indicadores.")
+    
+    return "\n\n".join(partes)
+
+# --- 9b. FUNÇÃO OPCIONAL: GERAR MINI-RELATÓRIO VIA GEMINI (OPCIONAL, CONSOME TOKENS) ---
+def gerar_mini_relatorio_gemini(resultado_score: Dict[str, Any], df: pd.DataFrame, client: genai.Client) -> str:
+    """
+    Gera um mini-relatório usando a Gemini. Uso opcional — acionado por botão.
+    Configurado de forma conservadora para evitar consumo excessivo.
+    """
+    # Montar prompt simples e enxuto com os indicadores principais
+    valores = resultado_score.get('valores', {})
+    contribs = resultado_score.get('contribuicoes', {})
+    score = resultado_score.get('score_final', 0.0)
+    
+    resumo_json = {
+        "score": score,
+        "indicadores": valores,
+        "contribuicoes": contribs
+    }
+    prompt = (
+        "Você é um assistente que escreve um mini-relatório em linguagem clara e direta para um "
+        "pequeno empreendedor. Com base neste JSON, explique em até 150-220 palavras (máximo) o que "
+        "está impactando o score financeiro e quais 3 ações práticas priorizar. Seja claro e evite jargões.\n\n"
+        f"JSON:\n{json.dumps(resumo_json, default=str)}"
+    )
+    try:
+        config = types.GenerateContentConfig(
+            response_mime_type="text/plain",
+            temperature=0.0,  # conservador
+        )
+        response = client.models.generate_content(
+            model='gemini-2.5-mini',  # modelo menor quando disponível; ajuste conforme sua política
+            contents=[prompt],
+            config=config
+        )
+        text = response.text if hasattr(response, 'text') else str(response)
+        # tentativa de limitar: cortar se longo
+        if isinstance(text, str) and len(text) > 2000:
+            text = text[:2000] + "..."
+        return text
+    except Exception as e:
+        if DEBUG:
+            st.error(f"Erro ao gerar resumo via Gemini: {e}")
+            st.code(traceback.format_exc())
+        return "Não foi possível gerar o mini-relatório via Gemini. Use a versão local (automática) mostrada abaixo."
+
+# --- 10. FUNÇÃO PARA CRIAR DASHBOARD ---
 def criar_dashboard(df: pd.DataFrame):
     """Cria dashboard com gráficos de análise."""
     st.subheader("Dashboard: Análise de Fluxo de Caixa")
@@ -907,12 +1033,7 @@ def criar_dashboard(df: pd.DataFrame):
             color='tipo_fluxo',
             barmode='group',
             title='Evolução do Fluxo de Caixa por Tipo',
-            labels={'fluxo': 'Fluxo (R$)', 'mes_ano_str': 'Mês/Ano', 'tipo_fluxo': 'Tipo de Fluxo'},
-            color_discrete_map={
-                'OPERACIONAL': ACCENT_COLOR,
-                'INVESTIMENTO': INVESTMENT_COLOR,
-                'FINANCIAMENTO': FINANCING_COLOR
-            }
+            labels={'fluxo': 'Fluxo (R$)', 'mes_ano_str': 'Mês/Ano', 'tipo_fluxo': 'Tipo de Fluxo'}
         )
         fig_dcf.update_layout(height=400, plot_bgcolor='white', font=dict(family="Roboto"))
         st.plotly_chart(fig_dcf, use_container_width=True)
@@ -941,7 +1062,6 @@ def criar_dashboard(df: pd.DataFrame):
                 values='Valor',
                 names='Categoria',
                 title='Distribuição: Geração Operacional vs Retiradas',
-                color_discrete_sequence=[ACCENT_COLOR, NEGATIVE_COLOR],
                 hole=0.3
             )
             
@@ -985,8 +1105,7 @@ def criar_dashboard(df: pd.DataFrame):
                 df_despesas,
                 values='valor',
                 names='nome_conta',
-                title='Top 10 Categorias de Despesa',
-                color_discrete_sequence=px.colors.qualitative.Set3
+                title='Top 10 Categorias de Despesa'
             )
             fig_pie.update_layout(height=400, font=dict(family="Roboto"))
             st.plotly_chart(fig_pie, use_container_width=True)
@@ -1007,7 +1126,7 @@ def load_header():
             st.image(logo, width=600)
         with col2:
             st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
-            st.caption("Traduzindo números em histórias que façam sentido")
+            st.caption("Traduzindo números em histórias que façam sentido para o pequeno empreendedor")
         st.markdown("---")
     except Exception:
         st.title("Hedgewise | Análise Financeira Inteligente")
@@ -1080,20 +1199,27 @@ elif page == "Revisão de Dados":
     if not st.session_state['df_transacoes_editado'].empty:
         st.info("⚠️ IMPORTANTE: revise as classificações e corrija manualmente qualquer erro.")
         
-        # Preparar opções de contas para o editor
+        # Preparar opções de contas para o editor: exibir "OP-01 - Receitas de Vendas"
         opcoes_contas = []
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             for conta in sintetico["contas"]:
-                opcoes_contas.append(conta["codigo"])
+                opcoes_contas.append(f"{conta['codigo']} - {conta['nome']}")
+        
+        # Preparar dataframe de exibição: queremos que o usuário veja a data em DD/MM/AAAA
+        df_to_edit = st.session_state['df_transacoes_editado'].copy()
+        # Garantir que 'data' seja datetime para o DateColumn
+        df_to_edit['data'] = pd.to_datetime(df_to_edit['data'], errors='coerce', dayfirst=True)
+        # Para exibir o nome de conta concatenado (somente leitura), manter 'nome_conta' preenchido
         
         with st.expander("Editar Transações", expanded=True):
             edited_df = st.data_editor(
-                st.session_state['df_transacoes_editado'][
+                df_to_edit[
                     ['data', 'descricao', 'valor', 'tipo_movimentacao', 'conta_analitica', 'nome_conta', 'tipo_fluxo']
                 ],
                 width='stretch',
                 column_config={
-                    "data": st.column_config.DateColumn("Data", format="YYYY-MM-DD", required=True),
+                    # Data em formato DD/MM/AAAA para edição
+                    "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", required=True),
                     "descricao": st.column_config.TextColumn("Descrição", width="large"),
                     "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", required=True),
                     "tipo_movimentacao": st.column_config.SelectboxColumn(
@@ -1102,9 +1228,10 @@ elif page == "Revisão de Dados":
                         required=True
                     ),
                     "conta_analitica": st.column_config.SelectboxColumn(
-                        "Conta Analítica", 
+                        "Conta (código - nome)", 
                         options=opcoes_contas, 
-                        required=True
+                        required=True,
+                        help="Selecione a conta (código e nome aparecem juntos para facilitar). O sistema gravará apenas o código."
                     ),
                     "nome_conta": st.column_config.TextColumn("Nome da Conta", disabled=True),
                     "tipo_fluxo": st.column_config.TextColumn("Tipo de Fluxo", disabled=True),
@@ -1114,6 +1241,20 @@ elif page == "Revisão de Dados":
             )
         
         if st.button("Confirmar Dados e Gerar Relatórios", key="generate_report_btn"):
+            # Ao confirmar, extrair o código da conta de 'conta_analitica' caso o usuário tenha deixado "OP-01 - Nome"
+            def extrair_codigo_editor(x):
+                if pd.isna(x):
+                    return x
+                if isinstance(x, str) and " - " in x:
+                    return x.split(" - ")[0].strip()
+                return x.strip() if isinstance(x, str) else x
+
+            edited_df = edited_df.copy()
+            if 'conta_analitica' in edited_df.columns:
+                edited_df['conta_analitica'] = edited_df['conta_analitica'].apply(extrair_codigo_editor)
+            # Garantir tipos
+            edited_df['valor'] = pd.to_numeric(edited_df['valor'], errors='coerce').fillna(0)
+            edited_df['data'] = pd.to_datetime(edited_df['data'], errors='coerce', dayfirst=True)
             # Enriquecer novamente após edições
             edited_df = enriquecer_com_plano_contas(edited_df)
             st.session_state['df_transacoes_editado'] = edited_df
@@ -1152,47 +1293,21 @@ elif page == "Dashboard & Relatórios":
                 i_fin = valores.get('intensidade_fin', 0.0)
                 st.metric("📈 Intensidade de Financiamento", f"{i_fin:.1%}" if pd.notna(i_fin) else "—")
 
-            # Subscores visíveis
-            st.markdown("**Contribuição dos indicadores para o score:**")
-            cols = st.columns(len(contribs))
-            for i, (k, v) in enumerate(contribs.items()):
-                cols[i].metric(k.replace('_',' ').title(), f"{v:.1f}")
-
-            # --- CLASSIFICAÇÃO FINAL ---
-            if score >= 85:
-                st.success("Classe A – Excelente: seu negócio apresenta perfil financeiramente sustentável.")
-            elif score >= 70:
-                st.info("Classe B – Muito bom: risco moderado, com oportunidade de expansão.")
-            elif score >= 55:
-                st.warning("Classe C – Estável: fique atento ao nível de retiradas e investimento.")
-            elif score >= 40:
-                st.error("Classe D – Alto risco: a liquidez está pressionada, recomendável ação corretiva.")
-            else:
-                st.error("Classe E – Crítico: a operação pode estar insustentável; revise custos e entradas.")
-
             st.markdown("---")
 
-            # Exibir explicação amigável
-            with st.expander("📝 Interpretação rápida"):
-                msg = []
-                if score >= 85:
-                    msg.append("Seu negócio está financeiramente saudável. Mantenha o controle das retiradas e continue reinvestindo com disciplina.")
-                elif score >= 70:
-                    msg.append("Seu negócio tem boa performance. Atenção a retiradas e à dependência de financiamento.")
-                elif score >= 55:
-                    msg.append("Situação estável, porém atente-se ao equilíbrio entre retiradas e reinvestimento.")
-                elif score >= 40:
-                    msg.append("Caixa pressionado. Reduza retiradas e revise despesas fixas.")
-                else:
-                    msg.append("Atenção máxima. Reveja custos, busque reforço de caixa e priorize a operação.")
-                # Mensagens específicas a partir de indicadores
-                if valores.get('peso_retiradas',0) > 0.5:
-                    msg.append("As retiradas dos sócios são altas e impactam significativamente o caixa.")
-                if valores.get('intensidade_fin',0) > 1.0:
-                    msg.append("Dependência elevada de financiamento — avalie custo e prazo dos empréstimos.")
-                if valores.get('taxa_reinvestimento',0) >= 0.3:
-                    msg.append("Boa prática: alto reinvestimento, que pode fortalecer o negócio no médio/longo prazo.")
-                st.write("\n".join(msg))
+            # --- MINI-RELATÓRIO LOCAL (EM LINGUAGEM SIMPLES) ---
+            st.markdown("#### 📝 O que este score está me dizendo? (Mini-relatório)")
+            relatorio_local = gerar_mini_relatorio_local(resultado_score, df_final)
+            st.write(relatorio_local)
+
+            # Botão opcional: gerar mini-relatório via Gemini (quando usuário deseja)
+            with st.expander("🔎 Gerar versão estilo texto com Gemini (opcional, consome tokens)"):
+                st.write("Se quiser uma redação mais natural e resumida pelo modelo Gemini, clique no botão abaixo. Isso consome tokens (opcional).")
+                if st.button("Gerar resumo com Gemini (consome tokens)", key="gemini_summary_btn"):
+                    with st.spinner("Gerando resumo via Gemini..."):
+                        resumo_gemini = gerar_mini_relatorio_gemini(resultado_score, df_final, client)
+                        st.markdown("**Resumo (Gemini):**")
+                        st.write(resumo_gemini)
 
         except Exception as e:
             st.error(f"Erro ao calcular o score: {e}")
@@ -1231,9 +1346,9 @@ try:
         st.image(footer_logo, width=40)
     with footer_col2:
         st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
-        Análise de Extrato Empresarial | Dados extraídos e classificados com Inteligência.
+        Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
         </p>""", unsafe_allow_html=True)
 except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
-    Análise de Extrato Empresarial | Dados extraídos e classificados com Inteligência.
+    Análise de Extrato Empresarial | Dados extraídos e classificados com IA usando Plano de Contas estruturado.
     </p>""", unsafe_allow_html=True)
