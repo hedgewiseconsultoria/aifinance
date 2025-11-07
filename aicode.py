@@ -1437,7 +1437,7 @@ elif page == "Dashboard & Relatórios":
             #else:
              #   st.error("Classe E – Crítico: a operação pode estar insustentável; revise custos e entradas.")
 
-           # st.markdown("---")
+            st.markdown("---")
 
             # ------- RELATÓRIOS E GRÁFICOS -------
             criar_relatorio_fluxo_caixa(df_final)
@@ -1482,3 +1482,4 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
