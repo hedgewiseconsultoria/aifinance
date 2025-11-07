@@ -81,9 +81,11 @@ def formatar_brl(valor: float) -> str:
 # --- FUNÇÃO LOCAL: GERAR MINI-RELATÓRIO --- 
 def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], retiradas_pessoais_val: float) -> str:
     """
-    Gera o texto do mini-relatório localmente (sem chamada à IA),
-    com formatação limpa, cores de risco, e alinhamento com a lógica do gráfico.
+    Gera HTML limpo do mini-relatório (pronto para ser renderizado com unsafe_allow_html=True).
+    Usa formatar_brl() do código para formatar valores em R$ e aplica cor considerando contexto
+    (ex.: se caixa operacional < 0, destaque vermelho nas retiradas).
     """
+    # valores
     gco = indicadores.get('gco', 0.0)
     entradas_op = indicadores.get('entradas_operacionais', 0.0)
     intensidade_fin = indicadores.get('intensidade_fin', 0.0)
@@ -91,37 +93,37 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     taxa_reinv = indicadores.get('taxa_reinvestimento', 0.0)
     peso_retiradas = indicadores.get('peso_retiradas', 0.0)
 
-    # --- Função auxiliar para definir cor ---
-    def cor_risco(valor, tipo="financeiro"):
+    # formatação de cor (sem imprimir tags visíveis depois)
+    def cor_risco(valor, tipo="financeiro", contexto_caixa_negativo=False):
+        # retorna 'green'/'orange'/'red'
         if tipo == "financeiro":
+            # se contexto de caixa negativo e for o caso de retiradas, forçar vermelho
+            if contexto_caixa_negativo:
+                return "red"
             return "green" if valor > 0 else ("orange" if valor == 0 else "red")
-        elif tipo == "financiamento":
+        if tipo == "financiamento":
+            # para intensidade, valores baixos são melhores
             return "green" if valor < 0.3 else ("orange" if valor < 1.0 else "red")
-        elif tipo == "autossuficiencia":
-            return "green" if valor > 1.0 else ("orange" if valor >= 0.5 else "red")
+        if tipo == "autossuficiencia":
+            return "green" if (valor == float('inf') or valor > 1.0) else ("orange" if valor >= 0.5 else "red")
         return "black"
 
-    def valor_colorido(valor, tipo="financeiro", prefixo="R$"):
-        cor = cor_risco(valor, tipo)
-        if prefixo == "R$":
-            val_formatado = formatar_brl(valor)
-        else:
-            val_formatado = f"{valor:.2f}"
-        return f"<span style='color:{cor};font-weight:bold;'>{val_formatado}</span>"
+    def span_valor(texto_display, cor):
+        return f"<span style='color:{cor};font-weight:700;'>{texto_display}</span>"
 
-    # --- Resumo geral ---
+    # texto resumo por score
     if score >= 85:
         resumo = "Desempenho financeiro muito sólido, com geração consistente de caixa e baixo consumo por retiradas."
     elif score >= 70:
         resumo = "Desempenho positivo; boa geração de caixa, porém é importante monitorar retiradas e dependência de financiamento."
     elif score >= 55:
-        resumo = "Situação razoável: há geração de caixa, mas com pontos de atenção em retiradas e reinvestimento."
+        resumo = "Situação razoável: há geração de caixa, mas com pontos a ajustar em retiradas e reinvestimento."
     elif score >= 40:
         resumo = "Caixa pressionado — recomenda-se atenção imediata às retiradas e revisão das despesas fixas."
     else:
         resumo = "Situação crítica: priorize medidas para reforço de caixa, redução de custos e renegociação de dívidas."
 
-    # --- Comentários de risco ---
+    # comentários (texto explicativo após cada métrica)
     if gco > 0:
         comentario_gco = "isso contribui positivamente para a saúde financeira e reduz o risco da empresa."
     elif gco == 0:
@@ -129,6 +131,7 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     else:
         comentario_gco = "este valor negativo aumenta o risco e indica que a operação está consumindo mais do que gera."
 
+    # Retiradas: se caixa negativo, prioridade de alerta (sem sustentabilidade)
     if gco < 0:
         comentario_retiradas = "🚨 o caixa operacional está negativo, portanto não há sustentabilidade para retiradas neste período."
     elif retiradas_pessoais_val <= 0:
@@ -156,7 +159,7 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     else:
         comentario_autossuf = "baixo nível de autossuficiência: o negócio depende de capital externo, elevando o risco."
 
-    # --- Recomendações ---
+    # Recomendações resumidas
     recs = []
     if gco <= 0:
         recs.append("Revise as entradas operacionais e priorize ações que aumentem as vendas ou captação de receitas.")
@@ -171,21 +174,29 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     if not recs:
         recs.append("Mantenha controles atuais de custos e planejamento financeiro.")
 
-    # --- Montagem final (HTML renderizável no Streamlit) ---
-    relatorio = f"""
-    <div style='line-height:1.6;font-size:15px;'>
-        <b>Score Financeiro:</b> {score:.1f}<br>
-        <b>Resumo:</b> {resumo}<br><br>
+    # cor e formato dos valores (usar formatar_brl para reais)
+    # Nota: formatar_brl() deve existir no seu código (já presente no seu app)
+    val_gco = span_valor(formatar_brl(gco), cor_risco(gco, "financeiro"))
+    # retiradas: cor leva em conta contexto do caixa
+    val_retir = span_valor(formatar_brl(retiradas_pessoais_val), cor_risco(retiradas_pessoais_val, "financeiro", contexto_caixa_negativo=(gco<0)))
+    val_int = span_valor(f"{intensidade_fin:.2f}", cor_risco(intensidade_fin, "financiamento"))
+    # autossuf pode ser infinito
+    aut_text = "∞" if autossuf == float('inf') else f"{autossuf:.2f}"
+    val_aut = span_valor(aut_text, cor_risco(autossuf, "autossuficiencia"))
 
-        <b>Caixa operacional gerado (período):</b> {valor_colorido(gco)} — {comentario_gco}<br>
-        <b>Retiradas de sócios:</b> {valor_colorido(retiradas_pessoais_val)} — {comentario_retiradas}<br>
-        <b>Intensidade de financiamento:</b> {valor_colorido(intensidade_fin, 'financiamento', prefixo='')} — {comentario_fin}<br>
-        <b>Autossuficiência operacional:</b> {valor_colorido(autossuf, 'autossuficiencia', prefixo='')} — {comentario_autossuf}<br><br>
-
-        <b>Recomendações práticas:</b> {' '.join(recs)}
-    </div>
-    """
-    return relatorio
+    # montar HTML limpo (sem quebras de linha estranhas)
+    html = (
+        "<div style='line-height:1.5;font-size:15px;'>"
+        f"<b>Score Financeiro:</b> {score:.1f}<br><br>"
+        f"<b>Resumo:</b> {resumo}<br><br>"
+        f"<b>Caixa operacional gerado (período):</b> {val_gco} — {comentario_gco}<br>"
+        f"<b>Retiradas de sócios:</b> {val_retir} — {comentario_retiradas}<br>"
+        f"<b>Intensidade de financiamento:</b> {val_int} — {comentario_fin}<br>"
+        f"<b>Autossuficiência operacional:</b> {val_aut} — {comentario_autossuf}<br><br>"
+        f"<b>Recomendações práticas:</b> {' '.join(recs)}"
+        "</div>"
+    )
+    return html
 
 # --- 1. CONFIGURAÇÃO DE SEGURANÇA E TEMA ---
 PRIMARY_COLOR = "#0A2342"
@@ -1376,3 +1387,4 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
