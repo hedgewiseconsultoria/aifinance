@@ -1419,7 +1419,7 @@ elif page == "Dashboard & Relatórios":
                 (df_final['tipo_movimentacao'] == 'DEBITO')
             ]['valor'].sum())
 
-            mini_text = gerar_mini_relatorio_local(score, valores, retiradas_pessoais_val)
+            mini_text, classe_texto = gerar_mini_relatorio_local(score, valores, retiradas_pessoais_val)
 
             # Exibir o mini-relatório formatado com HTML e coloração de risco
             st.markdown("#### **O que este score está me dizendo?**")
@@ -1482,4 +1482,5 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
 
