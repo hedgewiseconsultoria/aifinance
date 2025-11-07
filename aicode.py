@@ -79,10 +79,11 @@ def formatar_brl(valor: float) -> str:
         return f"R$ {valor:.2f}"
 
 # --- FUNÇÃO LOCAL: GERAR MINI-RELATÓRIO --- 
-def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], retiradas_pessoais_val: float) -> str:
-    """
-    Gera HTML limpo do mini-relatório (pronto para st.markdown com unsafe_allow_html=True),
+
+def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], retiradas_pessoais_val: float):
+    """Gera HTML limpo do mini-relatório (pronto para st.markdown com unsafe_allow_html=True),
     com linguagem simplificada e sem exibir a métrica de intensidade de financiamento.
+    Retorna: (html, classe_texto)
     """
     # --- dados base ---
     gco = indicadores.get('gco', 0.0)
@@ -97,6 +98,105 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
         if tipo == "financeiro":
             if contexto_caixa_negativo:
                 return "🔴"
+            return "🟢" if valor > 0 else ("🟠" if valor == 0 else "🔴")
+        if tipo == "autossuficiencia":
+            if valor == float('inf') or valor > 1.0:
+                return "🟢"
+            elif valor >= 0.5:
+                return "🟠"
+            else:
+                return "🔴"
+        return ""
+
+    def span_valor(valor_formatado, cor):
+        return f"<span style='font-weight:700;'>{cor} {valor_formatado}</span>"
+
+    # --- resumo contextualizado (coerente com a classificação) ---
+    if score >= 85:
+        resumo = "Situação muito saudável: boa geração de caixa e equilíbrio nas finanças."
+        classe_texto = "Classe A – Excelente: finanças equilibradas e bom controle de caixa."
+    elif score >= 70:
+        resumo = "Situação estável, mas requer acompanhamento de retiradas e uso de financiamentos."
+        classe_texto = "Classe B – Boa: estrutura financeira estável, mantenha o acompanhamento periódico."
+    elif score >= 55:
+        if gco > 0:
+            resumo = "Situação aceitável: o caixa operacional está positivo, mas o score indica que há espaço para melhorar a eficiência financeira."
+            classe_texto = "Classe C – Moderado: o caixa é positivo e a autossuficiência é boa; acompanhe retiradas e mantenha disciplina financeira."
+        else:
+            resumo = "Caixa pressionado — atenção às despesas fixas e retiradas para evitar desequilíbrio."
+            classe_texto = "Classe D – Alto risco: atenção às despesas e à liquidez, recomenda-se reforçar o caixa."
+    elif score >= 40:
+        if gco > 0 and autossuf >= 1.0:
+            resumo = "Situação aceitável, mas exige disciplina para manter o equilíbrio do caixa."
+            classe_texto = "Classe C – Moderado: o caixa é positivo e a autossuficiência é boa; acompanhe retiradas e mantenha disciplina financeira."
+        else:
+            resumo = "Risco elevado: o caixa tende a ficar pressionado se não houver ajuste nas retiradas e custos."
+            classe_texto = "Classe D – Alto risco: atenção às despesas e à liquidez, recomenda-se reforçar o caixa."
+    else:
+        resumo = "Situação crítica: priorize ações imediatas para reforçar o caixa e renegociar dívidas."
+        classe_texto = "Classe E – Crítico: risco elevado de desequilíbrio financeiro, ações corretivas imediatas são recomendadas."
+
+    # --- comentários ---
+    if gco > 0:
+        comentario_gco = "isso contribui positivamente para a saúde financeira e reduz o risco da empresa."
+    elif gco == 0:
+        comentario_gco = "a neutralidade indica que o negócio está apenas se mantendo, sem gerar caixa adicional."
+    else:
+        comentario_gco = "este valor negativo aumenta o risco e indica que a operação está consumindo mais do que gera."
+
+    if gco < 0:
+        comentario_retiradas = "🚨 o caixa operacional está negativo, portanto não há sustentabilidade para retiradas neste período."
+    elif retiradas_pessoais_val <= 0:
+        comentario_retiradas = "não houve retiradas pessoais, o que ajuda na preservação do caixa."
+    elif retiradas_pessoais_val < 0.3 * max(entradas_op, 1):
+        comentario_retiradas = "retiradas em nível saudável, sem comprometer o caixa."
+    elif retiradas_pessoais_val < 0.6 * max(entradas_op, 1):
+        comentario_retiradas = "retiradas moderadas, que merecem monitoramento."
+    else:
+        comentario_retiradas = "retiradas elevadas, que aumentam o risco financeiro e reduzem a folga de caixa."
+
+    if autossuf == float('inf') or autossuf > 1.5:
+        comentario_autossuf = "excelente autossuficiência: o negócio gera caixa suficiente para cobrir retiradas e investimentos."
+    elif autossuf >= 1.0:
+        comentario_autossuf = "autossuficiência adequada, com boa capacidade de financiar obrigações internas."
+    elif autossuf >= 0.5:
+        comentario_autossuf = "autossuficiência parcial: é preciso reforçar geração interna de caixa."
+    else:
+        comentario_autossuf = "baixo nível de autossuficiência: o negócio depende de capital externo, elevando o risco."
+
+    # --- recomendações ---
+    recs = []
+    if gco <= 0:
+        recs.append("Revise as entradas operacionais e priorize ações que aumentem as vendas ou captação de receitas.")
+    if peso_retiradas > 0.5 or (entradas_op > 0 and (retiradas_pessoais_val / entradas_op) > 0.5):
+        recs.append("Reduza retiradas pessoais para preservar caixa operacional.")
+    if taxa_reinv >= 0.30:
+        recs.append("Bom nível de reinvestimento — mantenha disciplina para colher ganhos futuros.")
+    if autossuf < 0.5:
+        recs.append("Aumente a autossuficiência operacional antes de expandir investimentos.")
+    if not recs:
+        recs.append("Mantenha controles atuais de custos e planejamento financeiro.")
+
+    # --- formatação dos valores ---
+    val_gco = span_valor(formatar_brl(gco), cor_icone(gco, "financeiro"))
+    val_retir = span_valor(formatar_brl(retiradas_pessoais_val), cor_icone(retiradas_pessoais_val, "financeiro", contexto_caixa_negativo=(gco < 0)))
+    aut_text = "∞" if autossuf == float('inf') else f"{autossuf:.2f}"
+    val_aut = span_valor(aut_text, cor_icone(autossuf, "autossuficiencia"))
+
+    # --- HTML final (sem classe dentro) ---
+    html = (
+        "<div style='line-height:1.6;font-size:15px;'>"
+        f"<b>Score Financeiro:</b> {score:.1f}<br><br>"
+        f"<b>Resumo:</b> {resumo}<br><br>"
+        f"<b>Caixa operacional gerado (período):</b> {val_gco} — {comentario_gco}<br>"
+        f"<b>Retiradas de sócios:</b> {val_retir} — {comentario_retiradas}<br>"
+        f"<b>Autossuficiência operacional:</b> {val_aut} — {comentario_autossuf}<br><br>"
+        f"<b>Recomendações práticas:</b> {' '.join(recs)}"
+        "</div>"
+    )
+
+    return html, classe_texto
+
             return "🟢" if valor > 0 else ("🟠" if valor == 0 else "🔴")
         if tipo == "autossuficiencia":
             if valor == float('inf') or valor > 1.0:
@@ -1392,6 +1492,3 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
-
-
-
