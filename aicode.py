@@ -172,15 +172,19 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     aut_text = "∞" if autossuf == float('inf') else f"{autossuf:.2f}"
     val_aut = span_valor(aut_text, cor_icone(autossuf, "autossuficiencia"))
 
-    # --- classe de risco ---
+    # --- classe de risco (ajustada pelo contexto) ---
     if score >= 85:
         classe_texto = "Classe A – Excelente: finanças equilibradas e bom controle de caixa."
     elif score >= 70:
         classe_texto = "Classe B – Boa: estrutura financeira estável, mantenha o acompanhamento periódico."
     elif score >= 55:
         classe_texto = "Classe C – Moderado: acompanhe o fluxo de caixa e evite aumento de retiradas."
-    elif score >= 40:
-        classe_texto = "Classe D – Alto risco: atenção às despesas e à liquidez, recomenda-se reforçar o caixa."
+    elif score >= 45:
+        # faixa intermediária — se caixa positivo e autossuficiente, subir para C
+        if gco > 0 and autossuf >= 1.0:
+            classe_texto = "Classe C – Moderado: o caixa é positivo e a autossuficiência é boa; acompanhe retiradas e mantenha disciplina financeira."
+        else:
+            classe_texto = "Classe D – Alto risco: atenção às despesas e à liquidez, recomenda-se reforçar o caixa."
     else:
         classe_texto = "Classe E – Crítico: risco elevado de desequilíbrio financeiro, ações corretivas imediatas são recomendadas."
 
@@ -1388,5 +1392,6 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
 
 
