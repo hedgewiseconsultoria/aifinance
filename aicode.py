@@ -1424,7 +1424,8 @@ elif page == "Dashboard & Relatórios":
             # Exibir o mini-relatório formatado com HTML e coloração de risco
             st.markdown("#### **O que este score está me dizendo?**")
             st.markdown(mini_text, unsafe_allow_html=True)
-           
+
+            st.markdown("---")
             
             # --- CLASSIFICAÇÃO FINAL (mantida) ---
           #  if score >= 85:
@@ -1492,6 +1493,7 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
 
 
 
