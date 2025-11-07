@@ -198,10 +198,10 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     return html, classe_texto
 
     return "🟢" if valor > 0 else ("🟠" if valor == 0 else "🔴")
-                if tipo == "autossuficiencia":
-            if valor == float('inf') or valor > 1.0:
+    if tipo == "autossuficiencia":
+    if valor == float('inf') or valor > 1.0:
                 return "🟢"
-            elif valor >= 0.5:
+                elif valor >= 0.5:
                 return "🟠"
             else:
                 return "🔴"
@@ -1492,6 +1492,7 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
 
 
 
