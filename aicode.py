@@ -1424,18 +1424,28 @@ elif page == "Dashboard & Relatórios":
             # Exibir o mini-relatório formatado com HTML e coloração de risco
             st.markdown("#### **O que este score está me dizendo?**")
             st.markdown(mini_text, unsafe_allow_html=True)
-
+           
+            
             # --- CLASSIFICAÇÃO FINAL (mantida) ---
-            if score >= 85:
-                st.success("Classe A – Excelente: seu negócio apresenta perfil financeiramente sustentável.")
-            elif score >= 70:
-                st.info("Classe B – Muito bom: risco moderado, com oportunidade de expansão.")
-            elif score >= 55:
-                st.warning("Classe C – Estável: fique atento ao nível de retiradas e investimento.")
-            elif score >= 40:
-                st.error("Classe D – Alto risco: a liquidez está pressionada, recomendável ação corretiva.")
+          #  if score >= 85:
+             #   st.success("Classe A – Excelente: seu negócio apresenta perfil financeiramente sustentável.")
+          #  elif score >= 70:
+             #   st.info("Classe B – Muito bom: risco moderado, com oportunidade de expansão.")
+            #elif score >= 55:
+            #    st.warning("Classe C – Estável: fique atento ao nível de retiradas e investimento.")
+           # elif score >= 40:
+            #    st.error("Classe D – Alto risco: a liquidez está pressionada, recomendável ação corretiva.")
+           # else:
+             #   st.error("Classe E – Crítico: a operação pode estar insustentável; revise custos e entradas.")
+
+             # Exibir a classe (sem duplicar)
+            if "Excelente" in classe_texto or "Boa" in classe_texto:
+                st.success(classe_texto)
+            elif "Moderado" in classe_texto:
+                st.warning(classe_texto)
             else:
-                st.error("Classe E – Crítico: a operação pode estar insustentável; revise custos e entradas.")
+                st.error(classe_texto)
+
 
             st.markdown("---")
 
@@ -1482,6 +1492,7 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
 
 
 
