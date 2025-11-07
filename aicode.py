@@ -82,17 +82,43 @@ def formatar_brl(valor: float) -> str:
 def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], retiradas_pessoais_val: float) -> str:
     """
     Gera o texto do mini-relatório localmente (sem chamada à IA).
-    O texto segue o formato aprovado pelo usuário com rótulos em negrito no início das linhas.
-    Inclui comentários breves sobre o risco associado a cada indicador.
+    Inclui coloração de risco e lógica alinhada à mensagem do gráfico 'Caixa Operacional vs Retiradas Pessoais'.
     """
-    # Extrair valores
+    # Extrair valores principais
     gco = indicadores.get('gco', 0.0)
     entradas_op = indicadores.get('entradas_operacionais', 0.0)
     intensidade_fin = indicadores.get('intensidade_fin', 0.0)
     autossuf = indicadores.get('autossuficiencia', 0.0)
-    margem_op = indicadores.get('margem_op', 0.0)
     taxa_reinv = indicadores.get('taxa_reinvestimento', 0.0)
     peso_retiradas = indicadores.get('peso_retiradas', 0.0)
+
+    # --- Função auxiliar para aplicar cor conforme risco ---
+    def colorir_valor(valor, tipo="normal"):
+        """Retorna texto formatado com cor conforme o tipo de risco."""
+        cor = "black"
+        if tipo == "financeiro":
+            if valor > 0:
+                cor = "green"
+            elif valor == 0:
+                cor = "orange"
+            else:
+                cor = "red"
+        elif tipo == "financiamento":
+            # valores negativos ou baixos são bons
+            if valor < 0.3:
+                cor = "green"
+            elif valor < 1.0:
+                cor = "orange"
+            else:
+                cor = "red"
+        elif tipo == "autossuficiencia":
+            if valor > 1.0:
+                cor = "green"
+            elif valor >= 0.5:
+                cor = "orange"
+            else:
+                cor = "red"
+        return f"<span style='color:{cor};font-weight:bold;'>{valor if isinstance(valor, str) else f'{valor:.2f}'}</span>"
 
     # --- RESUMO GERAL ---
     if score >= 85:
@@ -100,14 +126,13 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     elif score >= 70:
         resumo = "Desempenho positivo; boa geração de caixa, porém é importante monitorar retiradas e dependência de financiamento."
     elif score >= 55:
-        resumo = "Situação razoável: a geração de caixa existe, mas há pontos a melhorar em estrutura de retiradas e reinvestimento."
+        resumo = "Situação razoável: há geração de caixa, mas com pontos de atenção em retiradas e reinvestimento."
     elif score >= 40:
         resumo = "Caixa pressionado — recomenda-se atenção imediata às retiradas e revisão das despesas fixas."
     else:
         resumo = "Situação crítica: priorize medidas para reforço de caixa, redução de custos e renegociação de dívidas."
 
     # --- COMENTÁRIOS DE RISCO ---
-    # Caixa operacional
     if gco > 0:
         comentario_gco = " — isso contribui positivamente para a saúde financeira e reduz o risco da empresa."
     elif gco == 0:
@@ -115,12 +140,14 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     else:
         comentario_gco = " — este valor negativo aumenta o risco e indica que a operação está consumindo mais do que gera."
 
-    # Retiradas
-    if retiradas_pessoais_val <= 0:
+    # Retiradas de sócios
+    if gco < 0:
+        comentario_retiradas = " — 🚨 o caixa operacional está negativo, portanto não há sustentabilidade para retiradas neste período."
+    elif retiradas_pessoais_val <= 0:
         comentario_retiradas = " — não houve retiradas pessoais, o que ajuda na preservação do caixa."
-    elif retiradas_pessoais_val < 0.3 * entradas_op:
+    elif retiradas_pessoais_val < 0.3 * max(entradas_op, 1):
         comentario_retiradas = " — retiradas em nível saudável, sem comprometer o caixa."
-    elif retiradas_pessoais_val < 0.6 * entradas_op:
+    elif retiradas_pessoais_val < 0.6 * max(entradas_op, 1):
         comentario_retiradas = " — retiradas moderadas, que merecem monitoramento."
     else:
         comentario_retiradas = " — retiradas elevadas, que aumentam o risco financeiro e reduzem a folga de caixa."
@@ -145,7 +172,7 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
 
     # --- RECOMENDAÇÕES ---
     recs = []
-    if entradas_op <= 0 or gco <= 0:
+    if gco <= 0:
         recs.append("Revise as entradas operacionais e priorize ações que aumentem as vendas ou captação de receitas.")
     if peso_retiradas > 0.5 or (entradas_op > 0 and (retiradas_pessoais_val / entradas_op) > 0.5):
         recs.append("Reduza retiradas pessoais para preservar caixa operacional.")
@@ -155,21 +182,20 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
         recs.append("Bom nível de reinvestimento — mantenha disciplina para colher ganhos futuros.")
     if autossuf < 0.5:
         recs.append("Aumente a autossuficiência operacional antes de expandir investimentos.")
-
     if not recs:
         recs.append("Mantenha controles atuais de custos e planejamento financeiro.")
 
     # --- MONTAGEM FINAL ---
-    texto = []
-    texto.append(f"**Score Financeiro:** {score:.1f}")
-    texto.append(f"**Resumo:** {resumo}")
-    texto.append(f"**Caixa operacional gerado (período):** {formatar_brl(gco)}{comentario_gco}")
-    texto.append(f"**Retiradas de sócios:** {formatar_brl(retiradas_pessoais_val)}{comentario_retiradas}")
-    texto.append(f"**Intensidade de financiamento:** {intensidade_fin:.2f}{comentario_fin}")
-    texto.append(f"**Autossuficiência operacional:** {'∞' if autossuf==float('inf') else f'{autossuf:.2f}'}{comentario_autossuf}")
-    texto.append(f"**Recomendações práticas:** {' '.join(recs)}")
-
-    return "\n\n".join(texto)
+    texto = f"""
+    <b>Score Financeiro:</b> {score:.1f}<br><br>
+    <b>Resumo:</b> {resumo}<br><br>
+    <b>Caixa operacional gerado (período):</b> {colorir_valor(gco, 'financeiro')} — {comentario_gco}<br><br>
+    <b>Retiradas de sócios:</b> {colorir_valor(retiradas_pessoais_val, 'financeiro')} — {comentario_retiradas}<br><br>
+    <b>Intensidade de financiamento:</b> {colorir_valor(intensidade_fin, 'financiamento')} — {comentario_fin}<br><br>
+    <b>Autossuficiência operacional:</b> {colorir_valor(autossuf, 'autossuficiencia')} — {comentario_autossuf}<br><br>
+    <b>Recomendações práticas:</b> {' '.join(recs)}
+    """
+    return texto
 
 # --- 1. CONFIGURAÇÃO DE SEGURANÇA E TEMA ---
 PRIMARY_COLOR = "#0A2342"
@@ -1359,5 +1385,6 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
 
 
