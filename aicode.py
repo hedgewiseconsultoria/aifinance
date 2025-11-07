@@ -78,13 +78,14 @@ def formatar_brl(valor: float) -> str:
     except Exception:
         return f"R$ {valor:.2f}"
 
-# --- FUNÇÃO LOCAL: GERAR MINI-RELATÓRIO ---
+# --- FUNÇÃO LOCAL: GERAR MINI-RELATÓRIO --- 
 def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], retiradas_pessoais_val: float) -> str:
     """
     Gera o texto do mini-relatório localmente (sem chamada à IA).
     O texto segue o formato aprovado pelo usuário com rótulos em negrito no início das linhas.
+    Inclui comentários breves sobre o risco associado a cada indicador.
     """
-    # Extrair valores com segurança
+    # Extrair valores
     gco = indicadores.get('gco', 0.0)
     entradas_op = indicadores.get('entradas_operacionais', 0.0)
     intensidade_fin = indicadores.get('intensidade_fin', 0.0)
@@ -93,7 +94,7 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     taxa_reinv = indicadores.get('taxa_reinvestimento', 0.0)
     peso_retiradas = indicadores.get('peso_retiradas', 0.0)
 
-    # Resumo textual baseado em regras simples (sem citar "classe" explicitamente)
+    # --- RESUMO GERAL ---
     if score >= 85:
         resumo = "Desempenho financeiro muito sólido, com geração consistente de caixa e baixo consumo por retiradas."
     elif score >= 70:
@@ -105,34 +106,70 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     else:
         resumo = "Situação crítica: priorize medidas para reforço de caixa, redução de custos e renegociação de dívidas."
 
-    # Recomendações práticas (com lógica simples baseada nos indicadores)
+    # --- COMENTÁRIOS DE RISCO ---
+    # Caixa operacional
+    if gco > 0:
+        comentario_gco = " — isso contribui positivamente para a saúde financeira e reduz o risco da empresa."
+    elif gco == 0:
+        comentario_gco = " — a neutralidade indica que o negócio está apenas se mantendo, sem gerar caixa adicional."
+    else:
+        comentario_gco = " — este valor negativo aumenta o risco e indica que a operação está consumindo mais do que gera."
+
+    # Retiradas
+    if retiradas_pessoais_val <= 0:
+        comentario_retiradas = " — não houve retiradas pessoais, o que ajuda na preservação do caixa."
+    elif retiradas_pessoais_val < 0.3 * entradas_op:
+        comentario_retiradas = " — retiradas em nível saudável, sem comprometer o caixa."
+    elif retiradas_pessoais_val < 0.6 * entradas_op:
+        comentario_retiradas = " — retiradas moderadas, que merecem monitoramento."
+    else:
+        comentario_retiradas = " — retiradas elevadas, que aumentam o risco financeiro e reduzem a folga de caixa."
+
+    # Intensidade de financiamento
+    if intensidade_fin < 0.3:
+        comentario_fin = " — boa autonomia, baixo nível de dependência de crédito externo."
+    elif intensidade_fin < 1.0:
+        comentario_fin = " — dependência moderada de financiamento, que deve ser acompanhada."
+    else:
+        comentario_fin = " — alta dependência de financiamento, o que aumenta o risco e reduz a flexibilidade financeira."
+
+    # Autossuficiência operacional
+    if autossuf == float('inf') or autossuf > 1.5:
+        comentario_autossuf = " — excelente autossuficiência: o negócio gera caixa suficiente para cobrir retiradas e investimentos."
+    elif autossuf >= 1.0:
+        comentario_autossuf = " — autossuficiência adequada, com boa capacidade de financiar obrigações internas."
+    elif autossuf >= 0.5:
+        comentario_autossuf = " — autossuficiência parcial: é preciso reforçar geração interna de caixa."
+    else:
+        comentario_autossuf = " — baixo nível de autossuficiência: o negócio depende de capital externo, elevando o risco."
+
+    # --- RECOMENDAÇÕES ---
     recs = []
     if entradas_op <= 0 or gco <= 0:
-        recs.append("Revise as entradas operacionais e priorize ações que aumentem a venda ou captação de receitas.")
-    if peso_retiradas > 0.5 or retiradas_pessoais_val > 0 and (entradas_op > 0 and (retiradas_pessoais_val / entradas_op) > 0.5):
+        recs.append("Revise as entradas operacionais e priorize ações que aumentem as vendas ou captação de receitas.")
+    if peso_retiradas > 0.5 or (entradas_op > 0 and (retiradas_pessoais_val / entradas_op) > 0.5):
         recs.append("Reduza retiradas pessoais para preservar caixa operacional.")
     if intensidade_fin > 1.0:
-        recs.append("Alta dependência de financiamento — avalie custos, prazos e possibilidade de refinanciamento.")
+        recs.append("Avalie o custo das dívidas e busque equilibrar o uso de capital de terceiros.")
     if taxa_reinv >= 0.30:
-        recs.append("Bom nível de reinvestimento — mantenha disciplina para colher ganhos no médio/longo prazo.")
-    if autossuf != float('inf') and autossuf < 0.5:
-        recs.append("Aumente a autossuficiência operacional (geração interna) antes de expandir investimentos.")
+        recs.append("Bom nível de reinvestimento — mantenha disciplina para colher ganhos futuros.")
+    if autossuf < 0.5:
+        recs.append("Aumente a autossuficiência operacional antes de expandir investimentos.")
 
     if not recs:
-        recs.append("Mantenha controles atuais: controle de custos, disciplina nas retiradas e planejamento de reinvestimento.")
+        recs.append("Mantenha controles atuais de custos e planejamento financeiro.")
 
-    # Montar o texto formatado com rótulos em negrito no início das linhas
+    # --- MONTAGEM FINAL ---
     texto = []
     texto.append(f"**Score Financeiro:** {score:.1f}")
     texto.append(f"**Resumo:** {resumo}")
-    texto.append(f"**Caixa operacional gerado (período):** {formatar_brl(gco)}")
-    texto.append(f"**Retiradas de sócios:** {formatar_brl(retiradas_pessoais_val)}")
-    texto.append(f"**Intensidade de financiamento:** {intensidade_fin:.2f}")
-    texto.append(f"**Autossuficiência operacional:** {autossuf if autossuf==float('inf') else f'{autossuf:.2f}'}")
+    texto.append(f"**Caixa operacional gerado (período):** {formatar_brl(gco)}{comentario_gco}")
+    texto.append(f"**Retiradas de sócios:** {formatar_brl(retiradas_pessoais_val)}{comentario_retiradas}")
+    texto.append(f"**Intensidade de financiamento:** {intensidade_fin:.2f}{comentario_fin}")
+    texto.append(f"**Autossuficiência operacional:** {'∞' if autossuf==float('inf') else f'{autossuf:.2f}'}{comentario_autossuf}")
     texto.append(f"**Recomendações práticas:** {' '.join(recs)}")
 
     return "\n\n".join(texto)
-
 
 # --- 1. CONFIGURAÇÃO DE SEGURANÇA E TEMA ---
 PRIMARY_COLOR = "#0A2342"
@@ -1322,4 +1359,5 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
 
