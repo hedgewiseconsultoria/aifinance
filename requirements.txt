@@ -3,4 +3,5 @@ google-genai
 pydantic
 pandas
 plotly
-supabase-py
+supabase
+
