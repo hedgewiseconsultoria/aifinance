@@ -999,19 +999,26 @@ if page == "Upload e Extração":
                     continue
 
                 # opcional: salva o PDF no Storage (pasta por usuário)
-             
+                try:
+                    supabase.storage.from_("extratos").upload(f"{user_id}/{uploaded_file.name}", pdf_bytes)
+                except Exception:
                     pass
 
                 # registra metadados do extrato
-                #resultado = # [REMOVIDO] inserção imediata suprimida (Upload ajustado)
-                #extrato_id = resultado.data[0]["id"] if resultado.data else None
+                resultado = supabase.table("extratos").insert({
+                    "user_id": user_id,
+                    "nome_arquivo": uploaded_file.name,
+                    "hash_arquivo": file_hash
+                }).execute()
+                extrato_id = resultado.data[0]["id"] if resultado.data else None
 
                 # chama a função que usa Gemini / extração
                 dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client)
                 transacoes = dados_dict.get('transacoes', [])
                 todas_transacoes.extend(transacoes)
 
-            
+                # [REMOVIDO] gravação imediata desativada
+
             df_transacoes = pd.DataFrame(todas_transacoes)
 
             if df_transacoes.empty:
@@ -1163,6 +1170,3 @@ elif page == "Dashboard & Relatórios":
                 st.code(traceback.format_exc())
     else:
         st.info("Nenhum dado disponível. Faça upload de extratos na seção 'Upload e Extração' ou use o filtro para carregar transações previamente enviadas.")
-
-# --- Revisão: gravação no Supabase ajustada ---
-# (Fluxo: atualiza se hash igual, substitui transações antigas e grava revisadas)
