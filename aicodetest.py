@@ -999,9 +999,7 @@ if page == "Upload e Extração":
                     continue
 
                 # opcional: salva o PDF no Storage (pasta por usuário)
-                try:
-                    # [REMOVIDO] upload para Storage desativado
-                except Exception:
+             
                     pass
 
                 # registra metadados do extrato
