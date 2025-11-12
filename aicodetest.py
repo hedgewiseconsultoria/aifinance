@@ -1004,7 +1004,7 @@ if page == "Upload e Extração":
 
                 # registra metadados do extrato
                 #resultado = # [REMOVIDO] inserção imediata suprimida (Upload ajustado)
-                extrato_id = resultado.data[0]["id"] if resultado.data else None
+                #extrato_id = resultado.data[0]["id"] if resultado.data else None
 
                 # chama a função que usa Gemini / extração
                 dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client)
