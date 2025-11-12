@@ -1006,7 +1006,7 @@ if page == "Upload e Extração":
 
                 # registra metadados do extrato
                 resultado = supabase.table("extratos").insert({
-                    "user_id": user_id,
+                    "user_id": str(user_id).strip(),
                     "nome_arquivo": uploaded_file.name,
                     "hash_arquivo": file_hash
                 }).execute()
