@@ -107,7 +107,7 @@ def login_page():
                                 if st.secrets.get("DEBUG", False):
                                     st.warning(f"Falha ao criar/atualizar perfil do usuário: {e}")
 
-                            st.experimental_rerun()
+                            _safe_rerun()
                         else:
                             st.error("Erro ao recuperar dados do usuário autenticado.")
                     else:
@@ -152,4 +152,15 @@ def logout():
     except Exception:
         pass
     st.session_state.clear()
-    st.experimental_rerun()
+    _safe_rerun()
+
+
+# -----------------------------
+# 5. FUNÇÃO DE RERUN COMPATÍVEL
+# -----------------------------
+def _safe_rerun():
+    """Executa rerun compatível com diferentes versões do Streamlit."""
+    if hasattr(st, "rerun"):
+        st.rerun()
+    elif hasattr(st, "experimental_rerun"):
+        st.experimental_rerun()
