@@ -92,10 +92,21 @@ def login_page():
                 try:
                     res = supabase.auth.sign_in_with_password({"email": email, "password": senha})
                     if res.user:
-                        # Obtém o usuário autenticado com UUID real
+                        # 🔹 Obtém o usuário autenticado com UUID real
                         user_data = supabase.auth.get_user()
                         if user_data and user_data.user:
                             st.session_state["user"] = user_data.user
+
+                            # 🔹 Garante que o perfil do usuário exista em users_profiles
+                            try:
+                                supabase.table("users_profiles").upsert({
+                                    "id": str(user_data.user.id),
+                                    "plano": "free"
+                                }).execute()
+                            except Exception as e:
+                                if st.secrets.get("DEBUG", False):
+                                    st.warning(f"Falha ao criar/atualizar perfil do usuário: {e}")
+
                             st.experimental_rerun()
                         else:
                             st.error("Erro ao recuperar dados do usuário autenticado.")
