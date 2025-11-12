@@ -1011,19 +1011,7 @@ if page == "Upload e Extração":
                 transacoes = dados_dict.get('transacoes', [])
                 todas_transacoes.extend(transacoes)
 
-                # salva as transações na tabela 'transacoes' associadas ao extrato
-                if transacoes and extrato_id is not None:
-                    df_temp = pd.DataFrame(transacoes)
-                    registros = df_temp.to_dict(orient='records')
-                    for r in registros:
-                        r['user_id'] = user_id
-                        r['extrato_id'] = extrato_id
-                    try:
-                        supabase.table('transacoes').insert(registros).execute()
-                    except Exception as e:
-                        if DEBUG:
-                            st.error(f"Erro ao salvar transações no Supabase: {e}")
-
+            
             df_transacoes = pd.DataFrame(todas_transacoes)
 
             if df_transacoes.empty:
