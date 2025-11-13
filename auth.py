@@ -54,14 +54,54 @@ def login_page():
     """Renderiza a tela de autenticação com Supabase Auth."""
     load_header(show_user=False)
 
-    # --- Detecta se o link contém reset_token ---
+    # --------------------------
+    # CONVERSÃO DO # -> ? (TOKEN)
+    # --------------------------
+    st.markdown(
+        """
+        <script>
+        (function() {
+            const hash = window.location.hash;
+            if (hash && hash.includes("access_token")) {
+                const newUrl = window.location.href.replace("#", "?");
+                window.location.replace(newUrl);
+            }
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Agora o Streamlit consegue ler access_token
     query_params = st.query_params
+
+    reset_token = None
+    access_token = None
+    tipo = None
+
     if "reset_token" in query_params:
-        reset_token = query_params["reset_token"][0]
-        handle_password_reset(reset_token)
+        reset_token = query_params.get("reset_token")
+        reset_token = reset_token[0] if isinstance(reset_token, list) else reset_token
+
+    if "access_token" in query_params:
+        access_token = query_params.get("access_token")
+        access_token = access_token[0] if isinstance(access_token, list) else access_token
+
+    if "type" in query_params:
+        tipo = query_params.get("type")
+        tipo = tipo[0] if isinstance(tipo, list) else tipo
+
+    # DEBUG: opcional
+    # st.write("DEBUG:", query_params)
+
+    # Se reset_token + access_token chegaram, processamos
+    if reset_token and access_token:
+        handle_password_reset(reset_token, access_token)
         return
 
-    # --- Estilos personalizados ---
+    # ---------------------------------------
+    # Estilos personalizados
+    # ---------------------------------------
     st.markdown(
         """
         <style>
@@ -86,7 +126,9 @@ def login_page():
         unsafe_allow_html=True
     )
 
-    # --- Tela padrão ---
+    # -----------------------------
+    # GUI normal
+    # -----------------------------
     st.subheader("Acesso ao Sistema")
     aba = st.radio("Selecione", ["Entrar", "Criar Conta", "Esqueci a Senha"], horizontal=True)
 
@@ -99,7 +141,9 @@ def login_page():
         with col2:
             if st.button("Entrar", use_container_width=True):
                 try:
-                    res = supabase.auth.sign_in_with_password({"email": email, "password": senha})
+                    res = supabase.auth.sign_in_with_password(
+                        {"email": email, "password": senha}
+                    )
                     if res.user:
                         user_data = supabase.auth.get_user()
                         if user_data and user_data.user:
@@ -109,9 +153,8 @@ def login_page():
                                     "id": str(user_data.user.id),
                                     "plano": "free"
                                 }).execute()
-                            except Exception as e:
-                                if st.secrets.get("DEBUG", False):
-                                    st.warning(f"Falha ao criar/atualizar perfil: {e}")
+                            except:
+                                pass
                             _safe_rerun()
                         else:
                             st.error("Erro ao recuperar dados do usuário autenticado.")
@@ -120,7 +163,7 @@ def login_page():
                 except Exception:
                     st.error("Erro ao autenticar. Verifique as credenciais.")
 
-    # --- CRIAÇÃO DE CONTA ---
+    # --- CRIAR CONTA ---
     elif aba == "Criar Conta":
         email = st.text_input("E-mail para cadastro", key="email_signup")
         senha = st.text_input("Crie uma senha forte", type="password", key="senha_signup")
@@ -129,12 +172,12 @@ def login_page():
         with col2:
             if st.button("Criar Conta", use_container_width=True):
                 try:
-                    res = supabase.auth.sign_up({"email": email, "password": senha})
+                    supabase.auth.sign_up({"email": email, "password": senha})
                     st.success("Conta criada! Verifique seu e-mail para confirmar o cadastro.")
                 except Exception as e:
                     st.error(f"Erro ao criar conta: {e}")
 
-    # --- RECUPERAÇÃO DE SENHA ---
+    # --- ESQUECI A SENHA ---
     else:
         email = st.text_input("Digite seu e-mail cadastrado", key="email_recovery")
         nova_senha = st.text_input("Crie uma nova senha forte", type="password", key="senha_recovery")
@@ -152,6 +195,7 @@ def login_page():
                         encrypted = cipher.encrypt(nova_senha.encode()).decode()
                         token = str(uuid.uuid4())
                         expires_at = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+
                         supabase.table("password_resets").insert({
                             "email": email,
                             "reset_token": token,
@@ -160,43 +204,50 @@ def login_page():
                         }).execute()
 
                         redirect_url = f"{SITE_URL}?reset_token={token}"
-                        supabase.auth.reset_password_for_email(email, options={"redirect_to": redirect_url})
-                        st.success("Um e-mail foi enviado. Clique no botão 'Confirmar Redefinição' para concluir a troca da senha.")
+                        supabase.auth.reset_password_for_email(
+                            email,
+                            options={"redirect_to": redirect_url}
+                        )
+
+                        st.success("Um e-mail foi enviado. Clique em 'Confirmar Redefinição' no e-mail enviado.")
                     except Exception as e:
                         st.error(f"Erro ao enviar redefinição: {e}")
 
 
-# -----------------------------
-# 4. FUNÇÃO DE PROCESSAMENTO DO RESET
-# -----------------------------
-def handle_password_reset(reset_token: str):
-    """Processa a redefinição de senha após o clique no e-mail."""
+# -------------------------------------
+# 4. PROCESSAMENTO DO RESET DE SENHA
+# -------------------------------------
+def handle_password_reset(reset_token: str, access_token: str):
     st.subheader("Redefinição de Senha")
 
     try:
         result = supabase.table("password_resets").select("*").eq("reset_token", reset_token).execute()
-        if not result.data or len(result.data) == 0:
+        rows = result.data if hasattr(result, "data") else result
+
+        if not rows:
             st.error("Link inválido ou expirado.")
             return
 
-        reset_data = result.data[0]
-        expires_at = datetime.fromisoformat(reset_data["expires_at"].replace("Z", "+00:00"))
-        if datetime.utcnow() > expires_at:
+        reset_data = rows[0]
+
+        expires_at = reset_data["expires_at"]
+        expires_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        if datetime.utcnow() > expires_dt:
             st.error("Este link expirou. Solicite uma nova redefinição.")
             supabase.table("password_resets").delete().eq("reset_token", reset_token).execute()
             return
 
-        nova_senha = cipher.decrypt(reset_data["encrypted_password"].encode()).decode()
-        email = reset_data["email"]
+        encrypted = reset_data["encrypted_password"]
+        nova_senha = cipher.decrypt(encrypted.encode()).decode()
 
-        # 🔹 Atualiza a senha no Supabase
-        res = supabase.auth.sign_in_with_password({"email": email, "password": nova_senha})
-        if res.user:
-            supabase.auth.update_user({"password": nova_senha})
-            supabase.table("password_resets").delete().eq("reset_token", reset_token).execute()
-            st.success("✅ Senha redefinida com sucesso! Você já pode entrar novamente.")
-        else:
-            st.warning("Clique novamente no botão do e-mail para confirmar a redefinição.")
+        # Atualizar senha COM access_token
+        supabase.auth.update_user({"password": nova_senha}, access_token=access_token)
+
+        # apagar registro
+        supabase.table("password_resets").delete().eq("reset_token", reset_token).execute()
+
+        st.success("✅ Senha redefinida com sucesso! Você já pode entrar.")
+
     except Exception as e:
         st.error(f"Erro ao processar redefinição: {e}")
 
@@ -205,20 +256,18 @@ def handle_password_reset(reset_token: str):
 # 5. LOGOUT
 # -----------------------------
 def logout():
-    """Finaliza a sessão do usuário."""
     try:
         supabase.auth.sign_out()
-    except Exception:
+    except:
         pass
     st.session_state.clear()
     _safe_rerun()
 
 
 # -----------------------------
-# 6. FUNÇÃO DE RERUN COMPATÍVEL
+# 6. RERUN
 # -----------------------------
 def _safe_rerun():
-    """Executa rerun compatível com diferentes versões do Streamlit."""
     if hasattr(st, "rerun"):
         st.rerun()
     elif hasattr(st, "experimental_rerun"):
