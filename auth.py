@@ -49,6 +49,11 @@ def login_page():
     """Renderiza a tela de autenticação com Supabase Auth."""
     load_header(show_user=False)
 
+    # --- Verifica se há parâmetros de recuperação na URL ---
+    query_params = st.query_params
+    if "type" in query_params and query_params["type"] == "recovery":
+        st.session_state["reset_mode"] = True
+
     # --- Estilos personalizados ---
     st.markdown(
         """
@@ -78,6 +83,27 @@ def login_page():
         unsafe_allow_html=True
     )
 
+    # 🔹 Se o usuário acessou via link de redefinição
+    if st.session_state.get("reset_mode", False):
+        st.subheader("Redefinir Senha")
+        nova_senha = st.text_input("Digite a nova senha", type="password", key="nova_senha")
+        confirmar = st.text_input("Confirme a nova senha", type="password", key="confirmar_senha")
+
+        col1, col2, col3 = st.columns([2, 3, 2])
+        with col2:
+            if st.button("Atualizar Senha", use_container_width=True):
+                if nova_senha == confirmar:
+                    try:
+                        supabase.auth.update_user({"password": nova_senha})
+                        st.success("Senha atualizada com sucesso! Você já pode entrar novamente.")
+                        st.session_state["reset_mode"] = False
+                    except Exception as e:
+                        st.error(f"Erro ao redefinir senha: {e}")
+                else:
+                    st.error("As senhas não coincidem.")
+        return  # Sai da função sem mostrar as outras abas
+
+    # 🔹 Exibe as abas normais
     st.subheader("Acesso ao Sistema")
     aba = st.radio("Selecione", ["Entrar", "Criar Conta", "Esqueci a Senha"], horizontal=True)
 
