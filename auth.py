@@ -65,7 +65,10 @@ def login_page():
 
     # --- Detecta se há parâmetros de recuperação ---
     query_params = st.query_params
-    if ("type" in query_params and query_params["type"] == "recovery") or ("access_token" in query_params):
+    access_token = query_params.get("access_token")
+    recovery_type = query_params.get("type")
+
+    if (access_token and recovery_type == "recovery"):
         st.session_state["reset_mode"] = True
 
     # --- Estilos personalizados ---
@@ -107,6 +110,7 @@ def login_page():
                         supabase.auth.update_user({"password": nova_senha})
                         st.success("Senha atualizada com sucesso! Você já pode entrar novamente.")
                         st.session_state["reset_mode"] = False
+                        st.info("Volte para a tela de login para acessar sua conta.")
                     except Exception as e:
                         st.error(f"Erro ao redefinir senha: {e}")
                 else:
