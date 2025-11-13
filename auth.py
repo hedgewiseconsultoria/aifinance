@@ -1,6 +1,7 @@
 import streamlit as st
 from supabase import create_client
 from PIL import Image
+from urllib.parse import parse_qs, urlparse
 
 # -----------------------------
 # 1. CONFIGURAÇÃO SUPABASE
@@ -26,7 +27,6 @@ def load_header(show_user: bool = True):
             st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
             st.caption("Traduzindo números em histórias que façam sentido...")
 
-            # Exibe o usuário logado, se existir
             if show_user and "user" in st.session_state:
                 user = st.session_state["user"]
                 user_email = getattr(user, "email", None) or user.get("email")
@@ -49,10 +49,11 @@ def login_page():
     """Renderiza a tela de autenticação com Supabase Auth."""
     load_header(show_user=False)
 
-    # --- Verifica se há parâmetros de recuperação na URL ---
+    # --- Detecta se o link contém parâmetros de recuperação ---
     query_params = st.query_params
     if "type" in query_params and query_params["type"] == "recovery":
         st.session_state["reset_mode"] = True
+        st.session_state["access_token"] = query_params.get("access_token")
 
     # --- Estilos personalizados ---
     st.markdown(
@@ -92,16 +93,26 @@ def login_page():
         col1, col2, col3 = st.columns([2, 3, 2])
         with col2:
             if st.button("Atualizar Senha", use_container_width=True):
-                if nova_senha == confirmar:
+                if nova_senha != confirmar:
+                    st.error("As senhas não coincidem.")
+                elif len(nova_senha) < 6:
+                    st.error("A senha deve ter pelo menos 6 caracteres.")
+                else:
                     try:
-                        supabase.auth.update_user({"password": nova_senha})
+                        token = st.session_state.get("access_token")
+                        if not token:
+                            st.error("Token de redefinição inválido ou expirado.")
+                            return
+
+                        # Atualiza a senha usando o token temporário
+                        supabase.auth.update_user({"password": nova_senha}, access_token=token)
+
                         st.success("Senha atualizada com sucesso! Você já pode entrar novamente.")
                         st.session_state["reset_mode"] = False
+                        st.session_state.pop("access_token", None)
                     except Exception as e:
                         st.error(f"Erro ao redefinir senha: {e}")
-                else:
-                    st.error("As senhas não coincidem.")
-        return  # Sai da função sem mostrar as outras abas
+        return  # Evita exibir as abas normais
 
     # 🔹 Exibe as abas normais
     st.subheader("Acesso ao Sistema")
@@ -118,12 +129,10 @@ def login_page():
                 try:
                     res = supabase.auth.sign_in_with_password({"email": email, "password": senha})
                     if res.user:
-                        # 🔹 Obtém o usuário autenticado com UUID real
                         user_data = supabase.auth.get_user()
                         if user_data and user_data.user:
                             st.session_state["user"] = user_data.user
 
-                            # 🔹 Garante que o perfil do usuário exista em users_profiles
                             try:
                                 supabase.table("users_profiles").upsert({
                                     "id": str(user_data.user.id),
