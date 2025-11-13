@@ -48,23 +48,24 @@ def login_page():
     """Renderiza a tela de autenticação com Supabase Auth."""
     load_header(show_user=False)
 
-    # --- Corrige URLs com fragmento (#access_token=...)
-    # Isso precisa ser executado antes de qualquer componente Streamlit
-    js_script = """
-    <script>
-    const hash = window.location.hash;
-    if (hash && hash.includes("access_token")) {
-        const newUrl = window.location.href.replace("#", "?");
-        window.location.replace(newUrl);
-    }
-    </script>
-    """
-    st.markdown(js_script, unsafe_allow_html=True)
-
-    # --- Detecta parâmetros ---
+    # --- 1️⃣ DETECTA SE É REDIRECIONAMENTO DE RECUPERAÇÃO ---
     params = st.query_params
-    if "type" in params and params["type"] == "recovery":
+    access_token = None
+    if "access_token" in params:
+        val = params.get("access_token")
+        access_token = val[0] if isinstance(val, list) else val
+
+    is_recovery = False
+    if "type" in params:
+        val = params.get("type")
+        val = val[0] if isinstance(val, list) else val
+        if val == "recovery":
+            is_recovery = True
+
+    # Se for link de recuperação, ativa modo redefinição
+    if is_recovery and access_token:
         st.session_state["reset_mode"] = True
+        st.session_state["reset_token"] = access_token
 
     # --- Estilos personalizados ---
     st.markdown(
@@ -91,28 +92,39 @@ def login_page():
         unsafe_allow_html=True
     )
 
-    # 🔹 TELA DE REDEFINIÇÃO DE SENHA
+    # --- 2️⃣ TELA DE REDEFINIÇÃO DE SENHA ---
     if st.session_state.get("reset_mode", False):
         st.subheader("Redefinir Senha")
+
         nova_senha = st.text_input("Digite a nova senha", type="password", key="nova_senha")
         confirmar = st.text_input("Confirme a nova senha", type="password", key="confirmar_senha")
 
         col1, col2, col3 = st.columns([2, 3, 2])
         with col2:
             if st.button("Atualizar Senha", use_container_width=True):
-                if nova_senha == confirmar:
-                    try:
-                        supabase.auth.update_user({"password": nova_senha})
-                        st.success("Senha atualizada com sucesso! Você já pode entrar novamente.")
-                        st.session_state["reset_mode"] = False
-                        st.info("Volte para a tela de login para acessar sua conta.")
-                    except Exception as e:
-                        st.error(f"Erro ao redefinir senha: {e}")
-                else:
+                if nova_senha != confirmar:
                     st.error("As senhas não coincidem.")
-        return  # Sai sem mostrar as abas normais
+                    return
+                if len(nova_senha) < 6:
+                    st.error("A senha deve ter pelo menos 6 caracteres.")
+                    return
 
-    # 🔹 TELA NORMAL (LOGIN / CADASTRO / RECUPERAÇÃO)
+                token = st.session_state.get("reset_token")
+                if not token:
+                    st.error("Token de redefinição ausente. Tente abrir novamente o link do e-mail.")
+                    return
+
+                try:
+                    supabase.auth.update_user({"password": nova_senha}, access_token=token)
+                    st.success("Senha atualizada com sucesso! Você já pode entrar novamente.")
+                    st.session_state["reset_mode"] = False
+                    st.session_state.pop("reset_token", None)
+                    st.info("Volte para a tela de login para acessar sua conta.")
+                except Exception as e:
+                    st.error(f"Erro ao redefinir senha: {e}")
+        return
+
+    # --- 3️⃣ TELA NORMAL (LOGIN / CADASTRO / RECUPERAÇÃO) ---
     st.subheader("Acesso ao Sistema")
     aba = st.radio("Selecione", ["Entrar", "Criar Conta", "Esqueci a Senha"], horizontal=True)
 
@@ -167,14 +179,11 @@ def login_page():
         with col2:
             if st.button("Enviar link de redefinição", use_container_width=True):
                 try:
-                    redirect_url = st.secrets.get("CONFIRMATION_URL", None)
-                    if redirect_url:
-                        supabase.auth.reset_password_for_email(email, options={"redirect_to": redirect_url})
-                    else:
-                        supabase.auth.reset_password_for_email(email)
+                    redirect_page = "https://hedgewiseconsultoria.github.io/aifinance/redirect.html"
+                    supabase.auth.reset_password_for_email(email, options={"redirect_to": redirect_page})
                     st.success("Um link de redefinição foi enviado para seu e-mail.")
-                except Exception:
-                    st.error("Erro ao enviar link. Verifique o e-mail informado.")
+                except Exception as e:
+                    st.error(f"Erro ao enviar link: {e}")
 
 
 # -----------------------------
