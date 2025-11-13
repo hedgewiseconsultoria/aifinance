@@ -48,27 +48,22 @@ def login_page():
     """Renderiza a tela de autenticação com Supabase Auth."""
     load_header(show_user=False)
 
-    # --- Corrige URLs que vêm com fragmento (#access_token=...)
-    st.markdown(
-        """
-        <script>
-        const hash = window.location.hash;
-        if (hash && hash.includes("access_token")) {
-            const query = hash.substring(1);  // remove o "#"
-            const newUrl = window.location.origin + window.location.pathname + "?" + query;
-            window.location.replace(newUrl);
-        }
-        </script>
-        """,
-        unsafe_allow_html=True
-    )
+    # --- Corrige URLs com fragmento (#access_token=...)
+    # Isso precisa ser executado antes de qualquer componente Streamlit
+    js_script = """
+    <script>
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token")) {
+        const newUrl = window.location.href.replace("#", "?");
+        window.location.replace(newUrl);
+    }
+    </script>
+    """
+    st.markdown(js_script, unsafe_allow_html=True)
 
-    # --- Detecta se há parâmetros de recuperação ---
-    query_params = st.query_params
-    access_token = query_params.get("access_token")
-    recovery_type = query_params.get("type")
-
-    if (access_token and recovery_type == "recovery"):
+    # --- Detecta parâmetros ---
+    params = st.query_params
+    if "type" in params and params["type"] == "recovery":
         st.session_state["reset_mode"] = True
 
     # --- Estilos personalizados ---
