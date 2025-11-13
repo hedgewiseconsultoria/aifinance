@@ -48,31 +48,25 @@ def login_page():
     """Renderiza a tela de autenticação com Supabase Auth."""
     load_header(show_user=False)
 
-    # --- Injeta script para capturar parâmetros do fragmento da URL (#)
-    st.markdown(
-        """
-        <script>
-        const params = new URLSearchParams(window.location.hash.substring(1));
-        if (params.get("type") === "recovery") {
-            sessionStorage.setItem("reset_mode", "true");
-            window.location.hash = "";  // limpa o hash da URL
-            window.location.reload();   // recarrega a página já no modo reset
-        }
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # --- Ativa modo de redefinição se foi detectado o parâmetro ---
-    if session_storage_reset_mode():
+    # --- Detecta se o link contém parâmetros de recuperação ---
+    query_params = st.query_params
+    if (
+        "type" in query_params and query_params["type"] == "recovery"
+    ) or (
+        "access_token" in query_params
+    ):
         st.session_state["reset_mode"] = True
 
     # --- Estilos personalizados ---
     st.markdown(
         """
         <style>
-        .block-container { padding-top: 1rem; }
-        div[data-testid="stRadio"] > div { justify-content: center; }
+        .block-container {
+            padding-top: 1rem;
+        }
+        div[data-testid="stRadio"] > div {
+            justify-content: center;
+        }
         input[type="email"], input[type="password"], input[type="text"] {
             border: 1px solid #0A2342 !important;
             border-radius: 6px !important;
@@ -89,13 +83,12 @@ def login_page():
         }
         </style>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
-    # 🔹 Se o usuário acessou via link de redefinição
+    # 🔹 TELA DE REDEFINIÇÃO DE SENHA
     if st.session_state.get("reset_mode", False):
-        st.subheader("🔐 Redefinir Senha")
-        st.info("Você acessou através do link de redefinição de senha enviado por e-mail.")
+        st.subheader("Redefinir Senha")
         nova_senha = st.text_input("Digite a nova senha", type="password", key="nova_senha")
         confirmar = st.text_input("Confirme a nova senha", type="password", key="confirmar_senha")
 
@@ -105,16 +98,15 @@ def login_page():
                 if nova_senha == confirmar:
                     try:
                         supabase.auth.update_user({"password": nova_senha})
-                        st.success("✅ Senha atualizada com sucesso! Você já pode entrar novamente.")
+                        st.success("Senha atualizada com sucesso! Você já pode entrar novamente.")
                         st.session_state["reset_mode"] = False
-                        clear_session_storage_reset_flag()
                     except Exception as e:
                         st.error(f"Erro ao redefinir senha: {e}")
                 else:
                     st.error("As senhas não coincidem.")
-        return
+        return  # Sai da função sem mostrar as abas normais
 
-    # 🔹 Exibe as abas normais
+    # 🔹 TELA NORMAL (LOGIN / CADASTRO / RECUPERAÇÃO)
     st.subheader("Acesso ao Sistema")
     aba = st.radio("Selecione", ["Entrar", "Criar Conta", "Esqueci a Senha"], horizontal=True)
 
@@ -132,6 +124,7 @@ def login_page():
                         user_data = supabase.auth.get_user()
                         if user_data and user_data.user:
                             st.session_state["user"] = user_data.user
+
                             try:
                                 supabase.table("users_profiles").upsert({
                                     "id": str(user_data.user.id),
@@ -140,15 +133,16 @@ def login_page():
                             except Exception as e:
                                 if st.secrets.get("DEBUG", False):
                                     st.warning(f"Falha ao criar/atualizar perfil: {e}")
+
                             _safe_rerun()
                         else:
-                            st.error("Erro ao recuperar dados do usuário.")
+                            st.error("Erro ao recuperar dados do usuário autenticado.")
                     else:
                         st.error("E-mail ou senha incorretos.")
                 except Exception:
                     st.error("Erro ao autenticar. Verifique as credenciais.")
 
-    # --- CRIAÇÃO DE CONTA ---
+    # --- CRIAR CONTA ---
     elif aba == "Criar Conta":
         email = st.text_input("E-mail para cadastro", key="email_signup")
         senha = st.text_input("Crie uma senha forte", type="password", key="senha_signup")
@@ -169,7 +163,13 @@ def login_page():
         with col2:
             if st.button("Enviar link de redefinição", use_container_width=True):
                 try:
-                    supabase.auth.reset_password_for_email(email)
+                    # 🔹 Redireciona o usuário para este mesmo app após o clique no e-mail
+                    redirect_url = st.secrets.get("CONFIRMATION_URL", None)
+                    if redirect_url:
+                        supabase.auth.reset_password_for_email(email, options={"redirect_to": redirect_url})
+                    else:
+                        supabase.auth.reset_password_for_email(email)
+
                     st.success("Um link de redefinição foi enviado para seu e-mail.")
                 except Exception:
                     st.error("Erro ao enviar link. Verifique o e-mail informado.")
@@ -189,34 +189,10 @@ def logout():
 
 
 # -----------------------------
-# 5. FUNÇÃO AUXILIAR PARA SESSIONSTORAGE (browser)
-# -----------------------------
-def session_storage_reset_mode():
-    """Verifica se o modo de redefinição foi armazenado no sessionStorage via JS."""
-    try:
-        val = st.session_state.get("_js_reset_mode", None)
-        return val == "true"
-    except Exception:
-        return False
-
-
-def clear_session_storage_reset_flag():
-    """Remove o indicador de reset_mode do sessionStorage no navegador."""
-    st.markdown(
-        """
-        <script>
-        sessionStorage.removeItem("reset_mode");
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-# -----------------------------
-# 6. FUNÇÃO DE RERUN COMPATÍVEL
+# 5. RERUN COMPATÍVEL
 # -----------------------------
 def _safe_rerun():
-    """Executa rerun compatível com diferentes versões do Streamlit."""
+    """Executa rerun compatível com versões do Streamlit."""
     if hasattr(st, "rerun"):
         st.rerun()
     elif hasattr(st, "experimental_rerun"):
