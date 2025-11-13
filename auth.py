@@ -5,13 +5,8 @@ from PIL import Image
 # -----------------------------
 # 1. CONFIGURAÇÃO SUPABASE
 # -----------------------------
-try:
-    SUPABASE_URL = st.secrets["SUPABASE_URL"]
-    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-except KeyError as e:
-    st.error(f"⚠️ Variável ausente em st.secrets: {e}")
-    st.stop()
-
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 LOGO1_FILENAME = "FinanceAI_1.png"
 
@@ -20,7 +15,6 @@ LOGO1_FILENAME = "FinanceAI_1.png"
 # 2. FUNÇÃO DE CABEÇALHO
 # -----------------------------
 def load_header(show_user: bool = True):
-    """Renderiza o cabeçalho padrão do app."""
     try:
         logo = Image.open(LOGO1_FILENAME)
         col1, col2 = st.columns([2, 5])
@@ -67,22 +61,29 @@ def login_page():
 
     # --- Detecta parâmetros da URL
     params = st.query_params
-    access_token = params.get("access_token", [None])[0] if isinstance(params.get("access_token"), list) else params.get("access_token")
-    tipo = params.get("type", [None])[0] if isinstance(params.get("type"), list) else params.get("type")
+    access_token = None
+    tipo = None
 
-    # --- Se for link de redefinição recebido por e-mail ---
+    if "access_token" in params:
+        access_token = params["access_token"][0] if isinstance(params["access_token"], list) else params["access_token"]
+    if "type" in params:
+        tipo = params["type"][0] if isinstance(params["type"], list) else params["type"]
+
+    # --- Se veio de link de recuperação ---
     if access_token and tipo == "recovery":
-        if "pending_password" not in st.session_state:
-            st.error("Sessão expirada. Por favor, repita o processo de redefinição.")
-            return
+        st.subheader("Redefinindo senha...")
         try:
-            nova_senha = st.session_state["pending_password"]
+            nova_senha = st.session_state.get("pending_password")
+            if not nova_senha:
+                st.warning("Sessão expirada. Por favor, volte à tela de recuperação e repita o processo.")
+                return
             supabase.auth.update_user({"password": nova_senha}, access_token=access_token)
             st.success("✅ Senha redefinida com sucesso! Você já pode entrar novamente.")
             st.session_state.clear()
+            return
         except Exception as e:
             st.error(f"Erro ao redefinir senha: {e}")
-        return
+            return
 
     # --- Estilos personalizados ---
     st.markdown(
@@ -109,7 +110,7 @@ def login_page():
         unsafe_allow_html=True
     )
 
-    # --- TELAS DE LOGIN / CADASTRO / RECUPERAÇÃO ---
+    # --- Tela principal ---
     st.subheader("Acesso ao Sistema")
     aba = st.radio("Selecione", ["Entrar", "Criar Conta", "Esqueci a Senha"], horizontal=True)
 
@@ -127,10 +128,10 @@ def login_page():
                         _safe_rerun()
                     else:
                         st.error("E-mail ou senha incorretos.")
-                except Exception:
-                    st.error("Erro ao autenticar. Verifique as credenciais.")
+                except Exception as e:
+                    st.error(f"Erro ao autenticar: {e}")
 
-    # --- CRIAÇÃO DE CONTA ---
+    # --- CRIAR CONTA ---
     elif aba == "Criar Conta":
         email = st.text_input("E-mail para cadastro", key="email_signup")
         senha = st.text_input("Crie uma senha forte", type="password", key="senha_signup")
