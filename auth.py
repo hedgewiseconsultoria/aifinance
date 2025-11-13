@@ -1,20 +1,70 @@
 import streamlit as st
 from supabase import create_client
 from PIL import Image
+import uuid
+from datetime import datetime, timedelta
+from cryptography.fernet import Fernet
 
 # -----------------------------
-# 1. CONFIGURAÇÃO SUPABASE
+# 1. CONFIGURAÇÕES INICIAIS
 # -----------------------------
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+FERNET_KEY = st.secrets["FERNET_KEY"]
+SITE_URL = st.secrets["SITE_URL"]
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+fernet = Fernet(FERNET_KEY.encode())
 LOGO1_FILENAME = "FinanceAI_1.png"
 
 
 # -----------------------------
-# 2. FUNÇÃO DE CABEÇALHO
+# 2. FUNÇÕES DE SEGURANÇA
+# -----------------------------
+def encrypt_password(password: str) -> str:
+    """Criptografa senha temporária."""
+    return fernet.encrypt(password.encode()).decode()
+
+
+def decrypt_password(encrypted: str) -> str:
+    """Descriptografa senha armazenada."""
+    return fernet.decrypt(encrypted.encode()).decode()
+
+
+def store_temp_password(email: str, password: str, validity_minutes=20):
+    """Salva senha criptografada na tabela temporária."""
+    token = str(uuid.uuid4())
+    encrypted = encrypt_password(password)
+    expires_at = (datetime.utcnow() + timedelta(minutes=validity_minutes)).isoformat() + "Z"
+    supabase.table("password_resets").insert({
+        "email": email,
+        "reset_token": token,
+        "encrypted_password": encrypted,
+        "expires_at": expires_at
+    }).execute()
+    return token
+
+
+def fetch_temp_password(reset_token: str):
+    """Busca e remove senha pendente (caso ainda válida)."""
+    res = supabase.table("password_resets").select("*").eq("reset_token", reset_token).execute()
+    rows = res.data if hasattr(res, "data") else res
+    if not rows:
+        return None
+    row = rows[0]
+    # Confere validade
+    if datetime.fromisoformat(row["expires_at"].replace("Z", "")) < datetime.utcnow():
+        supabase.table("password_resets").delete().eq("reset_token", reset_token).execute()
+        return None
+    supabase.table("password_resets").delete().eq("reset_token", reset_token).execute()
+    return row
+
+
+# -----------------------------
+# 3. CABEÇALHO PADRÃO
 # -----------------------------
 def load_header(show_user: bool = True):
+    """Renderiza o cabeçalho do app."""
     try:
         logo = Image.open(LOGO1_FILENAME)
         col1, col2 = st.columns([2, 5])
@@ -26,10 +76,10 @@ def load_header(show_user: bool = True):
 
             if show_user and "user" in st.session_state:
                 user = st.session_state["user"]
-                user_email = getattr(user, "email", None) or user.get("email")
+                email = getattr(user, "email", None) or user.get("email")
                 col_a, col_b = st.columns([4, 1])
                 with col_a:
-                    st.markdown(f"👤 **{user_email}**")
+                    st.markdown(f"👤 **{email}**")
                 with col_b:
                     if st.button("Sair", use_container_width=True):
                         logout()
@@ -40,12 +90,12 @@ def load_header(show_user: bool = True):
 
 
 # -----------------------------
-# 3. PÁGINA DE LOGIN / CADASTRO / RECUPERAÇÃO
+# 4. LOGIN / CADASTRO / RECUPERAÇÃO
 # -----------------------------
 def login_page():
     load_header(show_user=False)
 
-    # --- Corrige URLs com fragmento (#access_token)
+    # Corrige URL fragmento (#access_token)
     st.markdown(
         """
         <script>
@@ -59,33 +109,28 @@ def login_page():
         unsafe_allow_html=True
     )
 
-    # --- Detecta parâmetros da URL
     params = st.query_params
-    access_token = None
-    tipo = None
+    access_token = params.get("access_token", [None])[0] if isinstance(params.get("access_token"), list) else params.get("access_token")
+    tipo = params.get("type", [None])[0] if isinstance(params.get("type"), list) else params.get("type")
+    reset_token = params.get("reset_token", [None])[0] if isinstance(params.get("reset_token"), list) else params.get("reset_token")
 
-    if "access_token" in params:
-        access_token = params["access_token"][0] if isinstance(params["access_token"], list) else params["access_token"]
-    if "type" in params:
-        tipo = params["type"][0] if isinstance(params["type"], list) else params["type"]
-
-    # --- Se veio de link de recuperação ---
-    if access_token and tipo == "recovery":
+    # --- Caso o usuário tenha clicado no link do e-mail ---
+    if access_token and (tipo == "recovery" or tipo is None) and reset_token:
         st.subheader("Redefinindo senha...")
         try:
-            nova_senha = st.session_state.get("pending_password")
-            if not nova_senha:
-                st.warning("Sessão expirada. Por favor, volte à tela de recuperação e repita o processo.")
+            row = fetch_temp_password(reset_token)
+            if not row:
+                st.error("Token expirado ou inválido. Repita o processo de redefinição.")
                 return
-            supabase.auth.update_user({"password": nova_senha}, access_token=access_token)
+            decrypted = decrypt_password(row["encrypted_password"])
+            supabase.auth.update_user({"password": decrypted}, access_token=access_token)
             st.success("✅ Senha redefinida com sucesso! Você já pode entrar novamente.")
-            st.session_state.clear()
             return
         except Exception as e:
             st.error(f"Erro ao redefinir senha: {e}")
             return
 
-    # --- Estilos personalizados ---
+    # --- Estilos ---
     st.markdown(
         """
         <style>
@@ -131,7 +176,7 @@ def login_page():
                 except Exception as e:
                     st.error(f"Erro ao autenticar: {e}")
 
-    # --- CRIAR CONTA ---
+    # --- CADASTRO ---
     elif aba == "Criar Conta":
         email = st.text_input("E-mail para cadastro", key="email_signup")
         senha = st.text_input("Crie uma senha forte", type="password", key="senha_signup")
@@ -162,9 +207,9 @@ def login_page():
                 if nova_senha != confirmar:
                     st.error("As senhas não coincidem.")
                     return
-                st.session_state["pending_password"] = nova_senha
                 try:
-                    redirect_to = "https://inteligenciafinanceira.streamlit.app"
+                    token = store_temp_password(email, nova_senha)
+                    redirect_to = f"{SITE_URL}?reset_token={token}"
                     supabase.auth.reset_password_for_email(email, options={"redirect_to": redirect_to})
                     st.success("✅ Um e-mail foi enviado! Clique no botão de confirmação para ativar a nova senha.")
                 except Exception as e:
@@ -172,7 +217,7 @@ def login_page():
 
 
 # -----------------------------
-# 4. LOGOUT
+# 5. LOGOUT E RERUN
 # -----------------------------
 def logout():
     try:
@@ -183,9 +228,6 @@ def logout():
     _safe_rerun()
 
 
-# -----------------------------
-# 5. RERUN COMPATÍVEL
-# -----------------------------
 def _safe_rerun():
     if hasattr(st, "rerun"):
         st.rerun()
