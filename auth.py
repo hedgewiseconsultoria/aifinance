@@ -48,25 +48,32 @@ def login_page():
     """Renderiza a tela de autenticação com Supabase Auth."""
     load_header(show_user=False)
 
-    # --- Detecta se o link contém parâmetros de recuperação ---
+    # --- Corrige URLs que vêm com fragmento (#access_token=...)
+    st.markdown(
+        """
+        <script>
+        const hash = window.location.hash;
+        if (hash && hash.includes("access_token")) {
+            const query = hash.substring(1);  // remove o "#"
+            const newUrl = window.location.origin + window.location.pathname + "?" + query;
+            window.location.replace(newUrl);
+        }
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # --- Detecta se há parâmetros de recuperação ---
     query_params = st.query_params
-    if (
-        "type" in query_params and query_params["type"] == "recovery"
-    ) or (
-        "access_token" in query_params
-    ):
+    if ("type" in query_params and query_params["type"] == "recovery") or ("access_token" in query_params):
         st.session_state["reset_mode"] = True
 
     # --- Estilos personalizados ---
     st.markdown(
         """
         <style>
-        .block-container {
-            padding-top: 1rem;
-        }
-        div[data-testid="stRadio"] > div {
-            justify-content: center;
-        }
+        .block-container { padding-top: 1rem; }
+        div[data-testid="stRadio"] > div { justify-content: center; }
         input[type="email"], input[type="password"], input[type="text"] {
             border: 1px solid #0A2342 !important;
             border-radius: 6px !important;
@@ -104,7 +111,7 @@ def login_page():
                         st.error(f"Erro ao redefinir senha: {e}")
                 else:
                     st.error("As senhas não coincidem.")
-        return  # Sai da função sem mostrar as abas normais
+        return  # Sai sem mostrar as abas normais
 
     # 🔹 TELA NORMAL (LOGIN / CADASTRO / RECUPERAÇÃO)
     st.subheader("Acesso ao Sistema")
@@ -124,7 +131,6 @@ def login_page():
                         user_data = supabase.auth.get_user()
                         if user_data and user_data.user:
                             st.session_state["user"] = user_data.user
-
                             try:
                                 supabase.table("users_profiles").upsert({
                                     "id": str(user_data.user.id),
@@ -133,7 +139,6 @@ def login_page():
                             except Exception as e:
                                 if st.secrets.get("DEBUG", False):
                                     st.warning(f"Falha ao criar/atualizar perfil: {e}")
-
                             _safe_rerun()
                         else:
                             st.error("Erro ao recuperar dados do usuário autenticado.")
@@ -163,13 +168,11 @@ def login_page():
         with col2:
             if st.button("Enviar link de redefinição", use_container_width=True):
                 try:
-                    # 🔹 Redireciona o usuário para este mesmo app após o clique no e-mail
                     redirect_url = st.secrets.get("CONFIRMATION_URL", None)
                     if redirect_url:
                         supabase.auth.reset_password_for_email(email, options={"redirect_to": redirect_url})
                     else:
                         supabase.auth.reset_password_for_email(email)
-
                     st.success("Um link de redefinição foi enviado para seu e-mail.")
                 except Exception:
                     st.error("Erro ao enviar link. Verifique o e-mail informado.")
