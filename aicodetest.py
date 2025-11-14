@@ -1084,15 +1084,44 @@ elif page == "Revisão de Dados":
         
         if st.button("Confirmar Dados e Gerar Relatórios", key="generate_report_btn"):
             try:
+                # 1. Ajustar conta_analitica a partir da coluna conta_display
                 if 'conta_display' in edited_df.columns:
-                    edited_df['conta_analitica'] = edited_df['conta_display'].apply(lambda x: x.split(' - ')[0].strip() if isinstance(x, str) and ' - ' in x else x)
+                    edited_df['conta_analitica'] = edited_df['conta_display'].apply(
+                        lambda x: x.split(' - ')[0].strip() if isinstance(x, str) and ' - ' in x else x
+                     )
+            
+                # 2. Reenriquecer com plano de contas
+                edited_df = enriquecer_com_plano_contas(edited_df)
+
+                # 3. Preparar DataFrame para inserir no Supabase
+                df_to_save = edited_df.copy()
+                df_to_save["data"] = pd.to_datetime(df_to_save["data"], errors="coerce").dt.strftime("%Y-%m-%d")
+                df_to_save["valor"] = pd.to_numeric(df_to_save["valor"], errors="coerce").fillna(0)
+
+                # 4. Remover colunas desnecessárias antes de salvar
+                colunas_validas = ["data", "descricao", "valor", "tipo_movimentacao", "conta_analitica"]
+                df_to_save = df_to_save[colunas_validas]
+
+                # 5. Deletar transações anteriores do usuário
+                supabase.table("transacoes").delete().eq("user_id", user.id).execute()
+
+                # 6. Inserir as novas transações no Supabase
+                records = df_to_save.to_dict(orient="records")
+                for rec in records:
+                    rec["user_id"] = user.id
+                    rec["extrato_id"] = None  # opcional, caso você use depois
+                supabase.table("transacoes").insert(records).execute()
+
+                # 7. Salvar no session_state
+                st.session_state['df_transacoes_editado'] = edited_df
+
+                st.success("Transações revisadas salvas com sucesso no banco de dados! Agora você pode acessar Dashboard & Relatórios.")
+
+                        
             except Exception:
-                pass
-            edited_df = enriquecer_com_plano_contas(edited_df)
-            st.session_state['df_transacoes_editado'] = edited_df
-            st.success("Dados confirmados! Acesse a seção 'Dashboard & Relatórios' para ver as análises.")
-    else:
-        st.warning("Nenhum dado processado encontrado. Volte para a seção 'Upload e Extração'.")
+                st.error(f"Erro ao salvar transações no Supabase: {e}")
+                if DEBUG:
+                    st.code(traceback.format_exc())
 
 # =========================
 # Dashboard & Relatórios
