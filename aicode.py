@@ -721,7 +721,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
     try:
         # === CHAMADA À API (mantida conforme a origem) ===
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.5-flash-lite',
             contents=[pdf_part, prompt_analise],
             config=config,
         )
@@ -1493,6 +1493,7 @@ except Exception:
     st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
+
 
 
 
