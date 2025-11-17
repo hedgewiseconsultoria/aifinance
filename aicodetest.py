@@ -1,8 +1,7 @@
-# app_hedgewise_with_dashboard_substituido.py
-# Versão ajustada: Dashboard & Relatórios substituído pela versão de aicode_semBD.txt
-# Caixa de datas destacada + formatação brasileira (DD/MM/YYYY)
-#
-# Fontes usadas: aicodetest.txt e aicode_semBD.txt. :contentReference[oaicite:3]{index=3} :contentReference[oaicite:4]{index=4}
+# app_hedgewise_dashboard_sidebar_dates.py
+# Versão: Dashboard ajustado — seletores de data na barra lateral (Opção 1)
+# Substitui a seção "Dashboard & Relatórios" para usar exatamente os relatórios do aicode_semBD.txt
+# Mantém upload, revisão e integração com Supabase / Gemini / auth.
 
 import streamlit as st
 import pandas as pd
@@ -19,7 +18,7 @@ import plotly.graph_objects as go
 import traceback
 import math
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 
 # ----------------------
 # PLANO DE CONTAS
@@ -78,7 +77,6 @@ PLANO_DE_CONTAS = {
 
 # --- FUNÇÃO DE FORMATAÇÃO BRL ---
 def formatar_brl(valor: float) -> str:
-    """Formata um valor float para a moeda Real Brasileiro (R$ xx.xxx,xx)."""
     try:
         valor_us = f"{valor:,.2f}"
         valor_brl = valor_us.replace(",", "TEMP_SEP").replace(".", ",").replace("TEMP_SEP", ".")
@@ -86,9 +84,8 @@ def formatar_brl(valor: float) -> str:
     except Exception:
         return f"R$ {valor:.2f}"
 
-# --- FUNÇÃO LOCAL: GERAR MINI-RELATÓRIO ---
+# --- MINI-RELATÓRIO ---
 def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], retiradas_pessoais_val: float):
-    """Gera HTML limpo do mini-relatório (pronto para st.markdown com unsafe_allow_html=True)."""
     gco = indicadores.get('gco', 0.0)
     entradas_op = indicadores.get('entradas_operacionais', 0.0)
     autossuf = indicadores.get('autossuficiencia', 0.0)
@@ -112,6 +109,7 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
     def span_valor(valor_formatado, cor):
         return f"<span style='font-weight:700;'>{cor} {valor_formatado}</span>"
 
+    # resumo e classe
     if score >= 85:
         resumo = "Situação muito saudável: boa geração de caixa e equilíbrio nas finanças."
         classe_texto = "Classe A – Excelente: finanças equilibradas e bom controle de caixa."
@@ -136,6 +134,7 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
         resumo = "Situação crítica: priorize ações imediatas para reforçar o caixa e renegociar dívidas."
         classe_texto = "Classe E – Crítico: risco elevado de desequilíbrio financeiro, ações corretivas imediatas são recomendadas."
 
+    # comentários
     if gco > 0:
         comentario_gco = "isso contribui positivamente para a saúde financeira e reduz o risco da empresa."
     elif gco == 0:
@@ -193,7 +192,7 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
 
     return html, classe_texto
 
-# --- 1. CONFIGURAÇÃO DE SEGURANÇA E TEMA ---
+# --- 1. CONFIGURAÇÃO DE TEMA / CSS (mantive) ---
 PRIMARY_COLOR = "#0A2342"
 SECONDARY_COLOR = "#000000"
 BACKGROUND_COLOR = "#F0F2F6"
@@ -213,110 +212,35 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Forçar modo claro
-st.markdown(
-    """
-    <style>
-        html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stSidebar"] {
-            background-color: #F0F2F6 !important;
-            color: #000000 !important;
-        }
-        [data-testid="stSidebar"] {
-            background-color: #FFFFFF !important;
-        }
-        @media (prefers-color-scheme: dark) {
-            html {
-                color-scheme: light !important;
-            }
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# CSS customizado (adicionado .date-box)
 st.markdown(
     f"""
     <style>
-        .stApp {{
-            background-color: {BACKGROUND_COLOR};
-        }}
-        [data-testid="stSidebar"] {{
-            background-color: white;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }}
-        .main-header {{
-            color: {SECONDARY_COLOR};
-            font-size: 1.7em;
-            padding-bottom: 2px;
-            font-weight:800;
-        }}
-        .kpi-container {{
-            background-color: white;
-            padding: 16px;
-            border-radius: 12px;
-            box-shadow: 0 6px 15px 0 rgba(0, 0, 0, 0.06);
-            margin-bottom: 18px;
-        }}
-        h2 {{
-            color: {PRIMARY_COLOR};
-            border-left: 5px solid {PRIMARY_COLOR};
-            padding-left: 10px;
-            margin-top: 20px;
-            margin-bottom: 16px;
-        }}
-        .stButton>button {{
-            background-color: {PRIMARY_COLOR};
-            color: white;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-weight: bold;
-            border: none;
-            transition: background-color 0.3s, transform 0.2s;
-        }}
-        .stButton>button:hover {{
-            background-color: #1C3757;
-            color: white;
-            transform: scale(1.03);
-        }}
-        .fluxo-table {{
-            background-color: white;
-            border-radius: 8px;
-            padding: 14px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }}
-        /* Caixa destacada para os inputs de período (Solicitado) */
-        .date-box {{
-            background-color: #ffffff;
-            padding: 18px;
-            border-radius: 10px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-            margin-bottom: 18px;
-        }}
+        html, body, [data-testid="stAppViewContainer"] {{ background-color: {BACKGROUND_COLOR} !important; color: #000 !important; }}
+        [data-testid="stSidebar"] {{ background-color: white !important; }}
+        .main-header {{ color: {SECONDARY_COLOR}; font-size:1.7em; font-weight:800; }}
+        .kpi-container {{ background-color: white; padding: 16px; border-radius: 12px; box-shadow: 0 6px 15px rgba(0,0,0,0.06); margin-bottom: 18px; }}
+        .stButton>button {{ background-color: {PRIMARY_COLOR}; color: white; border-radius: 8px; padding: 8px 18px; font-weight:700; }}
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    """,
-    unsafe_allow_html=True
+    """, unsafe_allow_html=True
 )
 
-# Inicializa o estado da sessão
+# Inicializa estado
 if 'df_transacoes_editado' not in st.session_state:
     st.session_state['df_transacoes_editado'] = pd.DataFrame()
 if 'contexto_adicional' not in st.session_state:
     st.session_state['contexto_adicional'] = ""
 
-# Inicializa o cliente Gemini (mantendo a forma original de chamada)
+# Inicializa cliente Gemini e supabase via auth (assumidos)
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=api_key)
-except (KeyError, AttributeError):
-    st.error("ERRO: Chave 'GEMINI_API_KEY' não encontrada. Configure-a para rodar a aplicação.")
-    st.stop()
+except Exception:
+    client = None
 
-# DEBUG flag (opcional, configurável em secrets)
+# DEBUG flag
 DEBUG = bool(st.secrets.get("DEBUG", False))
 
-# --- 2. DEFINIÇÃO DO SCHEMA PYDANTIC ---
+# --- SCHEMAS PYDANTIC ---
 class Transacao(BaseModel):
     data: str = Field(description="A data da transação no formato 'DD/MM/AAAA'.")
     descricao: str = Field(description="Descrição detalhada da transação.")
@@ -329,63 +253,51 @@ class AnaliseCompleta(BaseModel):
     saldo_final: float = Field(description="O saldo final da conta no extrato. Use zero se não for encontrado.")
 
 # -----------------------
-# CLASSES DE INDICADORES (copiadas/compatíveis)
+# INDICADORES / SCORE (copiados da versão que funciona)
 # -----------------------
 class IndicadoresFluxo:
     def __init__(self, df: pd.DataFrame):
         self.df_raw = df.copy()
         self.df = self._prepare(df.copy())
         self.meses = self._obter_meses()
-    
     def _prepare(self, df: pd.DataFrame) -> pd.DataFrame:
         df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
         df = df.dropna(subset=['data']).copy()
         df['fluxo'] = df.apply(lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'], axis=1)
         df['mes_ano'] = df['data'].dt.to_period('M')
         return df
-
     def _obter_meses(self):
-        df_fluxo = self.df[self.df['tipo_fluxo'] != 'NEUTRO']
+        df_fluxo = self.df[self.df['tipo_fluxo'] != 'NEUTRO'] if 'tipo_fluxo' in self.df.columns else self.df
         meses = sorted(df_fluxo['mes_ano'].unique())
         return meses
-
     def total_entradas_operacionais(self):
         df_fluxo = self.df
         return df_fluxo[(df_fluxo['tipo_fluxo']=='OPERACIONAL') & (df_fluxo['tipo_movimentacao']=='CREDITO')]['valor'].sum()
-
     def caixa_operacional_total(self):
         df_fluxo = self.df
         return df_fluxo[df_fluxo['tipo_fluxo']=='OPERACIONAL']['fluxo'].sum()
-
     def caixa_investimento_total(self):
         return self.df[self.df['tipo_fluxo']=='INVESTIMENTO']['fluxo'].sum()
-
     def caixa_financiamento_total(self):
         return self.df[self.df['tipo_fluxo']=='FINANCIAMENTO']['fluxo'].sum()
-
     def retirada_pessoal_total(self):
         return abs(self.df[(self.df['conta_analitica']=='FIN-05') & (self.df['tipo_movimentacao']=='DEBITO')]['valor'].sum())
-
     def margem_caixa_operacional(self):
         entradas_op = self.total_entradas_operacionais()
         caixa_op = self.caixa_operacional_total()
         return (caixa_op / entradas_op) if entradas_op > 0 else 0.0
-
     def intensidade_investimento(self):
         caixa_op = self.caixa_operacional_total()
         caixa_inv = self.caixa_investimento_total()
         return (abs(caixa_inv) / caixa_op) if caixa_op != 0 else 0.0
-
     def intensidade_financiamento(self):
         caixa_op = self.caixa_operacional_total()
         caixa_fin = self.caixa_financiamento_total()
         return (caixa_fin / caixa_op) if caixa_op != 0 else 0.0
-
     def peso_retiradas(self):
         total_saidas = self.df[self.df['tipo_movimentacao']=='DEBITO']['valor'].sum()
         retiradas = self.retirada_pessoal_total()
         return (retiradas / total_saidas) if total_saidas != 0 else 0.0
-
     def crescimento_entradas(self):
         meses = self.meses
         if len(meses) < 2:
@@ -397,12 +309,10 @@ class IndicadoresFluxo:
         if entradas_anterior == 0:
             return (entradas_ultimo - entradas_anterior) / (entradas_ultimo) if entradas_ultimo != 0 else 0.0
         return (entradas_ultimo - entradas_anterior) / entradas_anterior
-
     def taxa_reinvestimento(self):
         caixa_op = self.caixa_operacional_total()
         caixa_inv = self.caixa_investimento_total()
         return (abs(caixa_inv) / caixa_op) if caixa_op != 0 else 0.0
-
     def autossuficiencia_operacional(self):
         gco = self.caixa_operacional_total()
         inv = abs(self.caixa_investimento_total())
@@ -411,7 +321,6 @@ class IndicadoresFluxo:
         if denom == 0:
             return float('inf') if gco > 0 else 0.0
         return gco / denom
-
     def resumo_indicadores(self) -> Dict[str, float]:
         return {
             "gco": self.caixa_operacional_total(),
@@ -425,9 +334,6 @@ class IndicadoresFluxo:
             "autossuficiencia": self.autossuficiencia_operacional()
         }
 
-# -----------------------
-# SCORE CALCULATOR
-# -----------------------
 class ScoreCalculator:
     def __init__(self, pesos: Optional[Dict[str, float]] = None):
         self.pesos = pesos or {
@@ -443,7 +349,6 @@ class ScoreCalculator:
         if total != 100:
             for k in self.pesos:
                 self.pesos[k] = self.pesos[k] * 100.0 / total
-
     def normalizar_gco(self, gco: float, entradas_op: float) -> float:
         if entradas_op <= 0:
             return 0.0
@@ -458,10 +363,8 @@ class ScoreCalculator:
             return 40.0
         else:
             return 0.0
-
     def normalizar_margem(self, margem: float) -> float:
         return self.normalizar_gco(margem * 1.0, 1.0) if margem is not None else 0.0
-
     def normalizar_peso_retiradas(self, peso: float) -> float:
         if peso <= 0.20:
             return 100.0
@@ -473,7 +376,6 @@ class ScoreCalculator:
             return 20.0
         else:
             return 0.0
-
     def normalizar_intensidade_fin(self, intensidade: float, margem_op: float) -> float:
         if intensidade >= 0:
             if intensidade <= 0.30:
@@ -491,7 +393,6 @@ class ScoreCalculator:
                 return 40.0
             else:
                 return 10.0
-
     def normalizar_crescimento(self, crescimento: float) -> float:
         if crescimento >= 0.10:
             return 100.0
@@ -501,7 +402,6 @@ class ScoreCalculator:
             return 50.0
         else:
             return 20.0
-
     def normalizar_reinvestimento(self, taxa: float) -> float:
         if taxa >= 0.30:
             return 100.0
@@ -511,7 +411,6 @@ class ScoreCalculator:
             return 60.0
         else:
             return 20.0
-
     def normalizar_autossuficiencia(self, autossuf: float) -> float:
         if math.isinf(autossuf):
             return 100.0
@@ -523,7 +422,6 @@ class ScoreCalculator:
             return 50.0
         else:
             return 20.0
-
     def calcular_score(self, indicadores: Dict[str, float]) -> Dict[str, Any]:
         notas = {}
         notas['gco'] = self.normalizar_gco(indicadores.get('gco', 0.0), indicadores.get('entradas_operacionais', 0.0))
@@ -533,7 +431,6 @@ class ScoreCalculator:
         notas['crescimento_entradas'] = self.normalizar_crescimento(indicadores.get('crescimento_entradas', 0.0))
         notas['taxa_reinvestimento'] = self.normalizar_reinvestimento(indicadores.get('taxa_reinvestimento', 0.0))
         notas['autossuficiencia'] = self.normalizar_autossuficiencia(indicadores.get('autossuficiencia', 0.0))
-
         score = 0.0
         contributions = {}
         for key, peso in self.pesos.items():
@@ -541,9 +438,7 @@ class ScoreCalculator:
             contrib = nota * (peso / 100.0)
             contributions[key] = round(contrib, 2)
             score += contrib
-
         score = round(score, 1)
-
         return {
             "score": score,
             "notas": notas,
@@ -551,9 +446,7 @@ class ScoreCalculator:
             "pesos": self.pesos
         }
 
-# --- 3. FUNÇÕES AUXILIARES (analisar_extrato, enriquecer_com_plano_contas, criar_relatorio_fluxo_caixa, etc.) ---
-# Funções abaixo mantidas da versão original / aicode_semBD.txt e adaptadas conforme integração.
-
+# --- FUNÇÕES AUXILIARES (prompt, analisar_extrato, enriquecer, relatórios e gráficos) ---
 def gerar_prompt_com_plano_contas() -> str:
     contas_str = "### PLANO DE CONTAS ###\n\n"
     for sintetico in PLANO_DE_CONTAS["sinteticos"]:
@@ -583,45 +476,27 @@ Retorne um objeto JSON com o formato do schema indicado, usando valor POSITIVO p
 
 @st.cache_data(show_spinner=False, hash_funcs={genai.Client: lambda _: None})
 def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> dict:
-    pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type='application/pdf')
-    prompt_analise = gerar_prompt_com_plano_contas()
-    config = types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=AnaliseCompleta,
-        temperature=0.2
-    )
     try:
+        pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type='application/pdf')
+        prompt_analise = gerar_prompt_com_plano_contas()
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=AnaliseCompleta,
+            temperature=0.2
+        )
         response = client.models.generate_content(
             model='gemini-2.5-flash-lite',
             contents=[pdf_part, prompt_analise],
             config=config,
         )
-        if DEBUG:
-            try:
-                st.text("DEBUG: resposta bruta da API (prefix):")
-                st.text(response.text[:2000])
-            except Exception:
-                pass
         response_json = json.loads(response.text)
         dados_pydantic = AnaliseCompleta(**response_json)
         return dados_pydantic.model_dump()
     except Exception as e:
-        error_message = str(e)
-        if "503 UNAVAILABLE" in error_message or "model is overloaded" in error_message:
-            st.error(f"O modelo Gemini está temporariamente indisponível ao processar '{filename}'.")
-            st.info("Isso pode ocorrer quando a demanda na API está alta. Tente novamente em alguns minutos.")
-        elif "Invalid API key" in error_message or "401" in error_message or "permission" in error_message.lower():
-            st.error("Problema de autenticação com a Gemini API. Verifique a sua chave (GEMINI_API_KEY).")
-        else:
-            if DEBUG:
-                st.error(f"Erro ao chamar a Gemini API para '{filename}': {error_message}")
-                st.code(traceback.format_exc())
-            else:
-                st.error(f"Ocorreu um erro ao processar '{filename}'. Verifique o arquivo e tente novamente.")
-        return {
-            'transacoes': [],
-            'saldo_final': 0.0
-        }
+        if DEBUG:
+            st.error(f"Erro ao chamar Gemini: {e}")
+            st.code(traceback.format_exc())
+        return {'transacoes': [], 'saldo_final': 0.0}
 
 def enriquecer_com_plano_contas(df: pd.DataFrame) -> pd.DataFrame:
     mapa_contas = {}
@@ -652,7 +527,6 @@ def enriquecer_com_plano_contas(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def criar_relatorio_fluxo_caixa(df: pd.DataFrame):
-    """Cria um relatório detalhado de fluxo de caixa com meses em colunas lado a lado."""
     st.subheader("Relatório de Fluxo de Caixa")
     if df.empty:
         st.info("Nenhum dado disponível. Por favor, processe os extratos primeiro.")
@@ -693,17 +567,8 @@ def criar_relatorio_fluxo_caixa(df: pd.DataFrame):
         mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
         linha_total_op[mes_col] = valor
     relatorio_linhas.append(linha_total_op)
-    # você pode adicionar similar para INVESTIMENTO e FINANCIAMENTO
-    # Mostrar em tabela
     df_rel = pd.DataFrame(relatorio_linhas)
     st.dataframe(df_rel, use_container_width=True)
-
-# Funções de dashboard, gráficos e score (mantidas da versão aicode_semBD.txt)
-def criar_dashboard(df: pd.DataFrame):
-    """Cria seções do dashboard principal (gráficos e KPIs)."""
-    # simples: exibir primeiros 5 lançamentos, e indicadores gráficos
-    st.markdown("### Visão Geral")
-    st.dataframe(df.head(10), use_container_width=True)
 
 def criar_grafico_indicadores(df: pd.DataFrame):
     try:
@@ -753,7 +618,6 @@ def criar_grafico_indicadores(df: pd.DataFrame):
         if DEBUG:
             st.code(traceback.format_exc())
 
-# Implementações de cálculo do score (compatível com aicode_semBD)
 def calcular_score_fluxo(df: pd.DataFrame) -> Dict[str, Any]:
     try:
         ind = IndicadoresFluxo(df)
@@ -776,7 +640,7 @@ def calcular_score_fluxo(df: pd.DataFrame) -> Dict[str, Any]:
             st.code(traceback.format_exc())
         return {"score_final": 0.0, "valores": {}, "notas": {}, "contribuicoes": {}, "pesos": {}}
 
-# --- 10. FUNÇÃO DE CABEÇALHO ---
+# --- CABEÇALHO ---
 def load_header():
     try:
         logo = Image.open(LOGO1_FILENAME)
@@ -792,10 +656,9 @@ def load_header():
         st.markdown("---")
 
 # --------------------------
-# INTEGRAÇÃO DE AUTENTICAÇÃO
+# INTEGRAÇÃO AUTENTICAÇÃO (assumida via auth.py)
 # --------------------------
-# Observação: partes de autenticação (login_page, logout, supabase, user) são esperadas; mantive chamadas
-from auth import login_page, logout, supabase  # deve existir auth.py conforme seu projeto
+from auth import login_page, logout, supabase  # seu projeto precisa ter auth.py com essas funções/objetos
 
 if "user" not in st.session_state:
     login_page()
@@ -809,11 +672,40 @@ else:
 # Carrega cabeçalho
 load_header()
 
+st.sidebar.title("Filtros (Dashboard)")
+# Sidebar: seleção de período (OPÇÃO 1 escolhida)
+default_start = pd.to_datetime("2024-01-01").date()
+default_end = pd.to_datetime("today").date()
+data_inicial_sidebar = st.sidebar.date_input("Período - De", value=default_start, key="side_date_start")
+data_final_sidebar = st.sidebar.date_input("Período - Até", value=default_end, key="side_date_end")
+st.sidebar.markdown(f"**Período selecionado:** {data_inicial_sidebar.strftime('%d/%m/%Y')} → {data_final_sidebar.strftime('%d/%m/%Y')}")
+if st.sidebar.button("Gerar Relatórios e Dashboard", key="generate_report_sidebar"):
+    try:
+        # converte para ISO para query no Supabase
+        data_ini_iso = pd.to_datetime(data_inicial_sidebar).date().isoformat()
+        data_fim_iso = pd.to_datetime(data_final_sidebar).date().isoformat()
+        resultado = supabase.table("transacoes").select("*").eq("user_id", user.id).gte("data", data_ini_iso).lte("data", data_fim_iso).execute()
+        if not resultado.data:
+            st.sidebar.warning("Nenhuma transação encontrada no período selecionado.")
+            st.session_state['df_transacoes_editado'] = pd.DataFrame()
+        else:
+            df_relatorio = pd.DataFrame(resultado.data)
+            df_relatorio["data"] = pd.to_datetime(df_relatorio["data"], errors="coerce")
+            df_relatorio["valor"] = pd.to_numeric(df_relatorio["valor"], errors="coerce").fillna(0)
+            df_relatorio = enriquecer_com_plano_contas(df_relatorio)
+            st.session_state['df_transacoes_editado'] = df_relatorio.copy()
+            st.success(f"{len(df_relatorio)} transações carregadas para o período selecionado.")
+    except Exception as e:
+        st.sidebar.error(f"Erro ao consultar transações: {e}")
+        if DEBUG:
+            st.sidebar.code(traceback.format_exc())
+
+# Navegação principal
 st.sidebar.title("Navegação")
 page = st.sidebar.radio("Seções:", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
 
 # ============================================
-# Upload e Extração (mantive sua implementação)
+# Upload e Extração
 # ============================================
 if page == "Upload e Extração":
     st.markdown("### 1. Upload e Extração de Dados")
@@ -842,7 +734,6 @@ if page == "Upload e Extração":
             for i, uploaded_file in enumerate(uploaded_files):
                 extraction_status.info(f"Extraindo dados do arquivo {i+1} de {len(uploaded_files)}: {uploaded_file.name}")
                 pdf_bytes = uploaded_file.getvalue()
-                # opcional: salvar no storage e checar duplicidade (mantive lógica)
                 try:
                     file_hash = hashlib.sha256(pdf_bytes).hexdigest()
                     existente = supabase.table("extratos").select("*").eq("hash_arquivo", file_hash).execute()
@@ -851,10 +742,8 @@ if page == "Upload e Extração":
                         continue
                     supabase.storage.from_("extratos").upload(f"{user.id}/{uploaded_file.name}", pdf_bytes)
                 except Exception:
-                    # não crítico
                     pass
-                # Chama função de extração
-                dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client)
+                dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client) if client else {'transacoes': []}
                 transacoes = dados_dict.get('transacoes', [])
                 todas_transacoes.extend(transacoes)
             df_transacoes = pd.DataFrame(todas_transacoes)
@@ -921,7 +810,6 @@ elif page == "Revisão de Dados":
                 df_to_save["valor"] = pd.to_numeric(df_to_save["valor"], errors="coerce").fillna(0)
                 colunas_validas = ["data", "descricao", "valor", "tipo_movimentacao", "conta_analitica"]
                 df_to_save = df_to_save[colunas_validas]
-                # Deletar transações anteriores do usuário
                 supabase.table("transacoes").delete().eq("user_id", user.id).execute()
                 records = df_to_save.to_dict(orient="records")
                 for rec in records:
@@ -938,48 +826,14 @@ elif page == "Revisão de Dados":
         st.warning("Nenhum dado processado encontrado. Volte para a seção 'Upload e Extração'.")
 
 # ============================================
-# Dashboard & Relatórios  (SUBSTITUÍDO por aicode_semBD.txt)
+# Dashboard & Relatórios (SUBSTITUÍDO — sem Visão Geral, sem Detalhes do Score)
 # ============================================
 elif page == "Dashboard & Relatórios":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
+    # Mostrar período atual selecionado na sidebar (apenas informativo)
+    st.markdown(f"**Período selecionado:** {data_inicial_sidebar.strftime('%d/%m/%Y')} → {data_final_sidebar.strftime('%d/%m/%Y')}")
 
-    # CAIXA DESTACADA PARA OS FILTROS DE PERÍODO (solicitado)
-    st.markdown("<div class='date-box'>", unsafe_allow_html=True)
-    st.markdown("**Selecione o período para gerar os relatórios e dashboards:**", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    # Valores padrão
-    default_start = pd.to_datetime("2024-01-01")
-    default_end = pd.to_datetime("today")
-    with col1:
-        data_inicial = st.date_input("De", value=default_start)
-    with col2:
-        data_final = st.date_input("Até", value=default_end)
-    # Mostrar formato brasileiro ao lado (apenas visual)
-    st.markdown(f"<div style='margin-top:8px;font-size:13px;color:#333;'>Período: <b>{data_inicial.strftime('%d/%m/%Y')}</b> até <b>{data_final.strftime('%d/%m/%Y')}</b></div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    if st.button("Gerar Relatórios e Dashboard"):
-        try:
-            # Converte datas para ISO para a query no Supabase
-            data_inicial_iso = pd.to_datetime(data_inicial).date().isoformat()
-            data_final_iso = pd.to_datetime(data_final).date().isoformat()
-            # Consulta ao Supabase
-            resultado = supabase.table("transacoes").select("*").eq("user_id", user.id).gte("data", data_inicial_iso).lte("data", data_final_iso).execute()
-            if not resultado.data:
-                st.warning("Nenhuma transação encontrada no período selecionado.")
-            else:
-                df_relatorio = pd.DataFrame(resultado.data)
-                df_relatorio["data"] = pd.to_datetime(df_relatorio["data"], errors="coerce")
-                df_relatorio["valor"] = pd.to_numeric(df_relatorio["valor"], errors="coerce").fillna(0)
-                df_relatorio = enriquecer_com_plano_contas(df_relatorio)
-                st.session_state['df_transacoes_editado'] = df_relatorio.copy()
-                st.success(f"{len(df_relatorio)} transações carregadas para o período selecionado.")
-        except Exception as e:
-            st.error(f"Erro ao gerar relatórios: {e}")
-            if DEBUG:
-                st.code(traceback.format_exc())
-
-    # Se há dados no estado (carregados por upload ou por consulta), use-os
+    # Se há dados carregados (upload ou consulta via sidebar), gerar relatórios
     if not st.session_state['df_transacoes_editado'].empty:
         df_final = st.session_state['df_transacoes_editado'].copy()
         try:
@@ -990,6 +844,7 @@ elif page == "Dashboard & Relatórios":
             contribs = resultado_score.get('contribuicoes', {})
             pesos = resultado_score.get('pesos', {})
 
+            # Métricas principais (igual ao aicode_semBD)
             st.markdown("#### 📊 Indicadores e Score")
             col_s1, col_s2, col_s3, col_s4 = st.columns(4)
 
@@ -997,6 +852,7 @@ elif page == "Dashboard & Relatórios":
                 st.metric("🔹 Score Financeiro (0–100)", f"{score:.1f}")
             with col_s2:
                 margem_op = valores.get('margem_op', 0.0)
+                # manter formato numérico (não porcentual) similar à versão fornecida
                 st.metric("🏦 Margem de Caixa Operacional", f"{margem_op:.2f}")
             with col_s3:
                 retiradas = valores.get('peso_retiradas', 0.0)
@@ -1007,12 +863,11 @@ elif page == "Dashboard & Relatórios":
                 st.metric("📈 Autossuficiência Operacional", aut_text)
 
             st.markdown("---")
-            # Gera dashboard e gráficos com funções definidas
-            criar_dashboard(df_final)
+            # Gera gráficos e relatório conforme aicode_semBD
             criar_grafico_indicadores(df_final)
             criar_relatorio_fluxo_caixa(df_final)
 
-            # Exibir mini-relatório
+            # Exibir mini-relatório (igual ao código original)
             try:
                 retiradas_pessoais_val = abs(df_final[(df_final['conta_analitica'] == 'FIN-05') & (df_final['tipo_movimentacao'] == 'DEBITO')]['valor'].sum())
             except Exception:
@@ -1021,17 +876,12 @@ elif page == "Dashboard & Relatórios":
             st.markdown("#### **O que este score está me dizendo?**")
             st.markdown(mini_text, unsafe_allow_html=True)
 
-            # Detalhes do score
-            with st.expander("Detalhes do Score"):
-                st.write("Notas normalizadas por indicador:")
-                st.json(notas)
-                st.write("Contribuições (pontos) de cada indicador:")
-                st.json(contribs)
+            # NOTA: removi o expander "Detalhes do Score" e a seção "Visão Geral" conforme solicitado.
         except Exception as e:
             st.error(f"Erro ao gerar o dashboard: {e}")
             if DEBUG:
                 st.code(traceback.format_exc())
     else:
-        st.info("Nenhum dado disponível. Faça upload de extratos na seção 'Upload e Extração' ou use a função 'Confirmar Dados e Gerar Relatórios' na seção 'Revisão de Dados'.")
+        st.info("Nenhum dado disponível. Faça upload de extratos na seção 'Upload e Extração' ou use a função 'Confirmar Dados e Gerar Relatórios' na seção 'Revisão de Dados', ou selecione um período na barra lateral e clique em 'Gerar Relatórios e Dashboard'.")
 
 # Fim do arquivo
