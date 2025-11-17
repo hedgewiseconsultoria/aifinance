@@ -584,7 +584,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
     )
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.5-flash-lite',
             contents=[pdf_part, prompt_analise],
             config=config,
         )
