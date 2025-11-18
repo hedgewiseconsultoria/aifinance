@@ -25,11 +25,11 @@ def load_header(show_user: bool = True):
     """Renderiza o cabeçalho padrão do app."""
     try:
         logo = Image.open(LOGO1_FILENAME)
-        col1, col2 = st.columns([2, 5])
+        col1, col2 = st.columns([1, 5])
         with col1:
             st.image(logo, width=600)
         with col2:
-            st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
+            st.markdown('<div class="main-header" style="margin-top: 0.2em;">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
             st.caption("Traduzindo números em histórias que façam sentido...")
 
             if show_user and "user" in st.session_state:
