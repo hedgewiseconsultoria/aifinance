@@ -232,7 +232,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
         # ou ser resolvida pelo ambiente do Streamlit Cloud (secrets)
         # Assumindo que 'client' é uma instância válida de genai.Client
         response = client.models.generate_content(
-            model='gemini-2.5-flash-lite',
+            model='gemini-2.5-flash',
             contents=[pdf_part, prompt_analise],
             config=config,
         )
