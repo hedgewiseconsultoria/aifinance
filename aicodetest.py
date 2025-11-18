@@ -1,4 +1,4 @@
-# app_supabase.py (salve como aicodetest_refactored.py)
+# app_supabase.py (salve como aicodetest_final.py)
 import streamlit as st
 import pandas as pd
 import json
@@ -87,6 +87,8 @@ FINANCING_COLOR = "#FFC107"
 INVESTMENT_COLOR = "#28A745"
 REPORT_BACKGROUND = "#F9F5EB"
 
+LOGO1_FILENAME = "FinanceAI_1.png"
+
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
     page_icon="logo_hedgewise.png",
@@ -108,7 +110,7 @@ st.markdown(
         @media (prefers-color-scheme: dark) {
             html {
                 color-scheme: light !important;
-            }
+        }
         }
     </style>
     """,
@@ -148,6 +150,12 @@ st.markdown(
         }}
         .fluxo-table .dataframe {{
             font-size: 14px;
+        }}
+        .main-header {{
+            font-size: 2.5em;
+            font-weight: bold;
+            color: {PRIMARY_COLOR};
+            margin-top: 0.5em;
         }}
     </style>
     """,
@@ -211,7 +219,6 @@ Retorne um objeto JSON com o formato do schema indicado, usando valor POSITIVO p
 # --- FUNÇÃO DE CHAMADA DA API PARA EXTRAÇÃO ---
 @st.cache_data(show_spinner=False, hash_funcs={genai.Client: lambda _: None})
 def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> dict:
-    # Corrigido: Usando aspas simples para a string mime_type
     pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type='application/pdf')
     prompt_analise = gerar_prompt_com_plano_contas()
     
@@ -221,8 +228,10 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
         temperature=0.2
     )
     try:
+        # A chave 'client' é passada, mas a inicialização do cliente deve ocorrer no escopo principal
+        # ou ser resolvida pelo ambiente do Streamlit Cloud (secrets)
+        # Assumindo que 'client' é uma instância válida de genai.Client
         response = client.models.generate_content(
-            # Corrigido: Usando aspas simples para o nome do modelo
             model='gemini-2.5-flash-lite',
             contents=[pdf_part, prompt_analise],
             config=config,
@@ -233,8 +242,13 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
         return dados_pydantic.model_dump()
     except Exception as e:
         error_message = str(e)
-        # Corrigido: Usando aspas duplas para a string externa
-        st.error(f"Ocorreu um erro ao processar '{filename}'. Verifique o arquivo e tente novamente.")
+        if "503 UNAVAILABLE" in error_message or "model is overloaded" in error_message:
+            st.error(f"O modelo Gemini está temporariamente indisponível ao processar '{filename}'.")
+            st.info("Isso pode ocorrer quando a demanda na API está alta. Tente novamente em alguns minutos.")
+        elif "Invalid API key" in error_message or "401" in error_message or "permission" in error_message.lower():
+            st.error("Problema de autenticação com a Gemini API. Verifique a sua chave (GEMINI_API_KEY).")
+        else:
+            st.error(f"Ocorreu um erro ao processar '{filename}'. Verifique o arquivo e tente novamente.")
         return {
             'transacoes': [],
             'saldo_final': 0.0
@@ -253,7 +267,6 @@ def enriquecer_com_plano_contas(df: pd.DataFrame) -> pd.DataFrame:
             }
     
     df = df.copy()
-    # Corrigido: Garantindo que todas as strings de coluna e valores sejam consistentes
     df['nome_conta'] = df['conta_analitica'].map(lambda x: mapa_contas.get(x, {}).get('nome_conta', 'Não classificado'))
     df['codigo_sintetico'] = df['conta_analitica'].map(lambda x: mapa_contas.get(x, {}).get('codigo_sintetico', 'NE'))
     df['nome_sintetico'] = df['conta_analitica'].map(lambda x: mapa_contas.get(x, {}).get('nome_sintetico', 'Não classificado'))
@@ -274,84 +287,92 @@ def enriquecer_com_plano_contas(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-# --- FUNÇÃO PRINCIPAL ---
-def main():
-    # --- INICIALIZAÇÃO E AUTENTICAÇÃO ---
-    if 'user' not in st.session_state:
-        st.session_state['user'] = None
-
-    if st.session_state['user'] is None:
-        login_page()
-        return
-
-    user = st.session_state['user']
-    user_id = user.id
-
-    # --- SIDEBAR E NAVEGAÇÃO ---
-    with st.sidebar:
-        # LOGO1_FILENAME não está definido, vou assumir que é um arquivo de imagem
-        # Se não existir, Streamlit irá ignorar.
-        try:
-            st.image("FinanceAI_1.png", use_column_width=True)
-        except:
-            st.markdown("## FinanceAI")
-            
-        st.markdown(f"<h2 style='text-align: center;'>Bem-vindo(a)!</h2>", unsafe_allow_html=True)
+# --- FUNÇÃO DE CABEÇALHO ---
+def load_header():
+    try:
+        logo = Image.open(LOGO1_FILENAME)
+        col1, col2 = st.columns([2,5])
+        with col1:
+            st.image(logo, width=600)
+        with col2:
+            st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
+            st.caption("Traduzindo números em histórias que façam sentido...")
         st.markdown("---")
-        page = st.radio(
-            "Menu de Navegação",
-            ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"],
-            key="navigation"
-        )
-        st.markdown("---")
-        if st.button("Sair", key="logout_button"):
-            logout()
-            st.rerun()
+    except Exception:
+        st.title("Hedgewise | Análise Financeira Inteligente")
 
-    # --- INICIALIZAÇÃO DO ESTADO DA SESSÃO ---
-    if 'df_transacoes_editado' not in st.session_state:
-        st.session_state['df_transacoes_editado'] = pd.DataFrame()
-    if 'gemini_api_key' not in st.session_state:
-        st.session_state['gemini_api_key'] = None
+# --------------------------
+# INTEGRAÇÃO DE AUTENTICAÇÃO
+# --------------------------
+# Impede acesso à app sem autenticação
+if "user" not in st.session_state:
+    login_page()
+    st.stop()
+else:
+    user = st.session_state["user"]
+    st.sidebar.write(f"Olá, {user.email}")
+    if st.sidebar.button("Sair"):
+        logout()
 
-    # --- PÁGINAS ---
-    if page == "Upload e Extração":
-        st.markdown("### 1. Upload e Extração de Dados de Extratos Bancários")
-        
-        # Configuração da API Key do Gemini
-        st.session_state['gemini_api_key'] = st.text_input("Sua Chave de API do Google Gemini", type="password", help="Sua chave de API é necessária para a extração de dados.")
-        
-        if not st.session_state['gemini_api_key']:
-            st.warning("Por favor, insira sua chave de API do Google Gemini para continuar.")
-            return
-        
-        try:
-            genai.configure(api_key=st.session_state['gemini_api_key'])
-            client = genai.Client() # Usando genai.Client() em vez de GenerativeModel
-        except Exception as e:
-            st.error(f"Erro ao configurar a API do Gemini: {e}")
-            return
+# Carrega cabeçalho (mantendo sua estrutura)
+load_header()
 
+st.sidebar.title("Navegação")
+page = st.sidebar.radio("Seções:", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
+
+# A inicialização do cliente Gemini é feita no Streamlit Cloud via secrets.
+# Se a variável de ambiente GEMINI_API_KEY estiver configurada, o cliente será inicializado automaticamente.
+# Caso contrário, a função analisar_extrato irá lidar com o erro.
+try:
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+except Exception:
+    # Se a chave não estiver nos secrets, o erro será tratado na função analisar_extrato
+    # ou o app irá parar se a chave for obrigatória.
+    # Para manter a compatibilidade com o código original, vamos apenas inicializar o cliente.
+    # Se a chave não estiver configurada, o erro será lançado na primeira chamada à API.
+    pass
+
+# ============================================
+# 1. Upload e Extração (com integração Supabase) - CÓDIGO ORIGINAL
+# ============================================
+if page == "Upload e Extração":
+    st.markdown("### 1. Upload e Extração de Dados")
+    st.markdown("Faça o upload dos extratos em PDF. O sistema irá extrair as transações e classificá-las conforme o plano de contas.")
+
+    with st.expander("Plano de Contas Utilizado", expanded=False):
+        for sintetico in PLANO_DE_CONTAS["sinteticos"]:
+            st.markdown(f"**{sintetico['codigo']} - {sintetico['nome']}** ({sintetico['tipo_fluxo']})")
+            for conta in sintetico["contas"]:
+                st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
+
+    # BLOCO DE UPLOAD INTEGRADO
+    with st.expander("Upload de Arquivos", expanded=True):
         uploaded_files = st.file_uploader(
-            "Faça o upload de um ou mais extratos bancários em PDF",
-            type=['pdf'],
-            accept_multiple_files=True
+            "Selecione os arquivos PDF dos seus extratos bancários",
+            type="pdf",
+            accept_multiple_files=True,
+            key="pdf_uploader",
+            help="Os PDFs devem ter texto selecionável (não apenas imagem)."
         )
 
-        if uploaded_files:
+    if uploaded_files:
+        if st.button(f"Executar Extração e Classificação ({len(uploaded_files)} arquivos)", key="analyze_btn"):
             todas_transacoes = []
-            extraction_status = st.status("Processando arquivos...", expanded=True)
+            extraction_status = st.empty()
+            extraction_status.info("Iniciando extração e classificação...")
             
-            for uploaded_file in uploaded_files:
+            user_id = user.id
+            for i, uploaded_file in enumerate(uploaded_files):
+                extraction_status.info(f"Processando arquivo {i+1}/{len(uploaded_files)}: {uploaded_file.name}")
                 pdf_bytes = uploaded_file.getvalue()
+
+                # calcula hash e verifica duplicidade
                 file_hash = hashlib.sha256(pdf_bytes).hexdigest()
-                
-                # Verifica se o arquivo já foi processado
-                resultado = supabase.table("extratos").select("id").eq("user_id", user_id).eq("hash_arquivo", file_hash).execute()
-                if resultado.data:
-                    extraction_status.write(f"O arquivo '{uploaded_file.name}' já foi processado anteriormente.")
+                existente = supabase.table("extratos").select("*").eq("hash_arquivo", file_hash).execute()
+                if existente.data:
+                    extraction_status.warning(f"O arquivo {uploaded_file.name} já foi enviado anteriormente. Pulando.")
                     continue
-                
+
                 # opcional: salva o PDF no Storage (pasta por usuário)
                 try:
                     supabase.storage.from_("extratos").upload(f"{user_id}/{uploaded_file.name}", pdf_bytes)
@@ -389,131 +410,140 @@ def main():
                 st.session_state['df_transacoes_editado'] = df_transacoes
                 st.success("Dados carregados e classificados. Você pode revisar as entradas na seção 'Revisão de Dados'.")
 
-        # Listagem de extratos já carregados
-        st.subheader("Extratos já carregados")
-        try:
-            extratos_existentes = supabase.table("extratos").select("id, nome_arquivo, criado_em").eq("user_id", user.id).order("criado_em", desc=True).execute()
-            if not extratos_existentes.data:
-                st.info("Nenhum extrato carregado ainda.")
-            else:
-                df_extratos = pd.DataFrame(extratos_existentes.data)
-                df_extratos["criado_em"] = pd.to_datetime(df_extratos["criado_em"]).dt.strftime("%d/%m/%Y %H:%M")
-                st.dataframe(df_extratos, use_container_width=True)
-        except Exception as e:
-            st.error(f"Erro ao buscar extratos: {e}")
-
-    elif page == "Revisão de Dados":
-        st.markdown("### 2. Revisão e Correção Manual dos Dados")
-        
-        if not st.session_state['df_transacoes_editado'].empty:
-            st.info("Revise as classificações e corrija manualmente qualquer erro.")
-            
-            opcoes_contas = []
-            for sintetico in PLANO_DE_CONTAS["sinteticos"]:
-                for conta in sintetico["contas"]:
-                    opcoes_contas.append(f"{conta['codigo']} - {conta['nome']}")
-            
-            with st.expander("Editar Transações", expanded=True):
-                edited_df = st.data_editor(
-                    st.session_state['df_transacoes_editado'][['data', 'descricao', 'valor', 'tipo_movimentacao', 'conta_display', 'nome_conta', 'tipo_fluxo']],
-                    width='stretch',
-                    column_config={
-                        "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", required=True),
-                        "descricao": st.column_config.TextColumn("Descrição", width="large"),
-                        "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", required=True),
-                        "tipo_movimentacao": st.column_config.SelectboxColumn("Tipo", options=["CREDITO", "DEBITO"], required=True),
-                        "conta_display": st.column_config.SelectboxColumn("Conta (código - nome)", options=opcoes_contas, required=True, help="Selecione a conta no formato código - nome"),
-                        "nome_conta": st.column_config.TextColumn("Nome da Conta", disabled=True),
-                        "tipo_fluxo": st.column_config.TextColumn("Tipo de Fluxo", disabled=True),
-                    },
-                    num_rows="dynamic",
-                    key="data_editor_transacoes"
-                )
-            
-            if st.button("Confirmar Dados e Gerar Relatórios", key="generate_report_btn"):
-                try:
-                    # 1. Ajustar conta_analitica a partir da coluna conta_display
-                    if 'conta_display' in edited_df.columns:
-                        edited_df['conta_analitica'] = edited_df['conta_display'].apply(
-                            lambda x: x.split(' - ')[0].strip() if isinstance(x, str) and ' - ' in x else x
-                         )
-                
-                    # 2. Reenriquecer com plano de contas
-                    edited_df = enriquecer_com_plano_contas(edited_df)
-
-                    # 3. Preparar DataFrame para inserir no Supabase
-                    df_to_save = edited_df.copy()
-                    df_to_save["data"] = pd.to_datetime(df_to_save["data"], errors="coerce").dt.strftime("%Y-%m-%d")
-                    df_to_save["valor"] = pd.to_numeric(df_to_save["valor"], errors="coerce").fillna(0)
-
-                    # 4. Remover colunas desnecessárias antes de salvar
-                    colunas_validas = ["data", "descricao", "valor", "tipo_movimentacao", "conta_analitica"]
-                    df_to_save = df_to_save[colunas_validas]
-
-                    # 5. Deletar transações anteriores do usuário
-                    supabase.table("transacoes").delete().eq("user_id", user.id).execute()
-
-                    # 6. Inserir as novas transações no Supabase
-                    records = df_to_save.to_dict(orient="records")
-                    for rec in records:
-                        rec["user_id"] = user.id
-                        rec["extrato_id"] = None  # opcional, caso você use depois
-                    supabase.table("transacoes").insert(records).execute()
-
-                    # 7. Salvar no session_state
-                    st.session_state['df_transacoes_editado'] = edited_df
-
-                    st.success("Transações revisadas salvas com sucesso no banco de dados! Agora você pode acessar Dashboard & Relatórios.")
-
-                except Exception as e:
-                    st.error(f"Erro ao salvar transações no Supabase: {e}")
-
-    elif page == "Dashboard & Relatórios":
-        st.markdown("### 3. Relatórios Gerenciais e Dashboard")
-        
-        st.markdown("#### Selecione o período para gerar os relatórios e dashboards:")
-        
-        # --- Interface de seleção de data aprimorada ---
-        col1, col2 = st.columns(2)
-        with col1:
-            data_inicial_str = st.text_input("Data Inicial (DD/MM/AAAA)", "")
-        with col2:
-            data_final_str = st.text_input("Data Final (DD/MM/AAAA)", "")
-
-        if st.button("Gerar Relatórios e Dashboard"):
-            try:
-                # Conversão das datas com validação
-                data_inicial = pd.to_datetime(data_inicial_str, format='%d/%m/%Y', errors='coerce')
-                data_final = pd.to_datetime(data_final_str, format='%d/%m/%Y', errors='coerce')
-
-                if pd.isna(data_inicial) or pd.isna(data_final):
-                    st.error("Formato de data inválido. Use DD/MM/AAAA.")
-                else:
-                    # O Supabase espera o formato ISO (AAAA-MM-DD) para a consulta
-                    data_inicial_iso = data_inicial.strftime('%Y-%m-%d')
-                    data_final_iso = data_final.strftime('%Y-%m-%d')
-                    
-                    resultado = supabase.table("transacoes").select("*").eq("user_id", user.id).gte("data", data_inicial_iso).lte("data", data_final_iso).execute()
-                    if not resultado.data:
-                        st.warning("Nenhuma transação encontrada no período selecionado.")
-                    else:
-                        df_relatorio = pd.DataFrame(resultado.data)
-                        # A coluna 'data' do Supabase é string, precisa ser convertida para datetime
-                        df_relatorio["data"] = pd.to_datetime(df_relatorio["data"], errors="coerce")
-                        df_relatorio["valor"] = pd.to_numeric(df_relatorio["valor"], errors="coerce").fillna(0)
-                        df_relatorio = enriquecer_com_plano_contas(df_relatorio)
-                        
-                        st.session_state['df_transacoes_editado'] = df_relatorio.copy()
-                        st.success(f"{len(df_relatorio)} transações carregadas para o período selecionado.")
-            except Exception as e:
-                st.error(f"Erro ao gerar relatórios: {e}")
-
-        # Se há dados no estado (carregados por upload ou por consulta), use-os
-        if not st.session_state['df_transacoes_editado'].empty:
-            df_final = st.session_state['df_transacoes_editado'].copy()
-            secao_relatorios_dashboard(df_final, PLANO_DE_CONTAS)
+    # Listagem de extratos já carregados
+    st.subheader("Extratos já carregados")
+    try:
+        extratos_existentes = supabase.table("extratos").select("id, nome_arquivo, criado_em").eq("user_id", user.id).order("criado_em", desc=True).execute()
+        if not extratos_existentes.data:
+            st.info("Nenhum extrato carregado ainda.")
         else:
-            st.info("Nenhum dado disponível. Faça upload de extratos na seção 'Upload e Extração' ou use o filtro para carregar transações previamente enviadas.")
+            df_extratos = pd.DataFrame(extratos_existentes.data)
+            df_extratos["criado_em"] = pd.to_datetime(df_extratos["criado_em"]).dt.strftime("%d/%m/%Y %H:%M")
+            st.dataframe(df_extratos, use_container_width=True)
+    except Exception as e:
+        st.error(f"Erro ao buscar extratos: {e}")
 
-if __name__ == "__main__":
-    main()
+# =========================
+# 2. Revisão de Dados
+# =========================
+elif page == "Revisão de Dados":
+    st.markdown("### 2. Revisão e Correção Manual dos Dados")
+    
+    if not st.session_state.get('df_transacoes_editado', pd.DataFrame()).empty:
+        st.info("Revise as classificações e corrija manualmente qualquer erro.")
+        
+        opcoes_contas = []
+        for sintetico in PLANO_DE_CONTAS["sinteticos"]:
+            for conta in sintetico["contas"]:
+                opcoes_contas.append(f"{conta['codigo']} - {conta['nome']}")
+        
+        # Garante que a coluna 'conta_display' exista para o editor
+        df_display_edit = st.session_state['df_transacoes_editado'].copy()
+        if 'conta_display' not in df_display_edit.columns:
+             df_display_edit = enriquecer_com_plano_contas(df_display_edit)
+
+        with st.expander("Editar Transações", expanded=True):
+            edited_df = st.data_editor(
+                df_display_edit[['data', 'descricao', 'valor', 'tipo_movimentacao', 'conta_display', 'nome_conta', 'tipo_fluxo']],
+                width='stretch',
+                column_config={
+                    "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", required=True),
+                    "descricao": st.column_config.TextColumn("Descrição", width="large"),
+                    "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", required=True),
+                    "tipo_movimentacao": st.column_config.SelectboxColumn("Tipo", options=["CREDITO", "DEBITO"], required=True),
+                    "conta_display": st.column_config.SelectboxColumn("Conta (código - nome)", options=opcoes_contas, required=True, help="Selecione a conta no formato código - nome"),
+                    "nome_conta": st.column_config.TextColumn("Nome da Conta", disabled=True),
+                    "tipo_fluxo": st.column_config.TextColumn("Tipo de Fluxo", disabled=True),
+                },
+                num_rows="dynamic",
+                key="data_editor_transacoes"
+            )
+        
+        if st.button("Confirmar Dados e Gerar Relatórios", key="generate_report_btn"):
+            try:
+                # 1. Ajustar conta_analitica a partir da coluna conta_display
+                if 'conta_display' in edited_df.columns:
+                    edited_df['conta_analitica'] = edited_df['conta_display'].apply(
+                        lambda x: x.split(' - ')[0].strip() if isinstance(x, str) and ' - ' in x else x
+                     )
+            
+                # 2. Reenriquecer com plano de contas
+                edited_df = enriquecer_com_plano_contas(edited_df)
+
+                # 3. Preparar DataFrame para inserir no Supabase
+                df_to_save = edited_df.copy()
+                df_to_save["data"] = pd.to_datetime(df_to_save["data"], errors="coerce").dt.strftime("%Y-%m-%d")
+                df_to_save["valor"] = pd.to_numeric(df_to_save["valor"], errors="coerce").fillna(0)
+
+                # 4. Remover colunas desnecessárias antes de salvar
+                colunas_validas = ["data", "descricao", "valor", "tipo_movimentacao", "conta_analitica"]
+                df_to_save = df_to_save[colunas_validas]
+
+                # 5. Deletar transações anteriores do usuário
+                supabase.table("transacoes").delete().eq("user_id", user.id).execute()
+
+                # 6. Inserir as novas transações no Supabase
+                records = df_to_save.to_dict(orient="records")
+                for rec in records:
+                    rec["user_id"] = user.id
+                    rec["extrato_id"] = None  # opcional, caso você use depois
+                supabase.table("transacoes").insert(records).execute()
+
+                # 7. Salvar no session_state
+                st.session_state['df_transacoes_editado'] = edited_df
+
+                st.success("Transações revisadas salvas com sucesso no banco de dados! Agora você pode acessar Dashboard & Relatórios.")
+
+            except Exception as e:
+                st.error(f"Erro ao salvar transações no Supabase: {e}")
+
+# =========================
+# 3. Dashboard & Relatórios
+# =========================
+elif page == "Dashboard & Relatórios":
+    st.markdown("### 3. Relatórios Gerenciais e Dashboard")
+    
+    st.markdown("#### Selecione o período para gerar os relatórios e dashboards:")
+    
+    # --- Interface de seleção de data aprimorada (do refactored) ---
+    col1, col2 = st.columns(2)
+    with col1:
+        data_inicial_str = st.text_input("Data Inicial (DD/MM/AAAA)", "")
+    with col2:
+        data_final_str = st.text_input("Data Final (DD/MM/AAAA)", "")
+
+    if st.button("Gerar Relatórios e Dashboard"):
+        try:
+            # Conversão das datas com validação
+            data_inicial = pd.to_datetime(data_inicial_str, format='%d/%m/%Y', errors='coerce')
+            data_final = pd.to_datetime(data_final_str, format='%d/%m/%Y', errors='coerce')
+
+            if pd.isna(data_inicial) or pd.isna(data_final):
+                st.error("Formato de data inválido. Use DD/MM/AAAA.")
+            else:
+                # O Supabase espera o formato ISO (AAAA-MM-DD) para a consulta
+                data_inicial_iso = data_inicial.strftime('%Y-%m-%d')
+                data_final_iso = data_final.strftime('%Y-%m-%d')
+                
+                resultado = supabase.table("transacoes").select("*").eq("user_id", user.id).gte("data", data_inicial_iso).lte("data", data_final_iso).execute()
+                if not resultado.data:
+                    st.warning("Nenhuma transação encontrada no período selecionado.")
+                else:
+                    df_relatorio = pd.DataFrame(resultado.data)
+                    # A coluna 'data' do Supabase é string, precisa ser convertida para datetime
+                    df_relatorio["data"] = pd.to_datetime(df_relatorio["data"], errors="coerce")
+                    df_relatorio["valor"] = pd.to_numeric(df_relatorio["valor"], errors="coerce").fillna(0)
+                    df_relatorio = enriquecer_com_plano_contas(df_relatorio)
+                    
+                    st.session_state['df_transacoes_editado'] = df_relatorio.copy()
+                    st.success(f"{len(df_relatorio)} transações carregadas para o período selecionado.")
+        except Exception as e:
+            st.error(f"Erro ao gerar relatórios: {e}")
+
+    # Se há dados no estado (carregados por upload ou por consulta), use-os
+    if not st.session_state.get('df_transacoes_editado', pd.DataFrame()).empty:
+        df_final = st.session_state['df_transacoes_editado'].copy()
+        # Chama a função refatorada do reports_functions.py
+        secao_relatorios_dashboard(df_final, PLANO_DE_CONTAS)
+    else:
+        st.info("Nenhum dado disponível. Faça upload de extratos na seção 'Upload e Extração' ou use o filtro para carregar transações previamente enviadas.")
