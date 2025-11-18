@@ -211,40 +211,40 @@ class IndicadoresFluxo:
         caixa_fin = self.df_fluxo[self.df_fluxo['tipo_fluxo'] == 'FINANCIAMENTO']['fluxo'].sum()
 
         # 7. Autossuficiência Operacional
-        # (Caixa Operacional + Caixa Financiamento) / (Caixa Investimento + Retiradas)
+        # (Caixa Operacional + Caixa Financiamento) / (Caixa Investimento + Retiradas Pessoais)
         denominador_autossuf = abs(caixa_inv) + retiradas_pessoais
-        numerador_autossuf = caixa_op + caixa_fin
-        autossuficiencia = (numerador_autossuf / denominador_autossuf) if denominador_autossuf > 0 else float('inf')
+        if denominador_autossuf == 0:
+            autossuficiencia = float('inf')
+        else:
+            autossuficiencia = (caixa_op + caixa_fin) / denominador_autossuf
 
         # 8. Taxa de Reinvestimento
-        # Investimento / (Caixa Operacional + Financiamento)
-        denominador_reinv = caixa_op + caixa_fin
-        taxa_reinvestimento = (abs(caixa_inv) / denominador_reinv) if denominador_reinv > 0 else 0.0
+        # (Caixa Operacional - Retiradas Pessoais) / Caixa Operacional
+        if caixa_op > 0:
+            taxa_reinvestimento = (caixa_op - retiradas_pessoais) / caixa_op
+        else:
+            taxa_reinvestimento = 0.0
 
-        # 9. Intensidade de Financiamento
-        intensidade_fin = (caixa_fin / abs(caixa_op)) if caixa_op != 0 else 0.0
-
-        # 10. Crescimento das Entradas Operacionais (requer mais de um mês)
-        crescimento_entradas = 0.0
+        # 9. Crescimento de Entradas (Requer dados de períodos anteriores, aqui será um placeholder)
+        # Para simplificar, vamos calcular a variação entre o primeiro e o último mês
         meses = sorted(self.df_fluxo['mes_ano'].unique())
+        crescimento_entradas = 0.0
         if len(meses) >= 2:
-            # Agrupar entradas operacionais por mês
-            entradas_mensais = self.df_fluxo[
+            entradas_mes_inicial = self.df_fluxo[
+                (self.df_fluxo['mes_ano'] == meses[0]) & 
                 (self.df_fluxo['tipo_fluxo'] == 'OPERACIONAL') & 
                 (self.df_fluxo['tipo_movimentacao'] == 'CREDITO')
-            ].groupby('mes_ano')['valor'].sum()
+            ]['valor'].sum()
             
-            # Comparar o último mês com o primeiro mês
-            entrada_final = entradas_mensais.iloc[-1]
-            entrada_inicial = entradas_mensais.iloc[0]
+            entradas_mes_final = self.df_fluxo[
+                (self.df_fluxo['mes_ano'] == meses[-1]) & 
+                (self.df_fluxo['tipo_fluxo'] == 'OPERACIONAL') & 
+                (self.df_fluxo['tipo_movimentacao'] == 'CREDITO')
+            ]['valor'].sum()
             
-            if entrada_inicial > 0:
-                crescimento_entradas = (entrada_final - entrada_inicial) / entrada_inicial
-            elif entrada_final > 0:
-                crescimento_entradas = 1.0 # Crescimento de 0 para positivo é considerado alto
-            else:
-                crescimento_entradas = 0.0
-
+            if entradas_mes_inicial > 0:
+                crescimento_entradas = (entradas_mes_final - entradas_mes_inicial) / entradas_mes_inicial
+            
         return {
             'gco': caixa_op,
             'entradas_operacionais': entradas_op,
@@ -252,7 +252,8 @@ class IndicadoresFluxo:
             'autossuficiencia': autossuficiencia,
             'taxa_reinvestimento': taxa_reinvestimento,
             'peso_retiradas': peso_retiradas,
-            'intensidade_fin': intensidade_fin,
+            'intensidade_inv': caixa_inv, # Valor absoluto para cálculo de score
+            'intensidade_fin': caixa_fin, # Valor absoluto para cálculo de score
             'crescimento_entradas': crescimento_entradas,
             'retiradas_pessoais': retiradas_pessoais
         }
@@ -260,64 +261,87 @@ class IndicadoresFluxo:
 # --- CLASSE SCORE CALCULATOR ---
 class ScoreCalculator:
     def __init__(self):
-        # Pesos para cada indicador (soma deve ser 100)
+        # Pesos definidos para cada indicador (soma deve ser 100)
         self.pesos = {
-            'gco': 20, # Geração de Caixa Operacional (normalizado)
-            'margem_op': 20, # Margem de Caixa Operacional (normalizado)
-            'peso_retiradas': 15, # Peso das Retiradas (normalizado)
-            'intensidade_fin': 15, # Intensidade de Financiamento (normalizado)
-            'crescimento_entradas': 10, # Crescimento das Entradas (normalizado)
-            'taxa_reinvestimento': 10, # Taxa de Reinvestimento (normalizado)
-            'autossuficiencia': 10 # Autossuficiência Operacional (normalizado)
+            'gco': 25, # Geração de Caixa Operacional
+            'margem_op': 20, # Margem de Caixa Operacional
+            'peso_retiradas': 15, # Peso das Retiradas Pessoais
+            'autossuficiencia': 15, # Autossuficiência Operacional
+            'taxa_reinvestimento': 10, # Taxa de Reinvestimento
+            'crescimento_entradas': 10, # Crescimento de Entradas
+            'intensidade_fin': 5 # Intensidade de Financiamento
         }
 
     def normalizar_gco(self, gco: float, entradas_op: float) -> float:
-        if gco > 0:
+        if entradas_op <= 0:
+            return 0.0
+        margem = gco / entradas_op
+        if margem >= 0.3:
             return 100.0
-        elif gco == 0:
-            return 50.0
+        elif margem >= 0.15:
+            return 80.0
+        elif margem > 0:
+            return 60.0
+        elif margem == 0:
+            return 40.0
+        elif margem >= -0.1:
+            return 20.0
         else:
             return 0.0
 
     def normalizar_margem(self, margem_op: float) -> float:
         if margem_op >= 0.3:
             return 100.0
-        elif margem_op >= 0.1:
-            return 70.0
+        elif margem_op >= 0.15:
+            return 80.0
         elif margem_op > 0:
+            return 60.0
+        elif margem_op == 0:
             return 40.0
+        elif margem_op >= -0.1:
+            return 20.0
         else:
             return 0.0
 
     def normalizar_peso_retiradas(self, peso_retiradas: float) -> float:
+        # Quanto menor o peso, melhor
         if peso_retiradas <= 0.1:
             return 100.0
-        elif peso_retiradas <= 0.3:
-            return 70.0
-        elif peso_retiradas <= 0.5:
+        elif peso_retiradas <= 0.25:
+            return 80.0
+        elif peso_retiradas <= 0.4:
+            return 60.0
+        elif peso_retiradas <= 0.6:
             return 40.0
         else:
-            return 10.0
+            return 20.0
 
-    def normalizar_intensidade_fin(self, intensidade_fin: float, margem_op: float) -> float:
-        if intensidade_fin <= 0:
-            return 100.0 # Não está usando financiamento
-        elif intensidade_fin <= 0.5 and margem_op >= 0.1:
-            return 70.0 # Uso moderado e justificado
-        elif intensidade_fin <= 1.0 and margem_op >= 0.05:
-            return 40.0 # Uso alto, mas com alguma margem
-        else:
-            return 10.0 # Uso alto ou não justificado
+    def normalizar_intensidade_fin(self, caixa_fin: float, margem_op: float) -> float:
+        # Se a margem operacional for positiva, financiamento é menos crítico
+        if margem_op > 0:
+            if caixa_fin <= 0: # Pagamento de dívida ou neutro
+                return 100.0
+            elif caixa_fin < 0.2 * margem_op: # Pouco financiamento
+                return 80.0
+            else: # Alto financiamento
+                return 60.0
+        else: # Se a margem operacional for negativa ou zero, financiamento é mais crítico
+            if caixa_fin <= 0:
+                return 80.0
+            elif caixa_fin < 0.5 * abs(margem_op):
+                return 40.0
+            else:
+                return 20.0
 
     def normalizar_crescimento(self, crescimento: float) -> float:
         if crescimento >= 0.2:
             return 100.0
         elif crescimento >= 0.05:
-            return 70.0
+            return 80.0
         elif crescimento >= 0:
-            return 40.0
+            return 60.0
         else:
-            return 10.0
+            return 40.0
 
     def normalizar_reinvestimento(self, taxa_reinv: float) -> float:
         if taxa_reinv >= 0.5:
@@ -368,18 +392,14 @@ class ScoreCalculator:
             "pesos": self.pesos
         }
 
-# --- FUNÇÃO: CÁLCULO DO SCORE FINANCEIRO BASEADO EM FLUXO DE CAIXA ---
+# --- FUNÇÃO: CÁLCULO DO SCORE FINANCEIRO ---
 def calcular_score_fluxo(df: pd.DataFrame):
-    """
-    Usa IndicadoresFluxo + ScoreCalculator para retornar score e detalhes.
-    """
+    """Calcula todos os indicadores e o score final."""
     try:
         indicadores_calc = IndicadoresFluxo(df)
         indicadores = indicadores_calc.resumo_indicadores()
         score_calc = ScoreCalculator()
         resultado = score_calc.calcular_score(indicadores)
-        
-        # Complementar retorno com indicadores brutos e subscores
         resultado_full = {
             'score_final': resultado['score'],
             'notas': resultado['notas'],
@@ -396,7 +416,6 @@ def calcular_score_fluxo(df: pd.DataFrame):
         return resultado_full
     except Exception as e:
         # st.error(f"Erro no cálculo dos indicadores/score: {e}")
-        # st.code(traceback.format_exc())
         return {
             'score_final': 0.0,
             'notas': {},
@@ -408,13 +427,13 @@ def calcular_score_fluxo(df: pd.DataFrame):
 
 # --- FUNÇÃO PARA CRIAR RELATÓRIO DE FLUXO DE CAIXA ---
 def criar_relatorio_fluxo_caixa(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any]):
-    st.subheader("Relatório de Fluxo de Caixa (Método Direto)")
+    """Cria a tabela detalhada de Fluxo de Caixa por Atividade e Mês."""
+    st.subheader("Relatório de Fluxo de Caixa")
     
     if df.empty:
         st.info("Nenhum dado disponível. Por favor, processe os extratos primeiro.")
         return
     
-    # Preparar dados
     df = df.copy()
     df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
     df.dropna(subset=['data'], inplace=True)
@@ -424,60 +443,52 @@ def criar_relatorio_fluxo_caixa(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any
         axis=1
     )
     
-    # Filtrar apenas operações válidas (excluir NEUTRO)
     df_fluxo = df[df['tipo_fluxo'] != 'NEUTRO'].copy()
-    
-    # Obter meses únicos ordenados
     meses = sorted(df_fluxo['mes_ano'].unique())
     
-    # Dicionário para mapear meses em português
     meses_pt = {
         1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
         5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
         9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
     }
     
-    # Criar colunas de meses formatadas
     colunas_meses = []
     for mes in meses:
         mes_nome = meses_pt[mes.month]
-        ano = mes.year % 100  # Pega apenas os 2 últimos dígitos do ano
+        ano = mes.year % 100
         colunas_meses.append(f"{mes_nome}/{ano:02d}")
     
-    # Coletar todas as contas únicas por tipo de fluxo
-    todas_contas = df_fluxo.groupby(['tipo_fluxo', 'conta_analitica', 'nome_conta']).size().reset_index()[
-        ['tipo_fluxo', 'conta_analitica', 'nome_conta']
-    ]
-    
-    # Criar estrutura do relatório
+    # Mapeamento de contas para garantir a ordem
+    todas_contas = df_fluxo.groupby(['tipo_fluxo', 'conta_analitica', 'nome_conta']).size().reset_index()[['tipo_fluxo', 'conta_analitica', 'nome_conta']]
     relatorio_linhas = []
     
     # 1. ATIVIDADES OPERACIONAIS
-    relatorio_linhas.append({'Categoria': '**ATIVIDADES OPERACIONAIS**', 'tipo': 'header'})
-    
     contas_op = todas_contas[todas_contas['tipo_fluxo'] == 'OPERACIONAL'].sort_values('conta_analitica')
-    for _, conta in contas_op.iterrows():
-        linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+    if not contas_op.empty:
+        relatorio_linhas.append({'Categoria': '**ATIVIDADES OPERACIONAIS**', 'tipo': 'header'})
+        
+        for _, conta in contas_op.iterrows():
+            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+            for mes in meses:
+                df_mes_conta = df_fluxo[
+                    (df_fluxo['mes_ano'] == mes) & 
+                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
+                ]
+                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+                linha[mes_col] = valor
+            relatorio_linhas.append(linha)
+        
+        # Total Operacional
+        linha_total_op = {'Categoria': '**Total Caixa Operacional**', 'tipo': 'total'}
         for mes in meses:
-            df_mes_conta = df_fluxo[
-                (df_fluxo['mes_ano'] == mes) & 
-                (df_fluxo['conta_analitica'] == conta['conta_analitica'])
-            ]
-            valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+            df_mes_op = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'OPERACIONAL')]
+            valor = df_mes_op['fluxo'].sum() if not df_mes_op.empty else 0
             mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
-            linha[mes_col] = valor
-        relatorio_linhas.append(linha)
-    
-    # Total Operacional
-    linha_total_op = {'Categoria': '**Total Caixa Operacional**', 'tipo': 'total'}
-    for mes in meses:
-        df_mes_op = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'OPERACIONAL')]
-        valor = df_mes_op['fluxo'].sum() if not df_mes_op.empty else 0
-        mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
-        linha_total_op[mes_col] = valor
-    relatorio_linhas.append(linha_total_op)
-    relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
-    
+            linha_total_op[mes_col] = valor
+        relatorio_linhas.append(linha_total_op)
+        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
+
     # 2. ATIVIDADES DE INVESTIMENTO
     contas_inv = todas_contas[todas_contas['tipo_fluxo'] == 'INVESTIMENTO'].sort_values('conta_analitica')
     if not contas_inv.empty:
@@ -859,6 +870,7 @@ def criar_dashboard(df: pd.DataFrame):
 
 # --- FUNÇÃO PRINCIPAL DA SEÇÃO 3 ---
 def secao_relatorios_dashboard(df_transacoes: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any]):
+    """Função que agrupa a exibição do Score, Dashboard e Relatório de Fluxo de Caixa."""
     st.header("3. Relatórios Gerenciais e Dashboard")
     
     # 1. Cálculo dos Indicadores e Score
