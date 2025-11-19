@@ -45,6 +45,7 @@ def _safe_rerun():
 def load_header(show_user: bool = True):
     """Renderiza o cabeçalho padrão do app."""
     try:
+        st.markdown("")
         logo = Image.open(LOGO1_FILENAME)
         col1, col2 = st.columns([2, 5])
         with col1:
@@ -304,4 +305,5 @@ def logout():
 # -----------------------------
 if __name__ == "__main__":
     login_page()
+
 
