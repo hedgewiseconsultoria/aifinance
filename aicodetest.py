@@ -192,7 +192,6 @@ def gerar_prompt_com_plano_contas() -> str:
             contas_str += "  - {}: {}\n".format(conta['codigo'], conta['nome'])
         contas_str += "\n"
 
-    # string pura com placeholder {contas_str}, não é f-string
     prompt_template = """
 Você é um especialista em extração e classificação de dados financeiros.
 
@@ -201,32 +200,33 @@ Você é um especialista em extração e classificação de dados financeiros.
 Extraia todas as transações deste extrato bancário em PDF e classifique cada transação de acordo com o PLANO DE CONTAS acima.
 
 INSTRUÇÕES CRÍTICAS:
-1. Use EXATAMENTE os códigos de conta analítica listados acima (ex: OP-01, OP-05, INV-01, FIN-05, etc.)
-2. Analise cuidadosamente cada transação para determinar a conta mais apropriada.
-3. Retiradas de sócios e pró-labore devem ser classificadas como FIN-05.
-4. Receitas operacionais: OP-01 (vendas), OP-02 (serviços), OP-03 (outras).
-5. Despesas operacionais: OP-04 (CMV), OP-05 (administrativas), OP-06 (comerciais), OP-08 (impostos), OP-09 (tarifas).
-6. Investimentos: INV-01 (compra de ativos), INV-02 (aplicações), INV-03 (venda de ativos).
-7. Financiamentos: FIN-01 (empréstimos recebidos), FIN-02 (pagamento de empréstimos), FIN-03 (juros).
-8. IMPORTANTE — Transferências NEUTRAS (NE-01 ou NE-02): Use APENAS quando detectar uma saída de uma conta corrente E uma entrada de MESMO VALOR em outra conta no MESMO DIA.
+1. Use EXATAMENTE os códigos do plano de contas.
+2. Retorne APENAS um JSON válido.
+3. Siga os códigos do plano de contas sem inventar novos códigos.
 
-Retorne um objeto JSON com o formato:
-{
+O JSON de saída deve ter o seguinte formato:
+
+{{
   "transacoes": [
-    {
+    {{
       "data": "DD/MM/AAAA",
       "descricao": "...",
       "valor": 123.45,
       "tipo_movimentacao": "DEBITO",
       "conta_analitica": "OP-04"
-    }
+    }}
   ],
   "saldo_final": 0.0
-}
+}}
 
-Use valor POSITIVO para 'valor' e 'DEBITO'/'CREDITO' em 'tipo_movimentacao'.
+IMPORTANTE:
+- "valor" deve ser sempre número positivo.
+- "tipo_movimentacao" deve ser "CREDITO" ou "DEBITO".
+- O JSON DEVE SER VÁLIDO — NÃO coloque comentários nem texto fora do JSON.
 """
+
     return prompt_template.format(contas_str=contas_str)
+
 
 # --- FUNÇÃO QUE CHAMA A GEMINI (cached) ---
 @st.cache_data(show_spinner=False, hash_funcs={genai.Client: lambda _: None})
