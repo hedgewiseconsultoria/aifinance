@@ -215,7 +215,7 @@ def login_page():
                     # Recomenda-se configurar o template do Supabase para usar {{ .RedirectTo }}
                     supabase.auth.reset_password_for_email(email)
                     st.success("E-mail enviado. Verifique sua caixa de entrada.")
-                    st.caption("IMPORTANTE: configure no Supabase Authentication → URL Configuration o Site URL e Redirect URLs (inclua: " + SITE_URL + ")")
+                    
                 except Exception as e:
                     st.error(f"Erro ao solicitar redefinição: {e}")
 
@@ -296,5 +296,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
