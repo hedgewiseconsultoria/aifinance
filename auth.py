@@ -23,6 +23,7 @@ LOGO1_FILENAME = "FinanceAI_1.png"
 # -----------------------------
 def load_header(show_user: bool = True):
     """Renderiza o cabeçalho padrão do app."""
+         st.markdown("")
     try:
         logo = Image.open(LOGO1_FILENAME)
         col1, col2 = st.columns([2, 5])
@@ -272,4 +273,5 @@ def _safe_rerun():
         st.rerun()
     elif hasattr(st, "experimental_rerun"):
         st.experimental_rerun()
+
 
