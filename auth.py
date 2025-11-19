@@ -16,7 +16,7 @@ SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-LOGO_URL = "https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/f620b7be17cfb9b40f12c96c5bbeec46fad85ad4/FinanceAI_1.png"
+LOGO_URL = "FinanceAI_1.png"
 
 # -----------------------------
 # Helpers
@@ -296,3 +296,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
