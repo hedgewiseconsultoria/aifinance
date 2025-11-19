@@ -514,7 +514,7 @@ elif page == "Revisão de Dados":
 # --------------------------
 elif page == "Dashboard & Relatórios":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
-    st.markdown("Selecione o período (opcional) e gere os relatórios a partir das transações já salvas no banco ou carregadas localmente.")
+    st.markdown("Selecione o período para gerar os relatórios e dashboards:")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -522,7 +522,7 @@ elif page == "Dashboard & Relatórios":
     with col2:
         data_final_str = st.text_input("Data Final (DD/MM/AAAA)", "")
 
-    if st.button("Carregar transações do Supabase (por período)"):
+    if st.button("Gerar Relatórios e Dashboard"):
         try:
             data_inicial = pd.to_datetime(data_inicial_str, format='%d/%m/%Y', errors='coerce')
             data_final = pd.to_datetime(data_final_str, format='%d/%m/%Y', errors='coerce')
