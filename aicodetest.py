@@ -271,7 +271,7 @@ def load_header():
         logo = Image.open(LOGO1_FILENAME)
         col1, col2 = st.columns([1, 5])
         with col1:
-            st.image(logo, width=400)
+            st.image(logo, width=600)
         with col2:
             st.markdown('<div class="main-header">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
             st.caption("Traduzindo números em histórias que façam sentido...")
