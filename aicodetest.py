@@ -269,7 +269,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
 def load_header():
     try:
         logo = Image.open(LOGO1_FILENAME)
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([2, 5])
         with col1:
             st.image(logo, width=1000)
         with col2:
