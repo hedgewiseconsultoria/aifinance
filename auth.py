@@ -59,18 +59,28 @@ def inject_hash_to_query_js():
 # -----------------------------
 
 def load_header(show_user: bool = True):
+    """Renderiza o cabeçalho padrão do app."""
     try:
-        col1, col2 = st.columns([2, 5])
+        logo = Image.open(LOGO_URL)
+        col1, col2 = st.columns([1, 5])
         with col1:
-            st.image(LOGO_URL, width=160)
+            st.image(logo, width=600)
         with col2:
-            st.markdown('<div style="font-size:20px; font-weight:600; color:#0A2342;">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
+            st.markdown('<div class="main-header" style="margin-top: 0.2em;">Análise Financeira Inteligente</div>', unsafe_allow_html=True)
+            st.caption("Traduzindo números em histórias que façam sentido...")
+
             if show_user and "user" in st.session_state:
                 user = st.session_state["user"]
-                user_email = user.get("email") if isinstance(user, dict) else getattr(user, "email", None)
-                st.markdown(f"👤 **{user_email}**")
-                if st.button("Sair"):
-                    logout()
+                user_email = getattr(user, "email", None) or user.get("email")
+                col_a, col_b = st.columns([4, 1])
+                with col_a:
+                    st.markdown(f"👤 **{user_email}**")
+                with col_b:
+                    if st.button("Sair", use_container_width=True):
+                        logout()
+        st.markdown("---")
+    except Exception:
+        st.title("Hedgewise | Análise Financeira Inteligente")
         st.markdown("---")
     except Exception:
         st.title("Análise Financeira Inteligente")
@@ -286,4 +296,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
