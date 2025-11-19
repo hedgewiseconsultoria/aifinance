@@ -46,7 +46,7 @@ def load_header(show_user: bool = True):
     """Renderiza o cabeçalho padrão do app."""
     try:
         logo = Image.open(LOGO1_FILENAME)
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([2, 5])
         with col1:
             st.image(logo, width=600)
         with col2:
@@ -304,3 +304,4 @@ def logout():
 # -----------------------------
 if __name__ == "__main__":
     login_page()
+
