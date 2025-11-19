@@ -122,9 +122,7 @@ def login_page():
         senha = st.text_input("Crie uma senha forte", type="password", key="senha_signup")
         nome = st.text_input("Nome completo", key="nome_signup")
         empresa = st.text_input("Empresa", key="empresa_signup")
-        # CNPJ input with live mask via JS
-        cnpj_raw = st.text_input("CNPJ (apenas números)", key="cnpj_signup")
-        st.components.v1.html('<script>const input = window.parent.document.querySelector("input[id=\"cnpj_signup\"]"); if (input) { input.addEventListener("input", function() { let v = this.value.replace(/\D/g, ""); if (v.length > 14) v = v.slice(0,14); let f = v; if (v.length >= 3) f = v.slice(0,2)+"."+v.slice(2); if (v.length >= 6) f = f.slice(0,6)+"."+f.slice(6); if (v.length >= 9) f = f.slice(0,10)+"/"+f.slice(10); if (v.length >= 13) f = f.slice(0,15)+"-"+f.slice(15); this.value = f; }); } </script>', height=0)
+        cnpj_raw = st.text_input("CNPJ (apenas números ou já formatado)", key="cnpj_signup")
         socios = st.text_input("Sócios (separados por vírgula)", key="socios_signup")
         plano = st.radio("Plano", ["free", "premium"], index=0, horizontal=True)
 
