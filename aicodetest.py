@@ -514,7 +514,7 @@ elif page == "Revisão de Dados":
 # --------------------------
 elif page == "Dashboard & Relatórios":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
-    st.markdown("Selecione o período para gerar os relatórios e dashboards:")
+    st.markdown("Selecione o período para gerar os relatórios e dashboard:")
 
     col1, col2 = st.columns(2)
     with col1:
