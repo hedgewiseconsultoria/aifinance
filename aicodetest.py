@@ -2,15 +2,11 @@
 import streamlit as st
 import pandas as pd
 import json
-import io
 from PIL import Image
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from google import genai
 from google.genai import types
-import altair as alt
-import plotly.express as px
-import plotly.graph_objects as go
 import traceback
 import math
 import hashlib
@@ -79,16 +75,11 @@ PLANO_DE_CONTAS = {
 
 # --- THEME / CSS ---
 PRIMARY_COLOR = "#0A2342"
-SECONDARY_COLOR = "#000000"
 BACKGROUND_COLOR = "#F0F2F6"
 ACCENT_COLOR = "#007BFF"
-NEGATIVE_COLOR = "#DC3545"
-FINANCING_COLOR = "#FFC107"
-INVESTMENT_COLOR = "#28A745"
 REPORT_BACKGROUND = "#F9F5EB"
-
-LOGO_FILENAME = "logo_hedgewise.png"
 LOGO1_FILENAME = "FinanceAI_1.png"
+LOGO_FILENAME = "logo_hedgewise.png"
 
 st.set_page_config(
     page_title="Hedgewise | Análise Financeira Inteligente",
@@ -104,30 +95,21 @@ st.markdown(
             background-color: {BACKGROUND_COLOR} !important;
             color: #000000 !important;
         }}
-        [data-testid="stSidebar"] {{
-            background-color: #FFFFFF !important;
-        }}
         .stButton>button {{
             background-color: {PRIMARY_COLOR};
             color: white;
             border-radius: 8px;
-            padding: 10px 20px;
+            padding: 8px 16px;
             font-weight: bold;
-        }}
-        .stButton>button:hover {{
-            background-color: #1C3757;
-            color: white;
-            transform: scale(1.02);
         }}
         .report-box {{
             background-color: {REPORT_BACKGROUND};
-            padding: 20px;
-            border-radius: 10px;
+            padding: 16px;
+            border-radius: 8px;
             border: 1px solid #DDDDDD;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.06);
         }}
         .main-header {{
-            font-size: 2.0em;
+            font-size: 1.8em;
             font-weight: 800;
             color: {PRIMARY_COLOR};
         }}
@@ -136,13 +118,13 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# session state defaults
+# --- session_state defaults ---
 if 'df_transacoes_editado' not in st.session_state:
     st.session_state['df_transacoes_editado'] = pd.DataFrame()
 if 'contexto_adicional' not in st.session_state:
     st.session_state['contexto_adicional'] = ""
 
-# Gemini client init (non-fatal if missing)
+# --- Gemini client init (non-fatal if missing) ---
 client = None
 try:
     gemini_key = st.secrets["GEMINI_API_KEY"]
@@ -150,19 +132,19 @@ try:
 except Exception:
     client = None
 
-# PYDANTIC MODELS
+# --- PYDANTIC MODELS ---
 class Transacao(BaseModel):
-    data: str = Field(..., description="Data da transação no formato DD/MM/AAAA ou AAAA-MM-DD.")
-    descricao: str = Field(..., description="Descrição da transação.")
-    valor: float = Field(..., description="Valor da transação, sempre positivo.")
-    tipo_movimentacao: str = Field(..., description="Tipo de movimentação: DEBITO ou CREDITO.")
-    conta_analitica: str = Field(..., description="Código da conta analítica do plano de contas (ex: OP-01, FIN-05).")
+    data: str
+    descricao: str
+    valor: float
+    tipo_movimentacao: str
+    conta_analitica: str
 
 class AnaliseCompleta(BaseModel):
     transacoes: List[Transacao]
-    saldo_final: Optional[float] = Field(None, description="Saldo final do extrato, se disponível.")
+    saldo_final: Optional[float] = None
 
-# helpers
+# --- HELPERS ---
 def formatar_brl(valor: float) -> str:
     try:
         valor_us = f"{valor:,.2f}"
@@ -181,7 +163,6 @@ def enriquecer_com_plano_contas(df: pd.DataFrame) -> pd.DataFrame:
                 "nome_sintetico": sintetico["nome"],
                 "tipo_fluxo": sintetico["tipo_fluxo"]
             }
-
     df = df.copy()
     df['nome_conta'] = df['conta_analitica'].map(lambda x: mapa_contas.get(x, {}).get('nome_conta', 'Não classificado'))
     df['codigo_sintetico'] = df['conta_analitica'].map(lambda x: mapa_contas.get(x, {}).get('codigo_sintetico', 'NE'))
@@ -202,16 +183,18 @@ def enriquecer_com_plano_contas(df: pd.DataFrame) -> pd.DataFrame:
     df['conta_display'] = df['conta_analitica'].map(lambda x: _label_from_code(x))
     return df
 
-# prompt generator
+# --- PROMPT (OPÇÃO B: string normal + format) ---
 def gerar_prompt_com_plano_contas() -> str:
     contas_str = "### PLANO DE CONTAS ###\n\n"
     for sintetico in PLANO_DE_CONTAS["sinteticos"]:
-        contas_str += f"{sintetico['codigo']} - {sintetico['nome']} (Tipo: {sintetico['tipo_fluxo']})\n"
+        contas_str += "{} - {} (Tipo: {})\n".format(sintetico['codigo'], sintetico['nome'], sintetico['tipo_fluxo'])
         for conta in sintetico["contas"]:
-            contas_str += f"  - {conta['codigo']}: {conta['nome']}\n"
+            contas_str += "  - {}: {}\n".format(conta['codigo'], conta['nome'])
         contas_str += "\n"
 
-    prompt = f"""Você é um especialista em extração e classificação de dados financeiros.
+    # string pura com placeholder {contas_str}, não é f-string
+    prompt_template = """
+Você é um especialista em extração e classificação de dados financeiros.
 
 {contas_str}
 
@@ -225,21 +208,27 @@ INSTRUÇÕES CRÍTICAS:
 5. Despesas operacionais: OP-04 (CMV), OP-05 (administrativas), OP-06 (comerciais), OP-08 (impostos), OP-09 (tarifas).
 6. Investimentos: INV-01 (compra de ativos), INV-02 (aplicações), INV-03 (venda de ativos).
 7. Financiamentos: FIN-01 (empréstimos recebidos), FIN-02 (pagamento de empréstimos), FIN-03 (juros).
-8. IMPORTANTE — Transferências NEUTRAS (NE-01 ou NE-02): Use APENAS quando detectar uma saída de uma conta corrente E uma entrada de MESMO VALOR em outra conta no MESMO DIA. Caso contrário, classifique normalmente nas outras categorias.
+8. IMPORTANTE — Transferências NEUTRAS (NE-01 ou NE-02): Use APENAS quando detectar uma saída de uma conta corrente E uma entrada de MESMO VALOR em outra conta no MESMO DIA.
 
 Retorne um objeto JSON com o formato:
 {
   "transacoes": [
-    {"data": "DD/MM/AAAA", "descricao": "...", "valor": 123.45, "tipo_movimentacao": "DEBITO", "conta_analitica": "OP-04"},
-    ...
+    {
+      "data": "DD/MM/AAAA",
+      "descricao": "...",
+      "valor": 123.45,
+      "tipo_movimentacao": "DEBITO",
+      "conta_analitica": "OP-04"
+    }
   ],
   "saldo_final": 0.0
 }
+
 Use valor POSITIVO para 'valor' e 'DEBITO'/'CREDITO' em 'tipo_movimentacao'.
 """
-    return prompt
+    return prompt_template.format(contas_str=contas_str)
 
-# Gemini call (cached)
+# --- FUNÇÃO QUE CHAMA A GEMINI (cached) ---
 @st.cache_data(show_spinner=False, hash_funcs={genai.Client: lambda _: None})
 def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> dict:
     pdf_part = types.Part.from_bytes(data=pdf_bytes, mime_type='application/pdf')
@@ -276,6 +265,7 @@ def analisar_extrato(pdf_bytes: bytes, filename: str, client: genai.Client) -> d
             'saldo_final': 0.0
         }
 
+# --- CABEÇALHO UI ---
 def load_header():
     try:
         logo = Image.open(LOGO1_FILENAME)
@@ -290,7 +280,9 @@ def load_header():
         st.title("Hedgewise | Análise Financeira Inteligente")
         st.markdown("---")
 
-# AUTH integration
+# --------------------------
+# AUTENTICAÇÃO E MENU
+# --------------------------
 if "user" not in st.session_state:
     login_page()
     st.stop()
@@ -301,12 +293,11 @@ else:
         logout()
 
 load_header()
-
 st.sidebar.title("Navegação")
 page = st.sidebar.radio("Seções:", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
 
 # --------------------------
-# 1. UPLOAD E EXTRAÇÃO
+# 1. Upload e Extração
 # --------------------------
 if page == "Upload e Extração":
     st.markdown("### 1. Upload e Extração de Dados")
@@ -314,9 +305,9 @@ if page == "Upload e Extração":
 
     with st.expander("Plano de Contas Utilizado", expanded=False):
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
-            st.markdown(f"**{sintetico['codigo']} - {sintetico['nome']}** ({sintetico['tipo_fluxo']})")
+            st.markdown("**{} - {}** ({})".format(sintetico['codigo'], sintetico['nome'], sintetico['tipo_fluxo']))
             for conta in sintetico["contas"]:
-                st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
+                st.markdown("  - `{}`: {}".format(conta['codigo'], conta['nome']))
 
     with st.expander("Upload de Arquivos", expanded=True):
         uploaded_files = st.file_uploader(
@@ -332,7 +323,11 @@ if page == "Upload e Extração":
             todas_transacoes = []
             extraction_status = st.empty()
             extraction_status.info("Iniciando extração e classificação.")
-            user_id = user.id if hasattr(user, "id") else user.get("id")
+            user_id = None
+            try:
+                user_id = user.id if hasattr(user, "id") else user.get("id")
+            except Exception:
+                user_id = None
 
             for i, uploaded_file in enumerate(uploaded_files):
                 extraction_status.info(f"Processando arquivo {i+1}/{len(uploaded_files)}: {uploaded_file.name}")
@@ -350,11 +345,12 @@ if page == "Upload e Extração":
 
                 if already_exists:
                     extraction_status.warning(f"O arquivo {uploaded_file.name} já foi registrado anteriormente. Pulando registro duplicado, mas extração será tentada.")
-                # salva o PDF no Storage (tentativa)
+
+                # tenta salvar PDF no Storage com nome único
                 try:
-                    supabase.storage.from_("extratos").upload(f"{user_id}/{file_hash}_{uploaded_file.name}", pdf_bytes)
+                    if user_id:
+                        supabase.storage.from_("extratos").upload(f"{user_id}/{file_hash}_{uploaded_file.name}", pdf_bytes)
                 except Exception:
-                    # não falhar se storage não estiver configurado
                     pass
 
                 # registra metadados do extrato (se ainda não registrado)
@@ -390,7 +386,7 @@ if page == "Upload e Extração":
                 extraction_status.error("❌ Nenhuma transação válida foi extraída. Verifique se o PDF contém texto legível e se o arquivo não está corrompido.")
                 st.session_state['df_transacoes_editado'] = pd.DataFrame()
             else:
-                extraction_status.success(f"✅ Extração de {len(todas_transacoes)} transações concluída!")
+                extraction_status.success("✅ Extração de {} transações concluída!".format(len(todas_transacoes)))
 
                 # Normalizações
                 df_transacoes['valor'] = pd.to_numeric(df_transacoes['valor'], errors='coerce').fillna(0)
@@ -424,25 +420,32 @@ if page == "Upload e Extração":
         st.error(f"Erro ao buscar extratos: {e}")
 
 # --------------------------
-# 2. REVISÃO DE DADOS
+# 2. Revisão de Dados
 # --------------------------
 elif page == "Revisão de Dados":
     st.markdown("### 2. Revisão e Correção Manual dos Dados")
+
     if not st.session_state.get('df_transacoes_editado', pd.DataFrame()).empty:
         st.info("Revise as classificações e corrija manualmente qualquer erro.")
 
+        # preparar opcoes
         opcoes_contas = []
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             for conta in sintetico["contas"]:
-                opcoes_contas.append(f"{conta['codigo']} - {conta['nome']}")
+                opcoes_contas.append("{} - {}".format(conta['codigo'], conta['nome']))
 
         df_display_edit = st.session_state['df_transacoes_editado'].copy()
         if 'conta_display' not in df_display_edit.columns:
             df_display_edit = enriquecer_com_plano_contas(df_display_edit)
 
+        # se extrato_id existe, inclui na edição (nada impede leitura)
+        columns_for_editor = ['data', 'descricao', 'valor', 'tipo_movimentacao', 'conta_display', 'nome_conta', 'tipo_fluxo']
+        if 'extrato_id' in df_display_edit.columns:
+            columns_for_editor.append('extrato_id')
+
         with st.expander("Editar Transações", expanded=True):
             edited_df = st.data_editor(
-                df_display_edit[['data', 'descricao', 'valor', 'tipo_movimentacao', 'conta_display', 'nome_conta', 'tipo_fluxo', 'extrato_id']] if 'extrato_id' in df_display_edit.columns else df_display_edit[['data', 'descricao', 'valor', 'tipo_movimentacao', 'conta_display', 'nome_conta', 'tipo_fluxo']],
+                df_display_edit[columns_for_editor],
                 width='stretch',
                 column_config={
                     "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", required=True),
@@ -459,39 +462,36 @@ elif page == "Revisão de Dados":
 
         if st.button("Confirmar Dados e Salvar no Banco de Dados", key="generate_report_btn"):
             try:
-                # Extrair conta_analitica
+                # extrair conta_analitica
                 if 'conta_display' in edited_df.columns:
                     edited_df['conta_analitica'] = edited_df['conta_display'].apply(lambda x: x.split(' - ')[0].strip() if isinstance(x, str) and ' - ' in x else x)
 
-                # Reenriquecer
+                # reenriquecer
                 edited_df = enriquecer_com_plano_contas(edited_df)
 
-                # Preparar para salvar
+                # preparar para salvar
                 df_to_save = edited_df.copy()
                 df_to_save["data"] = pd.to_datetime(df_to_save["data"], errors="coerce").dt.strftime("%Y-%m-%d")
                 df_to_save["valor"] = pd.to_numeric(df_to_save["valor"], errors="coerce").fillna(0)
 
-                # Colunas válidas: incluir extrato_id se presente
+                # colunas válidas (preservar extrato_id se presente)
                 colunas_validas = ["data", "descricao", "valor", "tipo_movimentacao", "conta_analitica"]
                 if 'extrato_id' in df_to_save.columns:
                     colunas_validas.append('extrato_id')
-
                 df_to_save = df_to_save[colunas_validas]
 
-                # Deletar transações anteriores do usuário
+                # delete old transactions of user
                 try:
                     supabase.table("transacoes").delete().eq("user_id", user.id).execute()
                 except Exception:
-                    st.warning("Aviso: não foi possível deletar transações antigas no Supabase. Prosseguindo com inserção (poste cheque duplicidade).")
+                    st.warning("Aviso: não foi possível deletar transações antigas no Supabase (verifique permissões). Prosseguindo para inserção.")
 
-                # Inserir novas transações (mantendo extrato_id quando houver)
+                # inserir novas transacoes (mantendo extrato_id)
                 records = df_to_save.to_dict(orient="records")
                 for rec in records:
                     rec["user_id"] = user.id
-                    # manter rec["extrato_id"] se existir; caso contrário, deixar None
                     if "extrato_id" not in rec:
                         rec["extrato_id"] = None
-
                 try:
                     supabase.table("transacoes").insert(records).execute()
                 except Exception as e:
@@ -510,7 +510,7 @@ elif page == "Revisão de Dados":
         st.warning("Nenhum dado processado encontrado. Volte para a seção 'Upload e Extração'.")
 
 # --------------------------
-# 3. DASHBOARD & RELATÓRIOS
+# 3. Dashboard & Relatórios
 # --------------------------
 elif page == "Dashboard & Relatórios":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
@@ -559,7 +559,7 @@ elif page == "Dashboard & Relatórios":
     else:
         st.info("Nenhum dado disponível. Faça upload de extratos na seção 'Upload e Extração' ou carregue transações do banco.")
 
-# footer
+# --- Footer ---
 st.markdown("---")
 try:
     footer_logo = Image.open(LOGO_FILENAME)
@@ -567,10 +567,10 @@ try:
     with footer_col1:
         st.image(footer_logo, width=40)
     with footer_col2:
-        st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
+        st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0;">
         Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
         </p>""", unsafe_allow_html=True)
 except Exception:
-    st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0; padding-top: 12px;">
+    st.markdown("""<p style="font-size: 0.9rem; color: #6c757d; margin: 0;">
     Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
     </p>""", unsafe_allow_html=True)
