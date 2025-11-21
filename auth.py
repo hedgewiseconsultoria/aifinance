@@ -1,4 +1,4 @@
-# auth.py ajustado mantendo layout original e fluxo HARDCORE seguro
+# auth.py totalmente corrigido — layout preservado — fluxo de reset funcional
 
 import streamlit as st
 from supabase import create_client
@@ -10,14 +10,13 @@ import uuid
 # CONFIGURAÇÕES BÁSICAS
 # ==========================
 SITE_URL = "https://inteligenciafinanceira.streamlit.app"
-RESET_ROUTE = "/reset-password"
-REDIRECT_URL = SITE_URL + RESET_ROUTE
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 LOGO_URL = "FinanceAI_1.png"
+
 
 # ==========================
 # FUNÇÕES AUXILIARES
@@ -51,6 +50,7 @@ def _safe_rerun():
     else:
         st.experimental_rerun()
 
+
 # ==========================
 # HEADER ORIGINAL
 # ==========================
@@ -82,6 +82,7 @@ def load_header(show_user=True):
         st.title("Análise Financeira Inteligente")
         st.markdown("---")
 
+
 # ==========================
 # TELA DE LOGIN / CADASTRO
 # ==========================
@@ -89,6 +90,7 @@ def load_header(show_user=True):
 def login_page():
     load_header(show_user=False)
 
+    # Mantém seu layout anterior
     st.markdown(
         """
         <style>
@@ -114,25 +116,36 @@ def login_page():
     st.subheader("Acesso ao sistema")
     aba = st.radio("", ["Entrar", "Criar Conta", "Esqueci a Senha"], horizontal=True)
 
+    # ------------------- LOGIN -------------------
     if aba == "Entrar":
         email = st.text_input("E-mail")
         senha = st.text_input("Senha", type="password")
+
         if st.button("Entrar"):
             if not email or not senha:
                 st.warning("Informe e-mail e senha.")
                 return
             try:
-                res = supabase.auth.sign_in_with_password({"email": email, "password": senha})
+                res = supabase.auth.sign_in_with_password(
+                    {"email": email, "password": senha}
+                )
                 user = res.get("user") if isinstance(res, dict) else getattr(res, "user", None)
+
                 if not user:
                     st.error("E-mail ou senha incorretos")
                     return
+
                 st.session_state["user"] = user
-                supabase.table("users_profiles").upsert({"id": user.get("id"), "plano": "free"}).execute()
+                supabase.table("users_profiles").upsert(
+                    {"id": user.get("id"), "plano": "free"}
+                ).execute()
+
                 _safe_rerun()
+
             except Exception as e:
                 st.error(f"Erro: {e}")
 
+    # ------------------- CRIAR CONTA -------------------
     elif aba == "Criar Conta":
         st.info("Preencha os dados para criar sua conta.")
         email = st.text_input("E-mail para cadastro")
@@ -142,28 +155,43 @@ def login_page():
         cnpj_field = st.text_input("CNPJ (opcional)")
         socios = st.text_input("Sócios (separados por vírgula)")
         plano = st.radio("Plano", ["free", "premium"], horizontal=True)
+
         if cnpj_field:
             st.caption(f"CNPJ formatado: {format_cnpj(cnpj_field)}")
+
         if st.button("Criar Conta"):
             if not email or not senha or not nome:
                 st.warning("Preencha e-mail, senha e nome.")
                 return
-            user = supabase.auth.sign_up({"email": email, "password": senha}).user
-            user_id = user.id if user else str(uuid.uuid4())
-            supabase.table("users_profiles").upsert({"id": user_id, "nome": nome, "empresa": empresa, "cnpj": format_cnpj(cnpj_field), "socios": socios, "plano": plano}).execute()
-            st.success("Conta criada. Verifique seu e-mail.")
 
+            res = supabase.auth.sign_up({"email": email, "password": senha})
+            user = res.user
+            user_id = user.id if user else str(uuid.uuid4())
+
+            supabase.table("users_profiles").upsert({
+                "id": user_id,
+                "nome": nome,
+                "empresa": empresa,
+                "cnpj": format_cnpj(cnpj_field),
+                "socios": socios,
+                "plano": plano
+            }).execute()
+
+            st.success("Conta criada. Verifique seu e-mail para confirmar o cadastro.")
+
+    # ------------------- ESQUECI A SENHA -------------------
     else:
         email = st.text_input("E-mail cadastrado")
         if st.button("Enviar redefinição"):
             if not email:
                 st.warning("Informe o e-mail.")
             else:
-                supabase.auth.reset_password_for_email(email, options={"redirect_to": REDIRECT_URL})
-                st.success("E-mail enviado.")
+                supabase.auth.reset_password_for_email(email)
+                st.success("E-mail enviado. Verifique sua caixa de entrada.")
+
 
 # ==========================
-# PÁGINA DE REDEFINIÇÃO
+# PÁGINA DE REDEFINIÇÃO (FINAL)
 # ==========================
 
 def reset_password_page():
@@ -171,7 +199,11 @@ def reset_password_page():
     st.title("Redefinição de senha")
 
     params = st.experimental_get_query_params()
-    token = params.get("access_token", [None])[0] or params.get("token", [None])[0]
+
+    token = (
+        params.get("access_token", [None])[0]
+        or params.get("token", [None])[0]
+    )
 
     if not token:
         st.warning("Token não detectado. Abra o link novamente.")
@@ -184,14 +216,16 @@ def reset_password_page():
         if not nova or nova != nova2:
             st.error("As senhas não coincidem.")
             return
+
         try:
-            access_token = token
-            supabase.auth.set_session(access_token)
+            supabase.auth.set_session(token)
             supabase.auth.update_user({"password": nova})
-            
+
             st.success("Senha redefinida com sucesso! Agora entre com a nova senha.")
+
         except Exception as e:
             st.error(f"Erro ao redefinir senha: {e}")
+
 
 # ==========================
 # LOGOUT
@@ -205,22 +239,21 @@ def logout():
     st.session_state.clear()
     _safe_rerun()
 
+
 # ==========================
 # MAIN
 # ==========================
 
 def main():
     params = st.experimental_get_query_params()
-    if "access_token" in params or "token" in params or params.get("type", [None])[0] == "recovery":
+
+    # O Supabase envia sempre type=recovery OU access_token quando é reset
+    if "access_token" in params or params.get("type", [""])[0] == "recovery":
         reset_password_page()
         return
-    if params.get("page", [""])[0] == "reset":
-        reset_password_page()
-        return
+
     login_page()
+
 
 if __name__ == "__main__":
     main()
-
-
-
