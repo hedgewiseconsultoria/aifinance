@@ -185,7 +185,7 @@ def reset_password_page():
             st.error("As senhas não coincidem.")
             return
         try:
-            supabase.auth.verify_otp({"token": token, "type": "recovery"})
+            supabase.auth.exchange_code_for_session({"token": token})
             supabase.auth.update_user({"password": nova})
             
             st.success("Senha redefinida com sucesso! Agora entre com a nova senha.")
@@ -220,4 +220,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
