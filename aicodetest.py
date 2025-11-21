@@ -12,6 +12,7 @@ import hashlib
 from datetime import datetime, timedelta
 
 # integração auth/supabase (arquivo auth.py que você forneceu)
+from auth import main as auth_main
 from auth import login_page, logout, supabase
 
 # funções de relatórios (arquivo reports_functions.py)
@@ -282,18 +283,29 @@ def load_header():
 # --------------------------
 # AUTENTICAÇÃO E MENU
 # --------------------------
+
+# 1) Deixa o auth.py decidir se é login ou reset-password
+from auth import main as auth_main
+
+auth_main()   # isso mostra login OU tela de reset
+
+# 2) Se após passar pelo auth_main o usuário ainda não estiver logado, para aqui.
 if "user" not in st.session_state:
-    login_page()
     st.stop()
-else:
-    user = st.session_state["user"]
-    st.sidebar.write(f"Olá, {getattr(user, 'email', user.get('email') if isinstance(user, dict) else '')}")
-    if st.sidebar.button("Sair"):
-        logout()
+
+# 3) Usuário está logado → segue fluxo normal
+user = st.session_state["user"]
+
+st.sidebar.write(f"Olá, {getattr(user, 'email', user.get('email') if isinstance(user, dict) else '')}")
+
+if st.sidebar.button("Sair"):
+    logout()
 
 load_header()
+
 st.sidebar.title("Navegação")
 page = st.sidebar.radio("Seções:", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"])
+
 
 # --------------------------
 # 1. Upload e Extração
