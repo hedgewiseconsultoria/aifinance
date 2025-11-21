@@ -281,22 +281,19 @@ def logout():
 # -----------------------------
 
 def main():
-    # Detect reset-password token and open reset page automatically
     params = st.experimental_get_query_params()
-    if "access_token" in params or "token" in params:
+
+    # 1 — Auto-detectar token de recuperação enviado pelo Supabase
+    if "access_token" in params or "token" in params or params.get("type", [None])[0] == "recovery":
         reset_password_page()
         return
 
-    # if the path is the reset route, show the reset page
-    # Streamlit doesn't expose path easily — rely on query param or manual toggle
-    params = st.experimental_get_query_params()
-    # if user navigated to RESET_ROUTE exactly, they may include 'reset' param; otherwise expose link
-    if st.experimental_get_query_params().get('reset', [None])[0] == '1' or st.experimental_get_query_params().get('page', [None])[0] == 'reset':
+    # 2 — Compatibilidade com rotas alternativas
+    if params.get('reset', [None])[0] == '1' or params.get('page', [None])[0] == 'reset':
         reset_password_page()
         return
 
-    # Heuristic: if current url contains RESET_ROUTE (some hosting exposes), try to show reset page
-    # Fallback: show login page by default
+    # 3 — Abre login se nada acima foi detectado
     login_page()
 
 
