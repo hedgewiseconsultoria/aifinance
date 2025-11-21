@@ -287,7 +287,11 @@ def load_header():
 params = st.experimental_get_query_params()
 
 # Se for fluxo de redefinição, não bloquear com login
-if "access_token" in params or params.get("type", [""])[0] == "recovery":
+if (
+    "access_token" in params
+    or "token" in params
+    or params.get("type", [""])[0] == "recovery"
+):
     reset_password_page()
     st.stop()
 
