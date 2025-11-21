@@ -12,8 +12,13 @@ import hashlib
 from datetime import datetime, timedelta
 
 # integração auth/supabase (arquivo auth.py que você forneceu)
-from auth import main as auth_main
-from auth import login_page, logout, supabase
+from auth import (
+    login_page,
+    logout,
+    supabase,
+    reset_password_page,
+    inject_js_hash_to_query
+)
 
 # funções de relatórios (arquivo reports_functions.py)
 from reports_functions import secao_relatorios_dashboard
@@ -87,6 +92,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# 🔥 Ajuste essencial para reset password funcionar
+inject_js_hash_to_query()
 
 st.markdown(
     f"""
