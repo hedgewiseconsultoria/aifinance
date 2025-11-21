@@ -284,18 +284,20 @@ def load_header():
 # AUTENTICAÇÃO E MENU
 # --------------------------
 
-# 1) Deixa o auth.py decidir se é login ou reset-password
-from auth import main as auth_main
+params = st.experimental_get_query_params()
 
-auth_main()   # isso mostra login OU tela de reset
-
-# 2) Se após passar pelo auth_main o usuário ainda não estiver logado, para aqui.
-if "user" not in st.session_state:
+# Se for fluxo de redefinição, não bloquear com login
+if "access_token" in params or params.get("type", [""])[0] == "recovery":
+    reset_password_page()
     st.stop()
 
-# 3) Usuário está logado → segue fluxo normal
-user = st.session_state["user"]
+# Se usuário não logado → tela de login
+if "user" not in st.session_state:
+    login_page()
+    st.stop()
 
+# Se logado → interface normal
+user = st.session_state["user"]
 st.sidebar.write(f"Olá, {getattr(user, 'email', user.get('email') if isinstance(user, dict) else '')}")
 
 if st.sidebar.button("Sair"):
