@@ -16,7 +16,7 @@ SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-LOGO_URL = "https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/f620b7be17cfb9b40f12c96c5bbeec46fad85ad4/FinanceAI_1.png"
+LOGO_URL = "FinanceAI_1.png"
 
 # -----------------------------
 # Helpers
@@ -62,7 +62,7 @@ def load_header(show_user: bool = True):
     """Renderiza o cabeçalho padrão do app."""
     try:
         logo = Image.open(LOGO_URL)
-        col1, col2 = st.columns([1, 5])
+        col1, col2 = st.columns([2, 5])
         with col1:
             st.image(logo, width=600)
         with col2:
@@ -215,7 +215,7 @@ def login_page():
                     # Recomenda-se configurar o template do Supabase para usar {{ .RedirectTo }}
                     supabase.auth.reset_password_for_email(email)
                     st.success("E-mail enviado. Verifique sua caixa de entrada.")
-                    st.caption("IMPORTANTE: configure no Supabase Authentication → URL Configuration o Site URL e Redirect URLs (inclua: " + SITE_URL + ")")
+                    
                 except Exception as e:
                     st.error(f"Erro ao solicitar redefinição: {e}")
 
@@ -281,19 +281,16 @@ def logout():
 # -----------------------------
 
 def main():
+    # if the path is the reset route, show the reset page
+    # Streamlit doesn't expose path easily — rely on query param or manual toggle
     params = st.experimental_get_query_params()
-
-    # 1 — Auto-detectar token de recuperação enviado pelo Supabase
-    if "access_token" in params or "token" in params or params.get("type", [None])[0] == "recovery":
+    # if user navigated to RESET_ROUTE exactly, they may include 'reset' param; otherwise expose link
+    if st.experimental_get_query_params().get('reset', [None])[0] == '1' or st.experimental_get_query_params().get('page', [None])[0] == 'reset':
         reset_password_page()
         return
 
-    # 2 — Compatibilidade com rotas alternativas
-    if params.get('reset', [None])[0] == '1' or params.get('page', [None])[0] == 'reset':
-        reset_password_page()
-        return
-
-    # 3 — Abre login se nada acima foi detectado
+    # Heuristic: if current url contains RESET_ROUTE (some hosting exposes), try to show reset page
+    # Fallback: show login page by default
     login_page()
 
 
