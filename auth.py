@@ -1,4 +1,4 @@
-# auth.py totalmente corrigido — layout preservado — fluxo de reset funcional
+# auth.py totalmente corrigido
 
 import streamlit as st
 from supabase import create_client
@@ -90,7 +90,6 @@ def load_header(show_user=True):
 def login_page():
     load_header(show_user=False)
 
-    # Mantém seu layout anterior
     st.markdown(
         """
         <style>
@@ -116,7 +115,7 @@ def login_page():
     st.subheader("Acesso ao sistema")
     aba = st.radio("", ["Entrar", "Criar Conta", "Esqueci a Senha"], horizontal=True)
 
-    # ------------------- LOGIN -------------------
+    # LOGIN
     if aba == "Entrar":
         email = st.text_input("E-mail")
         senha = st.text_input("Senha", type="password")
@@ -136,6 +135,7 @@ def login_page():
                     return
 
                 st.session_state["user"] = user
+
                 supabase.table("users_profiles").upsert(
                     {"id": user.get("id"), "plano": "free"}
                 ).execute()
@@ -145,7 +145,7 @@ def login_page():
             except Exception as e:
                 st.error(f"Erro: {e}")
 
-    # ------------------- CRIAR CONTA -------------------
+    # CRIAR CONTA
     elif aba == "Criar Conta":
         st.info("Preencha os dados para criar sua conta.")
         email = st.text_input("E-mail para cadastro")
@@ -179,7 +179,7 @@ def login_page():
 
             st.success("Conta criada. Verifique seu e-mail para confirmar o cadastro.")
 
-    # ------------------- ESQUECI A SENHA -------------------
+    # ESQUECI A SENHA
     else:
         email = st.text_input("E-mail cadastrado")
         if st.button("Enviar redefinição"):
@@ -194,7 +194,7 @@ def login_page():
 
 
 # ==========================
-# PÁGINA DE REDEFINIÇÃO (FINAL)
+# PÁGINA DE REDEFINIÇÃO (CORRIGIDA)
 # ==========================
 
 def reset_password_page():
@@ -203,13 +203,11 @@ def reset_password_page():
 
     params = st.experimental_get_query_params()
 
-    token = (
-        params.get("access_token", [None])[0]
-        or params.get("token", [None])[0]
-    )
+    access_token = params.get("access_token", [None])[0]
+    refresh_token = params.get("refresh_token", [None])[0]
 
-    if not token:
-        st.warning("Token não detectado. Abra o link novamente.")
+    if not access_token:
+        st.warning("Token não detectado. Tente abrir o link novamente.")
         return
 
     nova = st.text_input("Nova senha", type="password")
@@ -221,7 +219,9 @@ def reset_password_page():
             return
 
         try:
-            supabase.auth.set_session(token)
+            # AQUI ESTÁ A CORREÇÃO REAL
+            supabase.auth.set_session(access_token, refresh_token)
+
             supabase.auth.update_user({"password": nova})
 
             st.success("Senha redefinida com sucesso! Agora entre com a nova senha.")
@@ -250,7 +250,6 @@ def logout():
 def main():
     params = st.experimental_get_query_params()
 
-    # O Supabase envia sempre type=recovery OU access_token quando é reset
     if "access_token" in params or params.get("type", [""])[0] == "recovery":
         reset_password_page()
         return
@@ -260,4 +259,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
