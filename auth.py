@@ -186,7 +186,10 @@ def login_page():
             if not email:
                 st.warning("Informe o e-mail.")
             else:
-                supabase.auth.reset_password_for_email(email)
+                supabase.auth.reset_password_for_email(
+                    email,
+                    redirect_to="https://inteligenciafinanceira.streamlit.app"
+                )
                 st.success("E-mail enviado. Verifique sua caixa de entrada.")
 
 
@@ -257,3 +260,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
