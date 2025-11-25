@@ -1,16 +1,17 @@
-# auth.py — versão final opção B (hash + JS) — compatível com supabase-py antigo
+# auth.py — versão com OPÇÃO A (fluxo de recuperação de senha via HTTP manual)
 import streamlit as st
 from supabase import create_client
 from PIL import Image
 import re
 import uuid
+import requests
 
 # ==========================
 # CONFIGURAÇÕES BÁSICAS
 # ==========================
 SITE_URL = "https://inteligenciafinanceira.streamlit.app"
 RESET_ROUTE = "/reset-password"
-RESET_REDIRECT = SITE_URL + RESET_ROUTE   # usado apenas no template, não no SDK
+RESET_REDIRECT = SITE_URL + RESET_ROUTE   # usado no e-mail
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -21,7 +22,6 @@ LOGO_URL = "FinanceAI_1.png"
 # ==========================
 # FUNÇÕES AUXILIARES
 # ==========================
-
 def format_cnpj(raw: str) -> str:
     digits = re.sub(r"\D", "", (raw or ""))
     if len(digits) != 14:
@@ -29,10 +29,6 @@ def format_cnpj(raw: str) -> str:
     return f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"
 
 def inject_js_hash_to_query():
-    """
-    Converte URLs com #access_token=... para ?access_token=...
-    Necessário para que Streamlit leia corretamente os tokens.
-    """
     js = """
     <script>
     (function(){
@@ -164,7 +160,7 @@ def login_page():
             except Exception as e:
                 st.error(f"Erro ao criar conta: {e}")
 
-    # RECUPERAR SENHA — versão compatível com supabase-py antigo
+    # RECUPERAÇÃO DE SENHA — OPÇÃO A (HTTP MANUAL)
     else:
         email = st.text_input("E-mail cadastrado")
         if st.button("Enviar redefinição"):
@@ -172,19 +168,28 @@ def login_page():
                 st.warning("Informe o e-mail.")
             else:
                 try:
-                    # MODELO ANTIGO → aceita SOMENTE email (string)
-                    supabase.auth.reset_password_for_email(email)
+                    url = f"{SUPABASE_URL}/auth/v1/recover"
+                    headers = {
+                        "apikey": SUPABASE_KEY,
+                        "Content-Type": "application/json",
+                    }
+                    payload = {
+                        "email": email,
+                        "redirect_to": RESET_REDIRECT
+                    }
 
-                    st.success("E-mail enviado. Verifique sua caixa de entrada.")
-                    st.info(
-                        "IMPORTANTE: No template do e-mail, use {{ .AccessToken }} e {{ .RefreshToken }} "
-                        "para que a redefinição funcione."
-                    )
+                    r = requests.post(url, json=payload, headers=headers)
+
+                    if r.status_code == 200:
+                        st.success("E-mail enviado. Verifique sua caixa de entrada.")
+                    else:
+                        st.error(f"Erro ao solicitar redefinição: {r.text}")
+
                 except Exception as e:
                     st.error(f"Erro ao solicitar redefinição: {e}")
 
 # ==========================
-# PÁGINA DE REDEFINIÇÃO (CORRIGIDA)
+# PÁGINA DE REDEFINIÇÃO
 # ==========================
 def reset_password_page():
     inject_js_hash_to_query()
@@ -206,7 +211,6 @@ def reset_password_page():
             st.error("As senhas não coincidem.")
             return
 
-        # restaurar sessão usando AccessToken + RefreshToken
         try:
             tokens = {"access_token": access_token}
             if refresh_token:
@@ -216,10 +220,8 @@ def reset_password_page():
 
         except Exception as e:
             st.error(f"Erro ao restaurar sessão: {e}")
-            st.info("Seu template precisa incluir AccessToken e RefreshToken.")
             return
 
-        # atualizar a senha
         try:
             supabase.auth.update_user({"password": nova})
             st.success("Senha redefinida com sucesso! Agora você pode fazer login.")
