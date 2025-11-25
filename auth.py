@@ -28,7 +28,6 @@ def format_cnpj(raw: str) -> str:
         return raw
     return f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"
 
-
 def inject_js_hash_to_query():
     """
     Insere JS que converte URL com hash (#access_token=...) em query (?access_token=...)
@@ -49,13 +48,11 @@ def inject_js_hash_to_query():
     """
     st.components.v1.html(js, height=0)
 
-
 def _safe_rerun():
     if hasattr(st, "rerun"):
         st.rerun()
     elif hasattr(st, "experimental_rerun"):
         st.experimental_rerun()
-
 
 # ==========================
 # HEADER
@@ -85,7 +82,6 @@ def load_header(show_user=True):
     except Exception:
         st.title("Análise Financeira Inteligente")
         st.markdown("---")
-
 
 # ==========================
 # LOGIN / CADASTRO / RECUPERAÇÃO
@@ -177,7 +173,6 @@ def login_page():
                 st.warning("Informe o e-mail.")
             else:
                 try:
-                    # SDK espera dicionário com email e redirect_to
                     supabase.auth.reset_password_for_email({
                         "email": email,
                         "redirect_to": RESET_REDIRECT
@@ -187,23 +182,20 @@ def login_page():
                 except Exception as e:
                     st.error(f"Erro ao solicitar redefinição: {e}")
 
-
 # ==========================
-# PÁGINA DE REDEFINIÇÃO (OPÇÃO B - HASH)
+# PÁGINA DE REDEFINIÇÃO (CORRIGIDA)
 # ==========================
 def reset_password_page():
-    # garante que, se o link vier com #access_token=..., o JS converta para ?access_token=...
     inject_js_hash_to_query()
     st.title("Redefinição de senha")
 
     params = st.experimental_get_query_params()
-    # tentar capturar token em diferentes chaves
     access_token = params.get("access_token", [None])[0] or params.get("token", [None])[0]
-    refresh_token = params.get("refresh_token", [None])[0] or params.get("refresh_token", [None])[0]
+    refresh_token = params.get("refresh_token", [None])[0]
 
     if not access_token:
         st.warning("Token não detectado. Abra o link de recuperação enviado por e-mail.")
-        st.write("Se o link estiver correto, ele deve conter `access_token` e `refresh_token` (ou pelo menos `access_token`).")
+        st.write("Se o link estiver correto, ele deve conter access_token e refresh_token.")
         return
 
     nova = st.text_input("Nova senha", type="password")
@@ -214,36 +206,30 @@ def reset_password_page():
             st.error("As senhas não coincidem.")
             return
 
+        # ===========================================================
+        # CORREÇÃO: exchange_token() substitui set_session()
+        # ===========================================================
         try:
-            # Prioriza chamada positional (access, refresh) se refresh presente
             if refresh_token:
-                try:
-                    supabase.auth.set_session(access_token, refresh_token)
-                except TypeError:
-                    # algumas versões da SDK aceitam dicionário
-                    try:
-                        supabase.auth.set_session({"access_token": access_token, "refresh_token": refresh_token})
-                    except Exception:
-                        raise
+                supabase.auth.exchange_token({
+                    "access_token": access_token,
+                    "refresh_token": refresh_token
+                })
             else:
-                # Sem refresh_token: tenta setar apenas com access (algumas SDKs não permitem)
-                try:
-                    supabase.auth.set_session(access_token)
-                except TypeError:
-                    # se falhar, tenta com dicionário sem refresh
-                    try:
-                        supabase.auth.set_session({"access_token": access_token})
-                    except Exception:
-                        st.error("Impossível setar sessão: refresh_token ausente. Atualize seu template para incluir {{ .RefreshToken }}.")
-                        return
+                supabase.auth.exchange_token({
+                    "access_token": access_token
+                })
+        except Exception as e:
+            st.error(f"Erro ao restaurar sessão: {e}")
+            st.info("O link precisa conter access_token e refresh_token. Atualize o template do Supabase se necessário.")
+            return
 
-            # agora atualiza a senha
+        # agora atualiza a senha
+        try:
             supabase.auth.update_user({"password": nova})
             st.success("Senha redefinida com sucesso! Faça login com a nova senha.")
         except Exception as e:
-            st.error(f"Erro ao redefinir senha: {e}")
-            st.info("Verifique se o link contém access_token e refresh_token. Se não, atualize o template do Supabase para incluir {{ .RefreshToken }}.")
-
+            st.error(f"Erro ao atualizar senha: {e}")
 
 # ==========================
 # LOGOUT
@@ -256,18 +242,15 @@ def logout():
     st.session_state.clear()
     _safe_rerun()
 
-
 # ==========================
 # MAIN
 # ==========================
 def main():
     params = st.experimental_get_query_params()
-    # detecta todos os formatos possíveis
     if ("access_token" in params) or ("token" in params) or (params.get("type", [""])[0] == "recovery"):
         reset_password_page()
         return
     login_page()
-
 
 if __name__ == "__main__":
     main()
