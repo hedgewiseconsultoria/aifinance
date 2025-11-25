@@ -122,7 +122,6 @@ def login_page():
                     st.error("E-mail ou senha incorretos")
                     return
                 st.session_state["user"] = user
-                # garante perfil mínimo
                 try:
                     supabase.table("users_profiles").upsert({"id": user.get("id"), "plano": "free"}).execute()
                 except Exception:
@@ -173,12 +172,13 @@ def login_page():
                 st.warning("Informe o e-mail.")
             else:
                 try:
-                    supabase.auth.reset_password_for_email({
-                        "email": email,
-                        "redirect_to": RESET_REDIRECT
-                    })
+                    # CORRETO: email como string, redirect_to como argumento nomeado
+                    supabase.auth.reset_password_for_email(
+                        email=email,
+                        redirect_to=RESET_REDIRECT
+                    )
                     st.success("E-mail enviado. Verifique sua caixa de entrada.")
-                    st.info("Se o link não vier com token, atualize o template Reset Password para usar RedirectTo + Token/RefreshToken.")
+                    st.info("Se o link não vier com token, atualize o template Reset Password para incluir Token e RefreshToken.")
                 except Exception as e:
                     st.error(f"Erro ao solicitar redefinição: {e}")
 
@@ -224,7 +224,7 @@ def reset_password_page():
             st.info("O link precisa conter access_token e refresh_token. Atualize o template do Supabase se necessário.")
             return
 
-        # agora atualiza a senha
+        # atualizar senha
         try:
             supabase.auth.update_user({"password": nova})
             st.success("Senha redefinida com sucesso! Faça login com a nova senha.")
