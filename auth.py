@@ -1,4 +1,4 @@
-# auth.py — versão final opção B (hash + JS) — mantém layout e fluxo de reset
+# auth.py — versão final opção B (hash + JS) — compatível com supabase-py antigo
 import streamlit as st
 from supabase import create_client
 from PIL import Image
@@ -10,7 +10,7 @@ import uuid
 # ==========================
 SITE_URL = "https://inteligenciafinanceira.streamlit.app"
 RESET_ROUTE = "/reset-password"
-RESET_REDIRECT = SITE_URL + RESET_ROUTE
+RESET_REDIRECT = SITE_URL + RESET_ROUTE   # usado apenas no template, não no SDK
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -30,8 +30,8 @@ def format_cnpj(raw: str) -> str:
 
 def inject_js_hash_to_query():
     """
-    Insere JS que converte URL com hash (#access_token=...) em query (?access_token=...)
-    Deve ser executado cedo no ciclo de renderização do Streamlit para que params fiquem acessíveis.
+    Converte URLs com #access_token=... para ?access_token=...
+    Necessário para que Streamlit leia corretamente os tokens.
     """
     js = """
     <script>
@@ -164,7 +164,7 @@ def login_page():
             except Exception as e:
                 st.error(f"Erro ao criar conta: {e}")
 
-    # RECUPERAR SENHA
+    # RECUPERAR SENHA — versão compatível com supabase-py antigo
     else:
         email = st.text_input("E-mail cadastrado")
         if st.button("Enviar redefinição"):
@@ -172,13 +172,14 @@ def login_page():
                 st.warning("Informe o e-mail.")
             else:
                 try:
-                    # CORRETO: email como string, redirect_to como argumento nomeado
-                    supabase.auth.reset_password_for_email(
-                        email=email,
-                        redirect_to=RESET_REDIRECT
-                    )
+                    # MODELO ANTIGO → aceita SOMENTE email (string)
+                    supabase.auth.reset_password_for_email(email)
+
                     st.success("E-mail enviado. Verifique sua caixa de entrada.")
-                    st.info("Se o link não vier com token, atualize o template Reset Password para incluir Token e RefreshToken.")
+                    st.info(
+                        "IMPORTANTE: No template do e-mail, use {{ .AccessToken }} e {{ .RefreshToken }} "
+                        "para que a redefinição funcione."
+                    )
                 except Exception as e:
                     st.error(f"Erro ao solicitar redefinição: {e}")
 
@@ -190,12 +191,11 @@ def reset_password_page():
     st.title("Redefinição de senha")
 
     params = st.experimental_get_query_params()
-    access_token = params.get("access_token", [None])[0] or params.get("token", [None])[0]
+    access_token = params.get("access_token", [None])[0]
     refresh_token = params.get("refresh_token", [None])[0]
 
     if not access_token:
         st.warning("Token não detectado. Abra o link de recuperação enviado por e-mail.")
-        st.write("Se o link estiver correto, ele deve conter access_token e refresh_token.")
         return
 
     nova = st.text_input("Nova senha", type="password")
@@ -206,28 +206,23 @@ def reset_password_page():
             st.error("As senhas não coincidem.")
             return
 
-        # ===========================================================
-        # CORREÇÃO: exchange_token() substitui set_session()
-        # ===========================================================
+        # restaurar sessão usando AccessToken + RefreshToken
         try:
+            tokens = {"access_token": access_token}
             if refresh_token:
-                supabase.auth.exchange_token({
-                    "access_token": access_token,
-                    "refresh_token": refresh_token
-                })
-            else:
-                supabase.auth.exchange_token({
-                    "access_token": access_token
-                })
+                tokens["refresh_token"] = refresh_token
+
+            supabase.auth.exchange_token(tokens)
+
         except Exception as e:
             st.error(f"Erro ao restaurar sessão: {e}")
-            st.info("O link precisa conter access_token e refresh_token. Atualize o template do Supabase se necessário.")
+            st.info("Seu template precisa incluir AccessToken e RefreshToken.")
             return
 
-        # atualizar senha
+        # atualizar a senha
         try:
             supabase.auth.update_user({"password": nova})
-            st.success("Senha redefinida com sucesso! Faça login com a nova senha.")
+            st.success("Senha redefinida com sucesso! Agora você pode fazer login.")
         except Exception as e:
             st.error(f"Erro ao atualizar senha: {e}")
 
