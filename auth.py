@@ -1,19 +1,20 @@
-# auth.py — versão FINAL (OPÇÃO A DEFINITIVA)
-# Fluxo de reset simplificado e 100% compatível com Streamlit Cloud
+# ============================================================
+# auth.py — Fluxo completo de autenticação + reset password
+# Revisado e corrigido para uso com Streamlit + Supabase (2025)
+# ============================================================
 
 import streamlit as st
 from supabase import create_client
 from PIL import Image
 import re
 import uuid
-import requests
-from urllib.parse import urlparse, parse_qs
 
 # ==========================
 # CONFIGURAÇÕES
 # ==========================
+
 SITE_URL = "https://inteligenciafinanceira.streamlit.app"
-RESET_URL = SITE_URL + "/?reset=1"     # <- único caminho estável no Streamlit
+RESET_URL = SITE_URL + "/?reset=1"  # URL autorizada no painel do Supabase
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -21,14 +22,17 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 LOGO_URL = "FinanceAI_1.png"
 
+
 # ==========================
 # AUXILIARES
 # ==========================
+
 def _safe_rerun():
     if hasattr(st, "rerun"):
         st.rerun()
     else:
         st.experimental_rerun()
+
 
 def format_cnpj(raw: str) -> str:
     digits = re.sub(r"\D", "", (raw or ""))
@@ -36,9 +40,11 @@ def format_cnpj(raw: str) -> str:
         return raw
     return f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"
 
+
 # ==========================
-# HEADER UI
+# HEADER
 # ==========================
+
 def load_header(show_user=True):
     try:
         logo = Image.open(LOGO_URL)
@@ -47,10 +53,12 @@ def load_header(show_user=True):
             st.image(logo, width=600)
         with col2:
             st.markdown(
-                '<div style="font-size:28px; font-weight:600; color:#0A2342; margin-top:0.2em;">Análise Financeira Inteligente</div>',
+                '<div style="font-size:28px; font-weight:600; color:#0A2342; margin-top:0.2em;">'
+                'Análise Financeira Inteligente</div>',
                 unsafe_allow_html=True,
             )
             st.caption("Traduzindo números em histórias que façam sentido...")
+
             if show_user and "user" in st.session_state:
                 user = st.session_state.get("user")
                 email = user.get("email")
@@ -60,70 +68,87 @@ def load_header(show_user=True):
                 with colB:
                     if st.button("Sair", use_container_width=True):
                         logout()
+
         st.markdown("---")
+
     except Exception:
         st.title("Análise Financeira Inteligente")
         st.markdown("---")
 
+
 # ==========================
-# LOGIN / CADASTRO / RECUPERAÇÃO
+# LOGIN / CADASTRO / RESET
 # ==========================
+
 def login_page():
     load_header(show_user=False)
 
-    st.markdown(
-        """
+    st.markdown("""
         <style>
-        input[type="email"], input[type="password"], input[type="text"] {
-            border: 1px solid #0A2342 !important;
-            border-radius: 6px !important;
-            padding: 8px 10px !important;
-        }
-        input:focus {
-            border-color: #007BFF !important;
-            box-shadow: 0 0 4px #007BFF !important;
-        }
-        button[kind="primary"] {
-            background-color: #0A2342 !important;
-            color: white !important;
-            border-radius: 6px !important;
-        }
+            input[type="email"], input[type="password"], input[type="text"] {
+                border: 1px solid #0A2342 !important;
+                border-radius: 6px !important;
+                padding: 8px 10px !important;
+            }
+            input:focus {
+                border-color: #007BFF !important;
+                box-shadow: 0 0 4px #007BFF !important;
+            }
+            button[kind="primary"] {
+                background-color: #0A2342 !important;
+                color: white !important;
+                border-radius: 6px !important;
+            }
         </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
     st.subheader("Acesso ao sistema")
     aba = st.radio("", ["Entrar", "Criar Conta", "Esqueci a Senha"], horizontal=True)
 
+    # --------------------------
     # LOGIN
+    # --------------------------
     if aba == "Entrar":
         email = st.text_input("E-mail")
         senha = st.text_input("Senha", type="password")
+
         if st.button("Entrar"):
             if not email or not senha:
                 st.warning("Informe e-mail e senha.")
                 return
+
             try:
-                res = supabase.auth.sign_in_with_password({"email": email, "password": senha})
+                res = supabase.auth.sign_in_with_password({
+                    "email": email,
+                    "password": senha
+                })
+
                 user = res.get("user")
                 if not user:
-                    st.error("E-mail ou senha incorretos")
+                    st.error("E-mail ou senha incorretos.")
                     return
+
                 st.session_state["user"] = user
+
+                # garante que o user_profile exista
                 try:
                     supabase.table("users_profiles").upsert(
                         {"id": user.get("id"), "plano": "free"}
                     ).execute()
                 except:
                     pass
+
                 _safe_rerun()
+
             except Exception as e:
                 st.error(f"Erro: {e}")
 
+    # --------------------------
     # CRIAR CONTA
+    # --------------------------
     elif aba == "Criar Conta":
         st.info("Preencha os dados para criar sua conta.")
+
         email = st.text_input("E-mail para cadastro")
         senha = st.text_input("Crie uma senha forte", type="password")
         nome = st.text_input("Nome completo")
@@ -139,55 +164,62 @@ def login_page():
             if not email or not senha or not nome:
                 st.warning("Preencha e-mail, senha e nome.")
                 return
+
             try:
                 res = supabase.auth.sign_up({"email": email, "password": senha})
                 user = res.user or {}
+
                 supabase.table("users_profiles").upsert({
                     "id": user.get("id", str(uuid.uuid4())),
                     "nome": nome,
                     "empresa": empresa,
                     "cnpj": format_cnpj(cnpj_field),
                     "socios": socios,
-                    "plano": plano
+                    "plano": plano,
                 }).execute()
-                st.success("Conta criada. Verifique seu e-mail para confirmar o cadastro.")
+
+                st.success("Conta criada! Verifique seu e-mail para confirmar o cadastro.")
+
             except Exception as e:
                 st.error(f"Erro ao criar conta: {e}")
 
-    # RECUPERAÇÃO (via HTTP manual)
+    # --------------------------
+    # ESQUECI A SENHA (CORRIGIDO)
+    # --------------------------
     else:
         email = st.text_input("E-mail cadastrado")
+
         if st.button("Enviar redefinição"):
             if not email:
                 st.warning("Informe o e-mail.")
                 return
 
             try:
-                r = requests.post(
-                    f"{SUPABASE_URL}/auth/v1/recover",
-                    json={"email": email, "redirect_to": RESET_URL},
-                    headers={"apikey": SUPABASE_KEY, "Content-Type": "application/json"},
-                    timeout=10,
+                # MÉTODO OFICIAL SUPABASE (2025)
+                supabase.auth.reset_password_for_email(
+                    email,
+                    options={"redirect_to": RESET_URL}
                 )
-                if r.status_code in (200, 204):
-                    st.success("E-mail enviado. Verifique sua caixa de entrada.")
-                else:
-                    st.error(str(r.text))
+
+                st.success("E-mail enviado! Verifique sua caixa de entrada.")
+
             except Exception as e:
                 st.error(f"Erro ao solicitar redefinição: {e}")
+
 
 # ==========================
 # PÁGINA DE REDEFINIÇÃO
 # ==========================
+
 def reset_password_page():
-    st.title("Redefinição de senha")
+    st.title("Redefinição de Senha")
 
     params = st.experimental_get_query_params()
     access_token = params.get("access_token", [None])[0]
     refresh_token = params.get("refresh_token", [None])[0]
 
     if not access_token:
-        st.info("Clique no botão do e-mail para abrir a página de redefinição com os tokens corretos.")
+        st.info("Clique no link enviado ao seu e-mail.")
         return
 
     nova = st.text_input("Nova senha", type="password")
@@ -199,6 +231,7 @@ def reset_password_page():
             return
 
         try:
+            # autentica com o token de recuperação
             supabase.auth.exchange_token({
                 "access_token": access_token,
                 "refresh_token": refresh_token
@@ -212,9 +245,11 @@ def reset_password_page():
         except Exception as e:
             st.error(f"Erro ao atualizar senha: {e}")
 
+
 # ==========================
 # LOGOUT
 # ==========================
+
 def logout():
     try:
         supabase.auth.sign_out()
@@ -223,21 +258,21 @@ def logout():
     st.session_state.clear()
     _safe_rerun()
 
+
 # ==========================
 # MAIN
 # ==========================
+
 def main():
     params = st.experimental_get_query_params()
 
-    if "reset" in params:
-        reset_password_page()
-        return
-
-    if "access_token" in params:
+    # entra direto na página de reset se houver tokens
+    if "reset" in params or "access_token" in params:
         reset_password_page()
         return
 
     login_page()
+
 
 if __name__ == "__main__":
     main()
