@@ -292,7 +292,10 @@ def load_header():
 
 params = st.experimental_get_query_params()
 
-if "reset" in params:
+# Verifica se é um fluxo de redefinição de senha
+# O Streamlit deve exibir a página de redefinição se houver o parâmetro 'reset'
+# OU se houver os tokens de autenticação (após o redirecionamento do JS)
+if "reset" in params or "access_token" in params:
     reset_password_page()
     st.stop()
 
