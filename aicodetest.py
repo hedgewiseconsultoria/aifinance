@@ -292,21 +292,18 @@ def load_header():
 
 params = st.experimental_get_query_params()
 
-# Verifica se é um fluxo de redefinição de senha
-# O Streamlit deve exibir a página de redefinição se houver o parâmetro 'reset'
-# OU se houver os tokens de autenticação (após o redirecionamento do JS)
-if "reset" in params or "access_token" in params:
-    reset_password_page()
-    st.stop()
-
-# Se for fluxo de redefinição, não bloquear com login
-if (
-    "access_token" in params
-    or "token" in params
+# 🔥 INÍCIO DO AJUSTE: Tratar o fluxo de redefinição de senha
+is_reset_flow = (
+    "reset" in params
+    or "access_token" in params
+    or "refresh_token" in params
     or params.get("type", [""])[0] == "recovery"
-):
+)
+
+if is_reset_flow:
     reset_password_page()
     st.stop()
+# 🔥 FIM DO AJUSTE
 
 # Se usuário não logado → tela de login
 if "user" not in st.session_state:
@@ -315,7 +312,9 @@ if "user" not in st.session_state:
 
 # Se logado → interface normal
 user = st.session_state["user"]
-st.sidebar.write(f"Olá, {getattr(user, 'email', user.get('email') if isinstance(user, dict) else '')}")
+# Note: user pode ser um objeto de autenticação ou um dicionário.
+user_email = getattr(user, 'email', user.get('email', '')) if isinstance(user, dict) or hasattr(user, 'email') else ''
+st.sidebar.write(f"Olá, {user_email}")
 
 if st.sidebar.button("Sair"):
     logout()
@@ -434,7 +433,8 @@ if page == "Upload e Extração":
     # Exibir lista de extratos já carregados (ID, nome_arquivo, criado_em)
     st.subheader("Extratos já carregados")
     try:
-        extratos_existentes = supabase.table("extratos").select("id, nome_arquivo, criado_em").eq("user_id", user.id).order("criado_em", desc=True).execute()
+        user_id = user.id if hasattr(user, "id") else user.get("id")
+        extratos_existentes = supabase.table("extratos").select("id, nome_arquivo, criado_em").eq("user_id", user_id).order("criado_em", desc=True).execute()
         extratos_data = getattr(extratos_existentes, "data", extratos_existentes)
         if not extratos_data:
             st.info("Nenhum extrato carregado ainda.")
@@ -512,14 +512,15 @@ elif page == "Revisão de Dados":
 
                 # delete old transactions of user
                 try:
-                    supabase.table("transacoes").delete().eq("user_id", user.id).execute()
+                    user_id = user.id if hasattr(user, "id") else user.get("id")
+                    supabase.table("transacoes").delete().eq("user_id", user_id).execute()
                 except Exception:
                     st.warning("Aviso: não foi possível deletar transações antigas no Supabase (verifique permissões). Prosseguindo para inserção.")
 
                 # inserir novas transacoes (mantendo extrato_id)
                 records = df_to_save.to_dict(orient="records")
                 for rec in records:
-                    rec["user_id"] = user.id
+                    rec["user_id"] = user_id
                     if "extrato_id" not in rec:
                         rec["extrato_id"] = None
                 try:
@@ -562,7 +563,8 @@ elif page == "Dashboard & Relatórios":
             else:
                 data_inicial_iso = data_inicial.strftime('%Y-%m-%d')
                 data_final_iso = data_final.strftime('%Y-%m-%d')
-                resultado = supabase.table("transacoes").select("*").eq("user_id", user.id).gte("data", data_inicial_iso).lte("data", data_final_iso).execute()
+                user_id = user.id if hasattr(user, "id") else user.get("id")
+                resultado = supabase.table("transacoes").select("*").eq("user_id", user_id).gte("data", data_inicial_iso).lte("data", data_final_iso).execute()
                 resultado_data = getattr(resultado, "data", resultado)
                 if not resultado_data:
                     st.warning("Nenhuma transação encontrada no período selecionado.")
