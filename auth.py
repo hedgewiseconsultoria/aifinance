@@ -212,13 +212,112 @@ def login_page():
 def reset_password_page():
     st.title("Redefinição de Senha")
 
+    # 1. Tenta obter os tokens do fragmento da URL (hash) via JavaScript
+    js_code = """
+    <script>
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        
+        // Armazena no localStorage para o Python ler
+        if (accessToken) {
+            localStorage.setItem('supabase_access_token', accessToken);
+            localStorage.setItem('supabase_refresh_token', refreshToken);
+            // Limpa o hash da URL para evitar que o Streamlit recarregue em loop
+            window.history.replaceState(null, null, window.location.pathname + window.location.search);
+        }
+    </script>
+    """
+    st.components.v1.html(js_code, height=0)
+
+    # 2. Tenta ler os tokens do localStorage (onde o JS os colocou)
+    # Nota: O Streamlit não tem acesso direto ao localStorage.
+    # A maneira mais simples é forçar o usuário a clicar no botão de redefinição
+    # para que o JS tenha tempo de executar e o Streamlit possa tentar ler
+    # os tokens do query params na próxima execução, se o JS os tivesse movido.
+    # No entanto, a abordagem mais robusta é usar o st.session_state.
+    
+    # Para simplificar, vamos confiar que o Supabase injeta os tokens no query params
+    # ou que o JS fará o trabalho. Mas a principal correção é a lógica de erro.
+    
     params = st.experimental_get_query_params()
     access_token = params.get("access_token", [None])[0]
     refresh_token = params.get("refresh_token", [None])[0]
 
-    # Sempre mostra o formulário — Supabase só envia token depois
-    nova = st.text_input("Nova senha", type="password")
-    nova2 = st.text_input("Repita a nova senha", type="password")
+    # Se o JS não funcionar, vamos tentar ler do localStorage via um truque
+    # ou simplesmente aceitar que o Supabase injeta no query params.
+    # O problema é que o Supabase INJETA NO FRAGMENTO (#), e o Streamlit só lê QUERY PARAMS (?).
+    # A solução mais limpa é forçar o Supabase a usar QUERY PARAMS.
+    # Como não podemos mudar o Supabase, vamos forçar o JS a mover o token para o query param.
+    
+    # CORREÇÃO: O JS acima move o token para o localStorage e limpa o hash.
+    # O Streamlit precisa ler o token do localStorage.
+    # Como o Streamlit não tem acesso direto ao localStorage, a solução mais comum
+    # é fazer o JS redirecionar para a mesma página, mas com os tokens no QUERY PARAM.
+    
+    # Vamos reverter a lógica de extração para a original, mas adicionar o JS
+    # que fará o redirecionamento para a mesma página com os tokens no QUERY PARAM.
+    
+    # Lógica de extração original:
+    # params = st.experimental_get_query_params()
+    # access_token = params.get("access_token", [None])[0]
+    # refresh_token = params.get("refresh_token", [None])[0]
+    
+    # O código abaixo é a correção do fluxo de tokens:
+    js_code_fix = """
+    <script>
+        const hash = window.location.hash;
+        if (hash.includes('access_token') && !window.location.search.includes('access_token')) {
+            const params = new URLSearchParams(hash.substring(1));
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+            
+            // Redireciona para a mesma URL, mas com os tokens no query param
+            window.location.href = window.location.origin + window.location.pathname + 
+                                   '?reset=1&access_token=' + accessToken + 
+                                   '&refresh_token=' + refreshToken;
+        }
+    </script>
+    """
+    st.components.v1.html(js_code_fix, height=0)
+    
+    # Após o redirecionamento, o Streamlit recarrega e os tokens estarão no query param.
+    # O código Python abaixo lerá os tokens corretamente.
+    # O Supabase injeta os tokens no fragmento (#), mas o Streamlit só lê o query param (?).
+    # Este bloco de código JavaScript lê o fragmento e redireciona para a mesma página,
+    # mas com os tokens no query param, forçando o Streamlit a recarregar e capturá-los.
+    js_code_fix = """
+    <script>
+        const hash = window.location.hash;
+        // Verifica se há tokens no hash e se eles AINDA NÃO estão no query param
+        if (hash.includes('access_token') && !window.location.search.includes('access_token')) {
+            const params = new URLSearchParams(hash.substring(1));
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+            
+            // Redireciona para a mesma URL, mas com os tokens no query param
+            // Isso força o Streamlit a recarregar e o Python a ler os tokens
+            window.location.href = window.location.origin + window.location.pathname + 
+                                   '?reset=1&access_token=' + accessToken + 
+                                   '&refresh_token=' + refreshToken;
+        }
+    </script>
+    """
+    st.components.v1.html(js_code_fix, height=0)
+    
+    # Após o redirecionamento (se necessário), o Streamlit recarrega e o Python lê os tokens.
+    params = st.experimental_get_query_params()
+    access_token = params.get("access_token", [None])[0]
+    refresh_token = params.get("refresh_token", [None])[0]
+
+    # O formulário só deve aparecer se os tokens estiverem presentes (após o redirecionamento)
+    if access_token and refresh_token:
+        nova = st.text_input("Nova senha", type="password")
+        nova2 = st.text_input("Repita a nova senha", type="password")
+    else:
+        # Se não houver tokens, exibe a mensagem de espera/erro
+        st.warning("Aguardando tokens de redefinição... Se você acabou de clicar no link do e-mail, aguarde o redirecionamento automático.")
+        st.stop() # Interrompe a execução do script para evitar que o botão seja renderizado sem tokens.
 
     if st.button("Redefinir senha"):
         if nova != nova2:
@@ -226,8 +325,10 @@ def reset_password_page():
             return
 
         # 1. Verifica se os tokens estão presentes na URL
+        # Esta verificação é redundante após a lógica de st.stop() acima,
+        # mas mantida para segurança.
         if not access_token or not refresh_token:
-            st.error("Erro: Tokens de redefinição não encontrados na URL. Tente novamente.")
+            st.error("Erro: Tokens de redefinição não encontrados na URL. Por favor, clique no link do e-mail novamente.")
             return
 
         # 2. Define a nova senha
