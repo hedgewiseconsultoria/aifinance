@@ -316,8 +316,15 @@ def reset_password_page():
         nova2 = st.text_input("Repita a nova senha", type="password")
     else:
         # Se não houver tokens, exibe a mensagem de espera/erro
-        st.warning("Aguardando tokens de redefinição... Se você acabou de clicar no link do e-mail, aguarde o redirecionamento automático.")
-        st.stop() # Interrompe a execução do script para evitar que o botão seja renderizado sem tokens.
+        # A mensagem de espera só deve ser exibida se o parâmetro 'reset=1' estiver presente,
+        # indicando que o usuário veio do fluxo de redefinição, mas os tokens ainda não chegaram.
+        if "reset" in params:
+            st.warning("Aguardando tokens de redefinição... Se você acabou de clicar no link do e-mail, aguarde o redirecionamento automático.")
+            st.stop()
+        else:
+            # Caso contrário, é um acesso direto sem tokens e sem o parâmetro 'reset=1'
+            st.error("Acesso inválido à página de redefinição de senha.")
+            st.stop()
 
     if st.button("Redefinir senha"):
         if nova != nova2:
