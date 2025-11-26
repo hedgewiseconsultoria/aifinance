@@ -14,7 +14,11 @@ import uuid
 # ==========================
 
 SITE_URL = "https://inteligenciafinanceira.streamlit.app"
-RESET_URL = SITE_URL + "/?reset=1"  # URL autorizada no painel do Supabase
+# A URL de redirecionamento deve ser a URL base, sem o query param,
+# pois o Supabase adiciona o fragmento (#) com os tokens.
+# O query param '?reset=1' será adicionado no código principal (aicodetest)
+# para forçar a exibição da página de redefinição.
+RESET_URL = SITE_URL  # URL autorizada no painel do Supabase
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -296,10 +300,14 @@ def reset_password_page():
             const refreshToken = params.get('refresh_token');
             
             // Redireciona para a mesma URL, mas com os tokens no query param
-            // Isso força o Streamlit a recarregar e o Python a ler os tokens
-            window.location.href = window.location.origin + window.location.pathname + 
-                                   '?reset=1&access_token=' + accessToken + 
-                                   '&refresh_token=' + refreshToken;
+            // Adicionando um pequeno delay para garantir que o Streamlit não interfira
+            setTimeout(() => {
+                // A URL de redirecionamento deve ser a URL base, e o Streamlit
+                // deve ser capaz de lidar com o query param.
+                window.location.href = window.location.origin + window.location.pathname + 
+                                       '?access_token=' + accessToken + 
+                                       '&refresh_token=' + refreshToken;
+            }, 100); // 100ms de delay
         }
     </script>
     """
