@@ -93,7 +93,6 @@ st.set_page_config(
 )
 
 # 🔥 Ajuste essencial para reset password funcionar
-inject_js_hash_to_query()
 
 st.markdown(
     f"""
