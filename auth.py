@@ -130,7 +130,6 @@ def login_page():
 
                 st.session_state["user"] = user
 
-                # garante que o user_profile exista
                 try:
                     supabase.table("users_profiles").upsert(
                         {"id": user.get("id"), "plano": "free"}
@@ -184,7 +183,7 @@ def login_page():
                 st.error(f"Erro ao criar conta: {e}")
 
     # --------------------------
-    # ESQUECI A SENHA (CORRIGIDO)
+    # ESQUECI A SENHA
     # --------------------------
     else:
         email = st.text_input("E-mail cadastrado")
@@ -195,7 +194,6 @@ def login_page():
                 return
 
             try:
-                # MÉTODO OFICIAL SUPABASE (2025)
                 supabase.auth.reset_password_for_email(
                     email,
                     options={"redirect_to": RESET_URL}
@@ -208,7 +206,7 @@ def login_page():
 
 
 # ==========================
-# PÁGINA DE REDEFINIÇÃO
+# PÁGINA DE REDEFINIÇÃO (CORRIGIDA)
 # ==========================
 
 def reset_password_page():
@@ -218,10 +216,7 @@ def reset_password_page():
     access_token = params.get("access_token", [None])[0]
     refresh_token = params.get("refresh_token", [None])[0]
 
-    if not access_token:
-        st.info("Clique no link enviado ao seu e-mail.")
-        return
-
+    # Sempre mostra o formulário — Supabase só envia token depois
     nova = st.text_input("Nova senha", type="password")
     nova2 = st.text_input("Repita a nova senha", type="password")
 
@@ -230,8 +225,13 @@ def reset_password_page():
             st.error("As senhas não coincidem.")
             return
 
+        # 🔥 Se ainda não há token, Supabase ainda não completou o fluxo
+        if not access_token:
+            st.warning("Preparando redefinição... clique novamente em alguns segundos.")
+            st.stop()
+
+        # 🔥 Autenticar usando token de recuperação
         try:
-            # autentica com o token de recuperação
             supabase.auth.exchange_token({
                 "access_token": access_token,
                 "refresh_token": refresh_token
@@ -239,6 +239,7 @@ def reset_password_page():
         except:
             pass
 
+        # 🔥 Atualizar senha
         try:
             supabase.auth.update_user({"password": nova})
             st.success("Senha redefinida com sucesso! Agora você pode fazer login.")
@@ -266,11 +267,12 @@ def logout():
 def main():
     params = st.experimental_get_query_params()
 
-    # entra direto na página de reset se houver tokens
+    # captura fluxos de redefinição
     if "reset" in params or "access_token" in params:
         reset_password_page()
         return
 
+    # login
     login_page()
 
 
