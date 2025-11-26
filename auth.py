@@ -225,24 +225,28 @@ def reset_password_page():
             st.error("As senhas não coincidem.")
             return
 
-        # 🔥 Se ainda não há token, Supabase ainda não completou o fluxo
-        if not access_token:
-            st.warning("Preparando redefinição... clique novamente em alguns segundos.")
-            st.stop()
+        # 1. Verifica se os tokens estão presentes na URL
+        if not access_token or not refresh_token:
+            st.error("Erro: Tokens de redefinição não encontrados na URL. Tente novamente.")
+            return
 
-        # 🔥 Autenticar usando token de recuperação
+        # 2. Define a nova senha
         try:
-            supabase.auth.exchange_token({
-                "access_token": access_token,
-                "refresh_token": refresh_token
-            })
-        except:
-            pass
+            # O Supabase já deve ter autenticado o usuário via URL.
+            # Basta chamar o update_user.
+            # O `exchange_token` não é necessário e pode causar problemas.
+            res = supabase.auth.update_user({"password": nova})
+            
+            # 3. Verifica se a atualização foi bem-sucedida
+            if res.user:
+                st.success("Senha redefinida com sucesso! Você será redirecionado para a tela de login.")
+                # Limpa os parâmetros da URL para evitar loop e força o login_page
+                st.experimental_set_query_params()
+                st.session_state.clear()
+                _safe_rerun()
+            else:
+                st.error("Erro ao atualizar senha. O token pode ter expirado. Tente o processo de redefinição novamente.")
 
-        # 🔥 Atualizar senha
-        try:
-            supabase.auth.update_user({"password": nova})
-            st.success("Senha redefinida com sucesso! Agora você pode fazer login.")
         except Exception as e:
             st.error(f"Erro ao atualizar senha: {e}")
 
@@ -268,6 +272,7 @@ def main():
     params = st.experimental_get_query_params()
 
     # captura fluxos de redefinição
+    # Se houver 'reset' (do redirect_to) OU 'access_token' (do Supabase)
     if "reset" in params or "access_token" in params:
         reset_password_page()
         return
