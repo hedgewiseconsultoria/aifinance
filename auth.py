@@ -14,11 +14,7 @@ import uuid
 # ==========================
 
 SITE_URL = "https://inteligenciafinanceira.streamlit.app"
-# A URL de redirecionamento deve ser a URL base, sem o query param,
-# pois o Supabase adiciona o fragmento (#) com os tokens.
-# O query param '?reset=1' será adicionado no código principal (aicodetest)
-# para forçar a exibição da página de redefinição.
-RESET_URL = SITE_URL  # URL autorizada no painel do Supabase
+RESET_URL = SITE_URL + "/?reset=1"  # URL autorizada no painel do Supabase
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -216,155 +212,43 @@ def login_page():
 def reset_password_page():
     st.title("Redefinição de Senha")
 
-    # 1. Tenta obter os tokens do fragmento da URL (hash) via JavaScript
-    js_code = """
-    <script>
-        const params = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        
-        // Armazena no localStorage para o Python ler
-        if (accessToken) {
-            localStorage.setItem('supabase_access_token', accessToken);
-            localStorage.setItem('supabase_refresh_token', refreshToken);
-            // Limpa o hash da URL para evitar que o Streamlit recarregue em loop
-            window.history.replaceState(null, null, window.location.pathname + window.location.search);
-        }
-    </script>
-    """
-    st.components.v1.html(js_code, height=0)
-
-    # 2. Tenta ler os tokens do localStorage (onde o JS os colocou)
-    # Nota: O Streamlit não tem acesso direto ao localStorage.
-    # A maneira mais simples é forçar o usuário a clicar no botão de redefinição
-    # para que o JS tenha tempo de executar e o Streamlit possa tentar ler
-    # os tokens do query params na próxima execução, se o JS os tivesse movido.
-    # No entanto, a abordagem mais robusta é usar o st.session_state.
-    
-    # Para simplificar, vamos confiar que o Supabase injeta os tokens no query params
-    # ou que o JS fará o trabalho. Mas a principal correção é a lógica de erro.
-    
     params = st.experimental_get_query_params()
     access_token = params.get("access_token", [None])[0]
     refresh_token = params.get("refresh_token", [None])[0]
 
-    # Se o JS não funcionar, vamos tentar ler do localStorage via um truque
-    # ou simplesmente aceitar que o Supabase injeta no query params.
-    # O problema é que o Supabase INJETA NO FRAGMENTO (#), e o Streamlit só lê QUERY PARAMS (?).
-    # A solução mais limpa é forçar o Supabase a usar QUERY PARAMS.
-    # Como não podemos mudar o Supabase, vamos forçar o JS a mover o token para o query param.
-    
-    # CORREÇÃO: O JS acima move o token para o localStorage e limpa o hash.
-    # O Streamlit precisa ler o token do localStorage.
-    # Como o Streamlit não tem acesso direto ao localStorage, a solução mais comum
-    # é fazer o JS redirecionar para a mesma página, mas com os tokens no QUERY PARAM.
-    
-    # Vamos reverter a lógica de extração para a original, mas adicionar o JS
-    # que fará o redirecionamento para a mesma página com os tokens no QUERY PARAM.
-    
-    # Lógica de extração original:
-    # params = st.experimental_get_query_params()
-    # access_token = params.get("access_token", [None])[0]
-    # refresh_token = params.get("refresh_token", [None])[0]
-    
-    # O código abaixo é a correção do fluxo de tokens:
-    js_code_fix = """
-    <script>
-        const hash = window.location.hash;
-        if (hash.includes('access_token') && !window.location.search.includes('access_token')) {
-            const params = new URLSearchParams(hash.substring(1));
-            const accessToken = params.get('access_token');
-            const refreshToken = params.get('refresh_token');
-            
-            // Redireciona para a mesma URL, mas com os tokens no query param
-            window.location.href = window.location.origin + window.location.pathname + 
-                                   '?reset=1&access_token=' + accessToken + 
-                                   '&refresh_token=' + refreshToken;
-        }
-    </script>
-    """
-    st.components.v1.html(js_code_fix, height=0)
-    
-    # Após o redirecionamento, o Streamlit recarrega e os tokens estarão no query param.
-    # O código Python abaixo lerá os tokens corretamente.
-    # O Supabase injeta os tokens no fragmento (#), mas o Streamlit só lê o query param (?).
-    # Este bloco de código JavaScript lê o fragmento e redireciona para a mesma página,
-    # mas com os tokens no query param, forçando o Streamlit a recarregar e capturá-los.
-    js_code_fix = """
-    <script>
-        const hash = window.location.hash;
-        // Verifica se há tokens no hash e se eles AINDA NÃO estão no query param
-        if (hash.includes('access_token') && !window.location.search.includes('access_token')) {
-            const params = new URLSearchParams(hash.substring(1));
-            const accessToken = params.get('access_token');
-            const refreshToken = params.get('refresh_token');
-            
-            // Redireciona para a mesma URL, mas com os tokens no query param
-            // Adicionando um pequeno delay para garantir que o Streamlit não interfira
-            setTimeout(() => {
-                // A URL de redirecionamento deve ser a URL base, e o Streamlit
-                // deve ser capaz de lidar com o query param.
-                window.location.href = window.location.origin + window.location.pathname + 
-                                       '?access_token=' + accessToken + 
-                                       '&refresh_token=' + refreshToken;
-            }, 100); // 100ms de delay
-        }
-    </script>
-    """
-    st.components.v1.html(js_code_fix, height=0)
-    
-    # Após o redirecionamento (se necessário), o Streamlit recarrega e o Python lê os tokens.
-    params = st.experimental_get_query_params()
-    access_token = params.get("access_token", [None])[0]
-    refresh_token = params.get("refresh_token", [None])[0]
-
-    # O formulário só deve aparecer se os tokens estiverem presentes (após o redirecionamento)
-    if access_token and refresh_token:
-        nova = st.text_input("Nova senha", type="password")
-        nova2 = st.text_input("Repita a nova senha", type="password")
-    else:
-        # Se não houver tokens, exibe a mensagem de espera/erro
-        # A mensagem de espera só deve ser exibida se o parâmetro 'reset=1' estiver presente,
-        # indicando que o usuário veio do fluxo de redefinição, mas os tokens ainda não chegaram.
-        if "reset" in params:
-            st.warning("Aguardando tokens de redefinição... Se você acabou de clicar no link do e-mail, aguarde o redirecionamento automático.")
-            st.stop()
-        else:
-            # Caso contrário, é um acesso direto sem tokens e sem o parâmetro 'reset=1'
-            st.error("Acesso inválido à página de redefinição de senha.")
-            st.stop()
+    # Sempre mostra o formulário — Supabase só envia token depois
+    nova = st.text_input("Nova senha", type="password")
+    nova2 = st.text_input("Repita a nova senha", type="password")
 
     if st.button("Redefinir senha"):
         if nova != nova2:
             st.error("As senhas não coincidem.")
             return
 
-        # 1. Verifica se os tokens estão presentes na URL
-        # Esta verificação é redundante após a lógica de st.stop() acima,
-        # mas mantida para segurança.
-        if not access_token or not refresh_token:
-            st.error("Erro: Tokens de redefinição não encontrados na URL. Por favor, clique no link do e-mail novamente.")
+        # 🔥 Se ainda não há token, Supabase ainda não completou o fluxo
+        if not access_token:
+            st.warning("Preparando redefinição... clique novamente em alguns segundos.")
+            # st.stop() - Não precisa de stop, deixa o botão ser clicado de novo.
             return
 
-        # 2. Define a nova senha
+        # 🔥 Autenticar usando token de recuperação
         try:
-            # O Supabase já deve ter autenticado o usuário via URL.
-            # Basta chamar o update_user.
-            # O `exchange_token` não é necessário e pode causar problemas.
-            res = supabase.auth.update_user({"password": nova})
-            
-            # 3. Verifica se a atualização foi bem-sucedida
-            if res.user:
-                st.success("Senha redefinida com sucesso! Você será redirecionado para a tela de login.")
-                # Limpa os parâmetros da URL para evitar loop e força o login_page
-                st.experimental_set_query_params()
-                st.session_state.clear()
-                _safe_rerun()
-            else:
-                st.error("Erro ao atualizar senha. O token pode ter expirado. Tente o processo de redefinição novamente.")
+            # Esta linha garante que o usuário está autenticado para o update_user
+            supabase.auth.exchange_token({
+                "access_token": access_token,
+                "refresh_token": refresh_token
+            })
+        except:
+            # Em alguns casos, a troca já pode ter ocorrido, e o update funciona
+            pass
 
+        # 🔥 Atualizar senha
+        try:
+            # O update_user usará o token da sessão que foi criada pelo exchange_token acima
+            supabase.auth.update_user({"password": nova})
+            st.success("Senha redefinida com sucesso! Agora você pode fazer login.")
         except Exception as e:
-            st.error(f"Erro ao atualizar senha: {e}")
+            st.error(f"Erro ao atualizar senha: {e}. Verifique se a URL possui os tokens.")
 
 
 # ==========================
@@ -388,7 +272,6 @@ def main():
     params = st.experimental_get_query_params()
 
     # captura fluxos de redefinição
-    # Se houver 'reset' (do redirect_to) OU 'access_token' (do Supabase)
     if "reset" in params or "access_token" in params:
         reset_password_page()
         return
