@@ -38,7 +38,7 @@ PLANO_DE_CONTAS = {
                 {"codigo": "OP-04", "nome": "Custos Operacionais"},
                 {"codigo": "OP-05", "nome": "Despesas Administrativas"},
                 {"codigo": "OP-06", "nome": "Despesas Comerciais"},
-                {"codigo": "OP-07", "nome": "Despesas Pessoais Misturadas"},
+                {"codigo": "OP-07", "nome": "Despesas com Pessoal"},
                 {"codigo": "OP-08", "nome": "Impostos e Contribuições"},
                 {"codigo": "OP-09", "nome": "Tarifas Bancárias e Serviços"}
             ]
@@ -62,7 +62,7 @@ PLANO_DE_CONTAS = {
                 {"codigo": "FIN-02", "nome": "Pagamento de Empréstimos"},
                 {"codigo": "FIN-03", "nome": "Juros sobre Empréstimos e Financiamentos"},
                 {"codigo": "FIN-04", "nome": "Aporte de Sócios"},
-                {"codigo": "FIN-05", "nome": "Retirada de Sócios / Pró-labore"}
+                {"codigo": "FIN-05", "nome": "Retirada de Sócios / Pró-labore e Despesas Pessoais"}
             ]
         },
         {
@@ -291,6 +291,10 @@ def load_header():
 # --------------------------
 
 params = st.experimental_get_query_params()
+
+if "reset" in params:
+    reset_password_page()
+    st.stop()
 
 # Se for fluxo de redefinição, não bloquear com login
 if (
