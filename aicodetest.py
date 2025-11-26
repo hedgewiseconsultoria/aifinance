@@ -17,8 +17,7 @@ from auth import (
     logout,
     supabase,
     reset_password_page,
-    inject_js_hash_to_query
-)
+    )
 
 # funções de relatórios (arquivo reports_functions.py)
 from reports_functions import secao_relatorios_dashboard
