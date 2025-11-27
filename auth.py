@@ -123,8 +123,10 @@ def login_page():
                     "password": senha
                 })
 
-                user = res.get("user")
-                if not user:
+                # 🔥 CORREÇÃO AQUI — substitui res.get("user")
+                user = res.user
+
+                if user is None:
                     st.error("E-mail ou senha incorretos.")
                     return
 
@@ -215,7 +217,6 @@ def reset_password_page():
 
     params = st.experimental_get_query_params()
 
-    # Aceita tokens tanto em ?access_token= quanto em ?token=
     access_token = (
         params.get("access_token", [None])[0]
         or params.get("token", [None])[0]
@@ -234,14 +235,12 @@ def reset_password_page():
             st.warning("Token ainda não recebido. Aguarde 1–2 segundos e tente novamente.")
             return
 
-        # 🔥 1) Criar sessão a partir dos tokens recebidos
         try:
             supabase.auth.set_session(access_token, refresh_token)
         except Exception as e:
             st.error(f"Falha ao criar sessão a partir dos tokens: {e}")
             return
 
-        # 🔥 2) Atualizar a senha usando a sessão agora ativa
         try:
             supabase.auth.update_user({"password": nova})
             st.success("Senha redefinida com sucesso! Agora você já pode fazer login.")
@@ -269,7 +268,6 @@ def logout():
 def main():
     params = st.experimental_get_query_params()
 
-    # Captura todos os fluxos possíveis do Supabase:
     if (
         "reset" in params
         or "access_token" in params
