@@ -14,7 +14,7 @@ import uuid
 # ==========================
 
 SITE_URL = "https://inteligenciafinanceira.streamlit.app"
-RESET_URL = SITE_URL + "/?reset=1"  # URL autorizada no painel do Supabase
+RESET_URL = "https://hedgewiseconsultoria.github.io/aifinance/redirect.htm"
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -282,3 +282,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
