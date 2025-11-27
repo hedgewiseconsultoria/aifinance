@@ -1,30 +1,49 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8"/>
-  <title>FinanceAI — redirecionando...</title>
+  <meta charset="utf-8" />
+  <title>Redirecting…</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 </head>
 <body>
-  <p>Redirecionando para o app...</p>
+  <p>Redirecionando — por favor aguarde...</p>
   <script>
-    // Se o link vier como .../redirect.html#access_token=...&type=recovery
     (function() {
-      const hash = window.location.hash || "";
-      if (!hash) {
-        // nada pra processar — manda pro app principal
-        window.location.replace("https://inteligenciafinanceira.streamlit.app/");
-        return;
+      // URL base do seu app Streamlit
+      const STREAMLIT_BASE = "https://inteligenciafinanceira.streamlit.app";
+
+      // Se houver query string já (ex: ?reset=1) e HASH (ex: #access_token=...), vamos combiná-las.
+      const search = window.location.search || "";  // ?reset=1  (pode existir)
+      const hash = window.location.hash || "";      // #access_token=...&refresh_token=...
+
+      // Converte #a=b&c=d  -> ?a=b&c=d  (removendo o #)
+      let hashAsQuery = "";
+      if (hash.startsWith("#")) {
+        hashAsQuery = "?" + hash.substring(1);
       }
-      // remove '#'
-      const fragment = hash.substring(1);
-      // destino no app — pode ser /reset (recomendado) ou raiz
-      const destBase = "https://inteligenciafinanceira.streamlit.app/reset";
-      // monta nova URL com query (converte fragment -> query)
-      const newUrl = destBase + "?" + fragment;
-      // substitui sem criar histórico
-      window.location.replace(newUrl);
+
+      // Se já existia search e hash, combinamos com & corretamente
+      let target = STREAMLIT_BASE;
+      if (search && hashAsQuery) {
+        // remover ? inicial de hashAsQuery
+        const combined = search + (hashAsQuery.startsWith("?") ? "&" + hashAsQuery.substring(1) : hashAsQuery);
+        target += combined;
+      } else if (hashAsQuery) {
+        target += hashAsQuery;
+      } else if (search) {
+        target += search;
+      }
+
+      // Mantém ?reset=1 mesmo quando ninguém enviou token — útil para seu is_reset_flow
+      // Se target ficou só base, adiciona ?reset=1 para manter comportamento
+      if (target === STREAMLIT_BASE) {
+        target = STREAMLIT_BASE + "/?reset=1";
+      }
+
+      // Substitui para não criar histórico
+      window.location.replace(target);
     })();
   </script>
 </body>
 </html>
+
