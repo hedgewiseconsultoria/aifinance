@@ -231,18 +231,17 @@ def reset_password_page():
             return
 
         if not access_token:
-            st.warning("Aguarde alguns segundos e clique novamente. Token ainda não recebido.")
+            st.warning("Token ainda não recebido. Aguarde 1–2 segundos e tente novamente.")
             return
 
+        # 🔥 1) Criar sessão a partir dos tokens recebidos
         try:
-            # Troca de sessão correta do Supabase
-            session_data = supabase.auth.exchange_code_for_session({
-                "access_token": access_token,
-                "refresh_token": refresh_token
-            })
-        except:
-            pass  # Em alguns casos já está autenticado
+            supabase.auth.set_session(access_token, refresh_token)
+        except Exception as e:
+            st.error(f"Falha ao criar sessão a partir dos tokens: {e}")
+            return
 
+        # 🔥 2) Atualizar a senha usando a sessão agora ativa
         try:
             supabase.auth.update_user({"password": nova})
             st.success("Senha redefinida com sucesso! Agora você já pode fazer login.")
