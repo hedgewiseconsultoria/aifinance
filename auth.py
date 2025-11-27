@@ -206,17 +206,22 @@ def login_page():
 
 
 # ==========================
-# PÁGINA DE REDEFINIÇÃO (CORRIGIDA)
+# PÁGINA DE REDEFINIÇÃO — 100% CORRIGIDA
 # ==========================
 
 def reset_password_page():
-    st.title("Redefinição de Senha")
+    load_header(show_user=False)
+    st.subheader("Redefinir Senha")
 
     params = st.experimental_get_query_params()
-    access_token = params.get("access_token", [None])[0]
+
+    # Aceita tokens tanto em ?access_token= quanto em ?token=
+    access_token = (
+        params.get("access_token", [None])[0]
+        or params.get("token", [None])[0]
+    )
     refresh_token = params.get("refresh_token", [None])[0]
 
-    # Sempre mostra o formulário — Supabase só envia token depois
     nova = st.text_input("Nova senha", type="password")
     nova2 = st.text_input("Repita a nova senha", type="password")
 
@@ -225,30 +230,24 @@ def reset_password_page():
             st.error("As senhas não coincidem.")
             return
 
-        # 🔥 Se ainda não há token, Supabase ainda não completou o fluxo
         if not access_token:
-            st.warning("Preparando redefinição... clique novamente em alguns segundos.")
-            # st.stop() - Não precisa de stop, deixa o botão ser clicado de novo.
+            st.warning("Aguarde alguns segundos e clique novamente. Token ainda não recebido.")
             return
 
-        # 🔥 Autenticar usando token de recuperação
         try:
-            # Esta linha garante que o usuário está autenticado para o update_user
-            supabase.auth.exchange_token({
+            # Troca de sessão correta do Supabase
+            session_data = supabase.auth.exchange_code_for_session({
                 "access_token": access_token,
                 "refresh_token": refresh_token
             })
         except:
-            # Em alguns casos, a troca já pode ter ocorrido, e o update funciona
-            pass
+            pass  # Em alguns casos já está autenticado
 
-        # 🔥 Atualizar senha
         try:
-            # O update_user usará o token da sessão que foi criada pelo exchange_token acima
             supabase.auth.update_user({"password": nova})
-            st.success("Senha redefinida com sucesso! Agora você pode fazer login.")
+            st.success("Senha redefinida com sucesso! Agora você já pode fazer login.")
         except Exception as e:
-            st.error(f"Erro ao atualizar senha: {e}. Verifique se a URL possui os tokens.")
+            st.error(f"Erro ao atualizar senha: {e}")
 
 
 # ==========================
@@ -271,15 +270,18 @@ def logout():
 def main():
     params = st.experimental_get_query_params()
 
-    # captura fluxos de redefinição
-    if "reset" in params or "access_token" in params:
+    # Captura todos os fluxos possíveis do Supabase:
+    if (
+        "reset" in params
+        or "access_token" in params
+        or "token" in params
+        or params.get("type", [""])[0] == "recovery"
+    ):
         reset_password_page()
         return
 
-    # login
     login_page()
 
 
 if __name__ == "__main__":
     main()
-
