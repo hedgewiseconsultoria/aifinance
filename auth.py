@@ -61,7 +61,13 @@ def load_header(show_user=True):
 
             if show_user and "user" in st.session_state:
                 user = st.session_state.get("user")
-                email = user.get("email")
+
+                # compatível com dict e objeto User
+                if isinstance(user, dict):
+                    email = user.get("email", "")
+                else:
+                    email = getattr(user, "email", "")
+
                 colA, colB = st.columns([5, 1])
                 with colA:
                     st.markdown(f"👤 **{email}**")
@@ -123,8 +129,7 @@ def login_page():
                     "password": senha
                 })
 
-                # 🔥 CORREÇÃO AQUI — substitui res.get("user")
-                user = res.user
+                user = res.user  # ✔️ corrigido
 
                 if user is None:
                     st.error("E-mail ou senha incorretos.")
@@ -132,9 +137,15 @@ def login_page():
 
                 st.session_state["user"] = user
 
+                # compatível com dict e objeto User
+                if isinstance(user, dict):
+                    user_id = user.get("id")
+                else:
+                    user_id = getattr(user, "id", None)
+
                 try:
                     supabase.table("users_profiles").upsert(
-                        {"id": user.get("id"), "plano": "free"}
+                        {"id": user_id, "plano": "free"}
                     ).execute()
                 except:
                     pass
@@ -168,10 +179,13 @@ def login_page():
 
             try:
                 res = supabase.auth.sign_up({"email": email, "password": senha})
-                user = res.user or {}
+                user = res.user  # agora sempre objeto User
+
+                # compatível com objeto User e fallback
+                user_id = getattr(user, "id", str(uuid.uuid4()))
 
                 supabase.table("users_profiles").upsert({
-                    "id": user.get("id", str(uuid.uuid4())),
+                    "id": user_id,
                     "nome": nome,
                     "empresa": empresa,
                     "cnpj": format_cnpj(cnpj_field),
@@ -208,7 +222,7 @@ def login_page():
 
 
 # ==========================
-# PÁGINA DE REDEFINIÇÃO — 100% CORRIGIDA
+# PÁGINA DE REDEFINIÇÃO
 # ==========================
 
 def reset_password_page():
