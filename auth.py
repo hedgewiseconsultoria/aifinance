@@ -41,6 +41,15 @@ def format_cnpj(raw: str) -> str:
     return f"{digits[0:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:14]}"
 
 
+def extract_user_field(user, field, default=""):
+    """Compatibilidade universal: aceita dict OU objeto User."""
+    if user is None:
+        return default
+    if isinstance(user, dict):
+        return user.get(field, default)
+    return getattr(user, field, default)
+
+
 # ==========================
 # HEADER
 # ==========================
@@ -61,12 +70,7 @@ def load_header(show_user=True):
 
             if show_user and "user" in st.session_state:
                 user = st.session_state.get("user")
-
-                # compatível com dict e objeto User
-                if isinstance(user, dict):
-                    email = user.get("email", "")
-                else:
-                    email = getattr(user, "email", "")
+                email = extract_user_field(user, "email", "")
 
                 colA, colB = st.columns([5, 1])
                 with colA:
@@ -129,7 +133,7 @@ def login_page():
                     "password": senha
                 })
 
-                user = res.user  # ✔️ corrigido
+                user = res.user
 
                 if user is None:
                     st.error("E-mail ou senha incorretos.")
@@ -137,18 +141,15 @@ def login_page():
 
                 st.session_state["user"] = user
 
-                # compatível com dict e objeto User
-                if isinstance(user, dict):
-                    user_id = user.get("id")
-                else:
-                    user_id = getattr(user, "id", None)
-
-                try:
-                    supabase.table("users_profiles").upsert(
-                        {"id": user_id, "plano": "free"}
-                    ).execute()
-                except:
-                    pass
+                # atualizar perfil básico se id existir
+                user_id = extract_user_field(user, "id", None)
+                if user_id:
+                    try:
+                        supabase.table("users_profiles").upsert(
+                            {"id": user_id, "plano": "free"}
+                        ).execute()
+                    except:
+                        pass
 
                 _safe_rerun()
 
@@ -179,10 +180,10 @@ def login_page():
 
             try:
                 res = supabase.auth.sign_up({"email": email, "password": senha})
-                user = res.user  # agora sempre objeto User
+                user = res.user
 
-                # compatível com objeto User e fallback
-                user_id = getattr(user, "id", str(uuid.uuid4()))
+                # pegar ID do usuário recém-criado
+                user_id = extract_user_field(user, "id", str(uuid.uuid4()))
 
                 supabase.table("users_profiles").upsert({
                     "id": user_id,
@@ -214,7 +215,6 @@ def login_page():
                     email,
                     options={"redirect_to": RESET_URL}
                 )
-
                 st.success("E-mail enviado! Verifique sua caixa de entrada.")
 
             except Exception as e:
@@ -222,7 +222,7 @@ def login_page():
 
 
 # ==========================
-# PÁGINA DE REDEFINIÇÃO
+# PÁGINA DE REDEFINIÇÃO — 100% CORRIGIDA
 # ==========================
 
 def reset_password_page():
