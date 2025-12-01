@@ -635,12 +635,25 @@ elif page == "Revisão de Dados":
                     user_id = getattr(user, "id", None)
                 # =================================================
 
+               # try:
+                   # supabase.table("transacoes").delete().eq("user_id", user_id).execute()
+                #except Exception:
+                  #  st.warning(
+                   #     "Aviso: não foi possível deletar transações antigas (permissões Supabase)."
+                  #  )
+
                 try:
-                    supabase.table("transacoes").delete().eq("user_id", user_id).execute()
-                except Exception:
+                    # Identificar os extratos envolvidos
+                    extrato_ids = df_to_save["extrato_id"].dropna().unique().tolist()
+
+                    # Apagar somente as transações que pertencem aos mesmos extratos
+                    for ex_id in extrato_ids:
+                        supabase.table("transacoes").delete().eq("extrato_id", ex_id).execute()
+
+                except Exception as e:
                     st.warning(
-                        "Aviso: não foi possível deletar transações antigas (permissões Supabase)."
-                    )
+                        f"Aviso: não foi possível remover transações antigas dos extratos reprocessados. Detalhes: {e}"
+                     ) 
 
                 records = df_to_save.to_dict(orient="records")
                 for rec in records:
