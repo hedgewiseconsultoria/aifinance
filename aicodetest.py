@@ -682,28 +682,42 @@ elif page == "Revisão de Dados":
 elif page == "Dashboard & Relatórios":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
 
-    # 🔥 NOVO BLOCO VISUAL DE SELEÇÃO DE PERÍODO
+    # ⚡ BLOCO VISUAL PROFISSIONAL PARA SELEÇÃO DE PERÍODO
+    st.markdown(
+        """
+        <div style="
+            background-color: #FFFFFF;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #D9D9D9;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        ">
+            <h4 style="color:#0A2342; margin-top:0; margin-bottom:15px;">
+                📅 Selecione o Período
+            </h4>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     with st.container():
-        st.markdown(
-            """
-            <div style='background:white; padding:20px; border-radius:12px;
-                         border:1px solid #DDD; margin-bottom:20px;'>
-                <h4 style='margin-bottom:12px; color:#0A2342;'>📅 Selecione o Período</h4>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        colA, colB = st.columns(2)
 
-        col1, col2 = st.columns(2)
-        with col1:
-            data_inicial_str = st.text_input("Data Inicial (DD/MM/AAAA)", "")
-        with col2:
-            data_final_str = st.text_input("Data Final (DD/MM/AAAA)", "")
+        with colA:
+            st.markdown("**Data Inicial**")
+            data_inicial_str = st.text_input("", placeholder="DD/MM/AAAA", key="dt_ini")
 
-        gerar_periodo = st.button("Gerar Relatórios e Dashboard")
+        with colB:
+            st.markdown("**Data Final**")
+            data_final_str = st.text_input("", placeholder="DD/MM/AAAA", key="dt_fim")
 
-    # 🔥 LÓGICA ORIGINAL DO SEU CÓDIGO (idêntica)
-    if gerar_periodo:
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        botao_ok = st.button("Gerar Relatórios e Dashboard")
+
+    # ⚡ LÓGICA ORIGINAL (SEM ALTERAÇÕES ESTRUTURAIS)
+    if botao_ok:
         try:
             data_inicial = pd.to_datetime(
                 data_inicial_str, format="%d/%m/%Y", errors="coerce"
@@ -758,7 +772,7 @@ elif page == "Dashboard & Relatórios":
         except Exception as e:
             st.error(f"Erro ao gerar relatórios: {e}")
 
-    # 🔥 SEÇÃO DE RELATÓRIOS/DASHBOARD (idem ao original)
+    # ⚡ RELATÓRIOS E DASHBOARD
     if not st.session_state.get("df_transacoes_editado", pd.DataFrame()).empty:
         df_final = st.session_state["df_transacoes_editado"].copy()
         try:
@@ -767,6 +781,7 @@ elif page == "Dashboard & Relatórios":
             st.error(f"Erro ao gerar relatórios/dashboard: {e}")
     else:
         st.info("Nenhum dado disponível para relatório.")
+
 
 
 # --- Footer ---
