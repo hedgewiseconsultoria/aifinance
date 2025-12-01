@@ -715,8 +715,8 @@ elif page == "Dashboard & Relatórios":
     )
 
     # === CARD DE PERÍODO ===
-    st.markdown('<div class="period-box">', unsafe_allow_html=True)
-    st.markdown('<div class="period-title">📅 Selecione o Período</div>', unsafe_allow_html=True)
+   # st.markdown('<div class="period-box">', unsafe_allow_html=True)
+   # st.markdown('<div class="period-title">📅 Selecione o Período</div>', unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     with col1:
