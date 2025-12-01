@@ -1,23 +1,22 @@
-# reports_functions.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import math
-from typing import Dict, Any
-import streamlit.components.v1 as components
+from typing import Dict, Any, List
+from datetime import datetime, timedelta
+import traceback
 
-# ------------------------
-# Cores (pega do session_state se definido)
-# ------------------------
+# Variáveis de cor (assumindo que serão definidas no aicodetest.txt)
+# Para evitar erros de referência, vou definir placeholders aqui, mas o código principal deve ter as corretas.
 try:
-    PRIMARY_COLOR = st.session_state.get("PRIMARY_COLOR", "#0A2342")
-    SECONDARY_COLOR = st.session_state.get("SECONDARY_COLOR", "#000000")
-    ACCENT_COLOR = st.session_state.get("ACCENT_COLOR", "#007BFF")
-    NEGATIVE_COLOR = st.session_state.get("NEGATIVE_COLOR", "#DC3545")
-    FINANCING_COLOR = st.session_state.get("FINANCING_COLOR", "#FFC107")
-    INVESTMENT_COLOR = st.session_state.get("INVESTMENT_COLOR", "#28A745")
-except Exception:
+    PRIMARY_COLOR = st.session_state.get('PRIMARY_COLOR', "#0A2342")
+    SECONDARY_COLOR = st.session_state.get('SECONDARY_COLOR', "#000000")
+    ACCENT_COLOR = st.session_state.get('ACCENT_COLOR', "#007BFF")
+    NEGATIVE_COLOR = st.session_state.get('NEGATIVE_COLOR', "#DC3545")
+    FINANCING_COLOR = st.session_state.get('FINANCING_COLOR', "#FFC107")
+    INVESTMENT_COLOR = st.session_state.get('INVESTMENT_COLOR', "#28A745")
+except:
     PRIMARY_COLOR = "#0A2342"
     SECONDARY_COLOR = "#000000"
     ACCENT_COLOR = "#007BFF"
@@ -25,66 +24,40 @@ except Exception:
     FINANCING_COLOR = "#FFC107"
     INVESTMENT_COLOR = "#28A745"
 
-
-# ------------------------
-# Helper: formata BRL
-# ------------------------
+# --- FUNÇÃO DE FORMATAÇÃO BRL (Deve ser importada do aicodetest.txt) ---
+# Assumindo que 'formatar_brl' e 'PLANO_DE_CONTAS' serão importados do arquivo principal.
+# Para fins de teste e modularidade, vou incluir uma versão simples aqui.
 def formatar_brl(valor: float) -> str:
+    """Formata um valor float para a moeda Real Brasileiro (R$ xx.xxx,xx)."""
     try:
-        if valor is None:
-            return "R$ 0,00"
-        # garantir float
-        v = float(valor)
-        valor_us = f"{v:,.2f}"
-        valor_brl = valor_us.replace(",", "TEMP").replace(".", ",").replace("TEMP", ".")
+        valor_us = f"{valor:,.2f}"
+        valor_brl = valor_us.replace(",", "TEMP_SEP").replace(".", ",").replace("TEMP_SEP", ".")
         return "R$ " + valor_brl
     except Exception:
-        try:
-            return f"R$ {float(valor):,.2f}"
-        except Exception:
-            return "R$ 0,00"
+        return f"R$ {valor:.2f}"
 
-
-# ------------------------
-# Helper: render HTML de forma não-sanitizada
-# (usa st.html quando disponível; senão components.html)
-# ------------------------
-def render_html(html: str, height: int = 220):
-    """
-    Renderiza HTML puro. Usa st.html() se presente (Streamlit mais novo),
-    caso contrário usa components.html().
-    """
-    try:
-        # st.html existe em versões recentes do Streamlit
-        if hasattr(st, "html"):
-            st.html(html, height=height)
-        else:
-            components.html(html, height=height)
-    except Exception:
-        # fallback: mostrar como markdown seguro (último recurso)
-        st.markdown(html, unsafe_allow_html=True)
-
-
-# ------------------------
-# Mini-relatório (Análise Rápida) — retorna HTML pronto
-# ------------------------
+# --- FUNÇÃO LOCAL: GERAR MINI-RELATÓRIO --- 
 def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], retiradas_pessoais_val: float):
+    """Gera HTML limpo do mini-relatório (pronto para st.markdown com unsafe_allow_html=True),
+    com linguagem simplificada e sem exibir a métrica de intensidade de financiamento.
+    Retorna: (html, classe_texto)
     """
-    Retorna (html_string, classe_texto) com linguagem simples para microempreendedores.
-    """
-    gco = indicadores.get("gco", 0.0)
-    entradas_op = indicadores.get("entradas_operacionais", 0.0)
-    autossuf = indicadores.get("autossuficiencia", 0.0)
-    taxa_reinv = indicadores.get("taxa_reinvestimento", 0.0)
-    peso_retiradas = indicadores.get("peso_retiradas", 0.0)
+    # --- dados base ---
+    gco = indicadores.get('gco', 0.0)
+    entradas_op = indicadores.get('entradas_operacionais', 0.0)
+    autossuf = indicadores.get('autossuficiencia', 0.0)
+    taxa_reinv = indicadores.get('taxa_reinvestimento', 0.0)
+    peso_retiradas = indicadores.get('peso_retiradas', 0.0)
 
+    # --- funções auxiliares ---
     def cor_icone(valor, tipo="financeiro", contexto_caixa_negativo=False):
+        """Retorna ícone colorido representando risco."""
         if tipo == "financeiro":
             if contexto_caixa_negativo:
                 return "🔴"
             return "🟢" if valor > 0 else ("🟠" if valor == 0 else "🔴")
         if tipo == "autossuficiencia":
-            if valor == float("inf") or valor > 1.0:
+            if valor == float('inf') or valor > 1.0:
                 return "🟢"
             elif valor >= 0.5:
                 return "🟠"
@@ -93,70 +66,95 @@ def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], reti
         return ""
 
     def span_valor(valor_formatado, cor):
-        # usar <strong> e <span> (render_html fará a renderização real)
         return f"<span style='font-weight:700;'>{cor} {valor_formatado}</span>"
 
-    # Classificação textual do score
+    # --- resumo contextualizado (coerente com a classificação) ---
     if score >= 85:
         resumo = "Situação muito saudável: boa geração de caixa e equilíbrio nas finanças."
-        classe_texto = "Classe A – Excelente"
+        classe_texto = "Classe A – Excelente: finanças equilibradas e bom controle de caixa."
     elif score >= 70:
-        resumo = "Situação estável, mas requer acompanhamento das retiradas e financiamentos."
-        classe_texto = "Classe B – Boa"
+        resumo = "Situação estável, mas requer acompanhamento de retiradas e uso de financiamentos."
+        classe_texto = "Classe B – Boa: estrutura financeira estável, mantenha o acompanhamento periódico."
     elif score >= 55:
         if gco > 0:
-            resumo = "Caixa positivo; há espaço para melhorar eficiência."
-            classe_texto = "Classe C – Moderado"
+            resumo = "Situação aceitável: o caixa operacional está positivo, mas o score indica que há espaço para melhorar a eficiência financeira."
+            classe_texto = "Classe C – Moderado: o caixa é positivo e a autossuficiência é boa; acompanhe retiradas e mantenha disciplina financeira."
         else:
-            resumo = "Caixa pressionado — atenção aos custos e retiradas."
-            classe_texto = "Classe D – Alto risco"
+            resumo = "Caixa pressionado — atenção às despesas fixas e retiradas para evitar desequilíbrio."
+            classe_texto = "Classe D – Alto risco: atenção às despesas e à liquidez, recomenda-se reforçar o caixa."
     elif score >= 40:
         if gco > 0 and autossuf >= 1.0:
-            resumo = "Situação aceitável, exige disciplina."
-            classe_texto = "Classe C – Moderado"
+            resumo = "Situação aceitável, mas exige disciplina para manter o equilíbrio do caixa."
+            classe_texto = "Classe C – Moderado: o caixa é positivo e a autossuficiência é boa; acompanhe retiradas e mantenha disciplina financeira."
         else:
-            resumo = "Risco elevado: caixa fraco e dependência externa."
-            classe_texto = "Classe D – Alto risco"
+            resumo = "Risco elevado: o caixa tende a ficar pressionado se não houver ajuste nas retiradas e custos."
+            classe_texto = "Classe D – Alto risco: atenção às despesas e à liquidez, recomenda-se reforçar o caixa."
     else:
-        resumo = "Situação crítica: ações imediatas são recomendadas."
-        classe_texto = "Classe E – Crítico"
+        resumo = "Situação crítica: priorize ações imediatas para reforçar o caixa e renegociar dívidas."
+        classe_texto = "Classe E – Crítico: risco elevado de desequilíbrio financeiro, ações corretivas imediatas são recomendadas."
+
+    # --- comentários ---
+    if gco > 0:
+        comentario_gco = "isso contribui positivamente para a saúde financeira e reduz o risco da empresa."
+    elif gco == 0:
+        comentario_gco = "a neutralidade indica que o negócio está apenas se mantendo, sem gerar caixa adicional."
+    else:
+        comentario_gco = "este valor negativo aumenta o risco e indica que a operação está consumindo mais do que gera."
 
     if gco < 0:
-        comentario_retiradas = "🚨 Caixa negativo — retiradas não são sustentáveis neste período."
+        comentario_retiradas = "🚨 o caixa operacional está negativo, portanto não há sustentabilidade para retiradas neste período."
     elif retiradas_pessoais_val <= 0:
-        comentario_retiradas = "Sem retiradas pessoais, o que preserva o caixa."
+        comentario_retiradas = "não houve retiradas pessoais, o que ajuda na preservação do caixa."
     elif retiradas_pessoais_val < 0.3 * max(entradas_op, 1):
-        comentario_retiradas = "Retiradas em nível saudável."
+        comentario_retiradas = "retiradas em nível saudável, sem comprometer o caixa."
     elif retiradas_pessoais_val < 0.6 * max(entradas_op, 1):
-        comentario_retiradas = "Retiradas moderadas — acompanhe mensalmente."
+        comentario_retiradas = "retiradas moderadas, que merecem monitoramento."
     else:
-        comentario_retiradas = "Retiradas elevadas — aumentam o risco financeiro."
+        comentario_retiradas = "retiradas elevadas, que aumentam o risco financeiro e reduzem a folga de caixa."
 
-    aut_text = "∞" if autossuf == float("inf") else f"{autossuf:.2f}"
+    if autossuf == float('inf') or autossuf > 1.5:
+        comentario_autossuf = "excelente autossuficiência: o negócio gera caixa suficiente para cobrir retiradas e investimentos."
+    elif autossuf >= 1.0:
+        comentario_autossuf = "autossuficiência adequada, com boa capacidade de financiar obrigações internas."
+    elif autossuf >= 0.5:
+        comentario_autossuf = "autossuficiência parcial: é preciso reforçar geração interna de caixa."
+    else:
+        comentario_autossuf = "baixo nível de autossuficiência: o negócio depende de capital externo, elevando o risco."
 
-    # Construir HTML (simples, mas com elementos claros)
-    html = f"""
-    <div style='font-family:Inter, Roboto, sans-serif; line-height:1.5; font-size:15px;'>
-        <p style='margin:0 0 8px 0;'><strong>Resumo geral:</strong> {resumo}</p>
+    # --- recomendações ---
+    recs = []
+    if gco <= 0:
+        recs.append("Revise as entradas operacionais e priorize ações que aumentem as vendas ou captação de receitas.")
+    if peso_retiradas > 0.5 or (entradas_op > 0 and (retiradas_pessoais_val / entradas_op) > 0.5):
+        recs.append("Reduza retiradas pessoais para preservar caixa operacional.")
+    if taxa_reinv >= 0.30:
+        recs.append("Bom nível de reinvestimento — mantenha disciplina para colher ganhos futuros.")
+    if autossuf < 0.5:
+        recs.append("Aumente a autossuficiência operacional antes de expandir investimentos.")
+    if not recs:
+        recs.append("Mantenha controles atuais de custos e planejamento financeiro.")
 
-        <p style='margin:0 0 6px 0;'><strong>Caixa operacional (período):</strong><br>
-        {span_valor(formatar_brl(gco), cor_icone(gco))}</p>
+    # --- formatação dos valores ---
+    val_gco = span_valor(formatar_brl(gco), cor_icone(gco, "financeiro"))
+    val_retir = span_valor(formatar_brl(retiradas_pessoais_val), cor_icone(retiradas_pessoais_val, "financeiro", contexto_caixa_negativo=(gco < 0)))
+    aut_text = "∞" if autossuf == float('inf') else f"{autossuf:.2f}"
+    val_aut = span_valor(aut_text, cor_icone(autossuf, "autossuficiencia"))
 
-        <p style='margin:0 0 6px 0;'><strong>Retiradas de sócios:</strong><br>
-        {span_valor(formatar_brl(retiradas_pessoais_val), cor_icone(retiradas_pessoais_val, contexto_caixa_negativo=(gco < 0)))} — {comentario_retiradas}</p>
+    # --- HTML final (sem classe dentro) ---
+    html = (
+        "<div style='line-height:1.6;font-size:15px;'>"
+        f"<b>Score Financeiro:</b> {score:.1f}<br><br>"
+        f"<b>Resumo:</b> {resumo}<br><br>"
+        f"<b>Caixa operacional gerado (período):</b> {val_gco} — {comentario_gco}<br>"
+        f"<b>Retiradas de sócios:</b> {val_retir} — {comentario_retiradas}<br>"
+        f"<b>Autossuficiência operacional:</b> {val_aut} — {comentario_autossuf}<br><br>"
+        f"<b>Recomendações práticas:</b> {' '.join(recs)}"
+        "</div>"
+    )
 
-        <p style='margin:0 0 6px 0;'><strong>Autossuficiência operacional:</strong><br>
-        {span_valor(aut_text, cor_icone(autossuf, "autossuficiencia"))}</p>
-
-        <p style='margin-top:8px;'><strong>Recomendação prática:</strong> revise receitas, reduza custos não essenciais e ajuste retiradas quando necessário.</p>
-    </div>
-    """
     return html, classe_texto
 
-
-# ------------------------
-# IndicadoresFluxo
-# ------------------------
+# --- CLASSE INDICADORES FLUXO ---
 class IndicadoresFluxo:
     def __init__(self, df: pd.DataFrame):
         self.df = df.copy()
@@ -167,101 +165,111 @@ class IndicadoresFluxo:
             self.df_fluxo = pd.DataFrame()
             return
 
-        # normalizar datas e colunas textuais
-        if "data" in self.df.columns:
-            self.df["data"] = pd.to_datetime(self.df["data"], errors="coerce", dayfirst=True)
-        for col in ["tipo_fluxo", "tipo_movimentacao", "conta_analitica", "conta_display"]:
-            if col in self.df.columns:
-                try:
-                    self.df[col] = self.df[col].astype(str).str.upper().str.strip()
-                except Exception:
-                    pass
-
-        self.df = self.df.dropna(subset=["data"])
-        self.df["mes_ano"] = self.df["data"].dt.to_period("M")
-        # fluxo: créditos positivos, débitos negativos (usando tipo_movimentacao padronizado)
-        self.df["fluxo"] = self.df.apply(
-            lambda r: r["valor"] if str(r.get("tipo_movimentacao", "")).upper().startswith("CRED") else -r["valor"],
-            axis=1,
+        self.df['data'] = pd.to_datetime(self.df['data'], errors='coerce', dayfirst=True)
+        self.df.dropna(subset=['data'], inplace=True)
+        self.df['mes_ano'] = self.df['data'].dt.to_period('M')
+        self.df['fluxo'] = self.df.apply(
+            lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'],
+            axis=1
         )
-        self.df_fluxo = self.df[self.df["tipo_fluxo"] != "NEUTRO"].copy()
+        # Filtrar apenas operações válidas (excluir NEUTRO)
+        self.df_fluxo = self.df[self.df['tipo_fluxo'] != 'NEUTRO'].copy()
 
     def resumo_indicadores(self) -> Dict[str, float]:
         if self.df_fluxo.empty:
             return {
-                "gco": 0.0,
-                "entradas_operacionais": 0.0,
-                "margem_op": 0.0,
-                "autossuficiencia": 0.0,
-                "taxa_reinvestimento": 0.0,
-                "peso_retiradas": 0.0,
-                "intensidade_fin": 0.0,
-                "crescimento_entradas": 0.0,
-                "retiradas_pessoais": 0.0,
+                'gco': 0.0, 'entradas_operacionais': 0.0, 'margem_op': 0.0,
+                'autossuficiencia': 0.0, 'taxa_reinvestimento': 0.0,
+                'peso_retiradas': 0.0, 'intensidade_fin': 0.0,
+                'crescimento_entradas': 0.0, 'retiradas_pessoais': 0.0
             }
 
-        caixa_op = self.df_fluxo[self.df_fluxo["tipo_fluxo"].str.contains("OPER", na=False)]["fluxo"].sum()
-
+        # 1. Geração de Caixa Operacional (GCO)
+        caixa_op = self.df_fluxo[self.df_fluxo['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
+        
+        # 2. Entradas Operacionais (Receitas)
         entradas_op = self.df_fluxo[
-            (self.df_fluxo["tipo_fluxo"].str.contains("OPER", na=False)) & (self.df_fluxo["tipo_movimentacao"] == "CREDITO")
-        ]["valor"].sum()
+            (self.df_fluxo['tipo_fluxo'] == 'OPERACIONAL') & 
+            (self.df_fluxo['tipo_movimentacao'] == 'CREDITO')
+        ]['valor'].sum()
 
+        # 3. Margem de Caixa Operacional (%)
         margem_op = (caixa_op / entradas_op) if entradas_op > 0 else 0.0
 
-        retiradas_pessoais = abs(
-            self.df[(self.df["conta_analitica"].str.contains("FIN-05|RET|PRÓ|PRO", na=False)) & (self.df["fluxo"] < 0)]["fluxo"].sum()
-        )
+        # 4. Retiradas Pessoais (FIN-05, Débito)
+        retiradas_pessoais = abs(self.df[
+            (self.df['conta_analitica'] == 'FIN-05') & 
+            (self.df['tipo_movimentacao'] == 'DEBITO')
+        ]['valor'].sum())
 
-        total_debitos = self.df[self.df["fluxo"] < 0]["valor"].sum()
+        # 5. Peso de Retiradas (%)
+        total_debitos = self.df[self.df['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
         peso_retiradas = (retiradas_pessoais / total_debitos) if total_debitos > 0 else 0.0
 
-        caixa_inv = self.df_fluxo[self.df_fluxo["tipo_fluxo"].str.contains("INV", na=False)]["fluxo"].sum()
-        caixa_fin = self.df_fluxo[self.df_fluxo["tipo_fluxo"].str.contains("FIN", na=False)]["fluxo"].sum()
+        # 6. Caixa de Investimento e Financiamento
+        caixa_inv = self.df_fluxo[self.df_fluxo['tipo_fluxo'] == 'INVESTIMENTO']['fluxo'].sum()
+        caixa_fin = self.df_fluxo[self.df_fluxo['tipo_fluxo'] == 'FINANCIAMENTO']['fluxo'].sum()
 
-        denominador = abs(caixa_inv) + retiradas_pessoais
-        autossuf = float("inf") if denominador == 0 else (caixa_op + caixa_fin) / denominador
+        # 7. Autossuficiência Operacional
+        # (Caixa Operacional + Caixa Financiamento) / (Caixa Investimento + Retiradas Pessoais)
+        denominador_autossuf = abs(caixa_inv) + retiradas_pessoais
+        if denominador_autossuf == 0:
+            autossuficiencia = float('inf')
+        else:
+            autossuficiencia = (caixa_op + caixa_fin) / denominador_autossuf
 
-        taxa_reinvest = (caixa_op - retiradas_pessoais) / caixa_op if caixa_op > 0 else 0.0
+        # 8. Taxa de Reinvestimento
+        # (Caixa Operacional - Retiradas Pessoais) / Caixa Operacional
+        if caixa_op > 0:
+            taxa_reinvestimento = (caixa_op - retiradas_pessoais) / caixa_op
+        else:
+            taxa_reinvestimento = 0.0
 
-        meses = sorted(self.df_fluxo["mes_ano"].unique())
-        crescimento = 0.0
+        # 9. Crescimento de Entradas (Requer dados de períodos anteriores, aqui será um placeholder)
+        # Para simplificar, vamos calcular a variação entre o primeiro e o último mês
+        meses = sorted(self.df_fluxo['mes_ano'].unique())
+        crescimento_entradas = 0.0
         if len(meses) >= 2:
-            entradas_ini = self.df_fluxo[
-                (self.df_fluxo["mes_ano"] == meses[0]) & (self.df_fluxo["tipo_fluxo"].str.contains("OPER", na=False)) & (self.df_fluxo["tipo_movimentacao"] == "CREDITO")
-            ]["valor"].sum()
-            entradas_fim = self.df_fluxo[
-                (self.df_fluxo["mes_ano"] == meses[-1]) & (self.df_fluxo["tipo_fluxo"].str.contains("OPER", na=False)) & (self.df_fluxo["tipo_movimentacao"] == "CREDITO")
-            ]["valor"].sum()
-            if entradas_ini > 0:
-                crescimento = (entradas_fim - entradas_ini) / entradas_ini
-
+            entradas_mes_inicial = self.df_fluxo[
+                (self.df_fluxo['mes_ano'] == meses[0]) & 
+                (self.df_fluxo['tipo_fluxo'] == 'OPERACIONAL') & 
+                (self.df_fluxo['tipo_movimentacao'] == 'CREDITO')
+            ]['valor'].sum()
+            
+            entradas_mes_final = self.df_fluxo[
+                (self.df_fluxo['mes_ano'] == meses[-1]) & 
+                (self.df_fluxo['tipo_fluxo'] == 'OPERACIONAL') & 
+                (self.df_fluxo['tipo_movimentacao'] == 'CREDITO')
+            ]['valor'].sum()
+            
+            if entradas_mes_inicial > 0:
+                crescimento_entradas = (entradas_mes_final - entradas_mes_inicial) / entradas_mes_inicial
+            
         return {
-            "gco": caixa_op,
-            "entradas_operacionais": entradas_op,
-            "margem_op": margem_op,
-            "autossuficiencia": autossuf,
-            "taxa_reinvestimento": taxa_reinvest,
-            "peso_retiradas": peso_retiradas,
-            "intensidade_inv": caixa_inv,
-            "intensidade_fin": caixa_fin,
-            "crescimento_entradas": crescimento,
-            "retiradas_pessoais": retiradas_pessoais,
+            'gco': caixa_op,
+            'entradas_operacionais': entradas_op,
+            'margem_op': margem_op,
+            'autossuficiencia': autossuficiencia,
+            'taxa_reinvestimento': taxa_reinvestimento,
+            'peso_retiradas': peso_retiradas,
+            'intensidade_inv': caixa_inv, # Valor absoluto para cálculo de score
+            'intensidade_fin': caixa_fin, # Valor absoluto para cálculo de score
+            'crescimento_entradas': crescimento_entradas,
+            'retiradas_pessoais': retiradas_pessoais
         }
 
-
-# ------------------------
-# Score Calculator (mantive a lógica original)
-# ------------------------
+# --- CLASSE SCORE CALCULATOR ---
 class ScoreCalculator:
     def __init__(self):
+        # Pesos definidos para cada indicador (soma deve ser 100)
         self.pesos = {
-            "gco": 25,
-            "margem_op": 20,
-            "peso_retiradas": 15,
-            "autossuficiencia": 15,
-            "taxa_reinvestimento": 10,
-            "crescimento_entradas": 10,
-            "intensidade_fin": 5,
+            'gco': 25, # Geração de Caixa Operacional
+            'margem_op': 20, # Margem de Caixa Operacional
+            'peso_retiradas': 15, # Peso das Retiradas Pessoais
+            'autossuficiencia': 15, # Autossuficiência Operacional
+            'taxa_reinvestimento': 10, # Taxa de Reinvestimento
+            'crescimento_entradas': 10, # Crescimento de Entradas
+            'intensidade_fin': 5 # Intensidade de Financiamento
         }
 
     def normalizar_gco(self, gco: float, entradas_op: float) -> float:
@@ -296,6 +304,7 @@ class ScoreCalculator:
             return 0.0
 
     def normalizar_peso_retiradas(self, peso_retiradas: float) -> float:
+        # Quanto menor o peso, melhor
         if peso_retiradas <= 0.1:
             return 100.0
         elif peso_retiradas <= 0.25:
@@ -308,14 +317,15 @@ class ScoreCalculator:
             return 20.0
 
     def normalizar_intensidade_fin(self, caixa_fin: float, margem_op: float) -> float:
+        # Se a margem operacional for positiva, financiamento é menos crítico
         if margem_op > 0:
-            if caixa_fin <= 0:
+            if caixa_fin <= 0: # Pagamento de dívida ou neutro
                 return 100.0
-            elif caixa_fin < 0.2 * margem_op:
+            elif caixa_fin < 0.2 * margem_op: # Pouco financiamento
                 return 80.0
-            else:
+            else: # Alto financiamento
                 return 60.0
-        else:
+        else: # Se a margem operacional for negativa ou zero, financiamento é mais crítico
             if caixa_fin <= 0:
                 return 80.0
             elif caixa_fin < 0.5 * abs(margem_op):
@@ -357,13 +367,13 @@ class ScoreCalculator:
 
     def calcular_score(self, indicadores: Dict[str, float]) -> Dict[str, Any]:
         notas = {}
-        notas["gco"] = self.normalizar_gco(indicadores.get("gco", 0.0), indicadores.get("entradas_operacionais", 0.0))
-        notas["margem_op"] = self.normalizar_margem(indicadores.get("margem_op", 0.0))
-        notas["peso_retiradas"] = self.normalizar_peso_retiradas(indicadores.get("peso_retiradas", 0.0))
-        notas["intensidade_fin"] = self.normalizar_intensidade_fin(indicadores.get("intensidade_fin", 0.0), indicadores.get("margem_op", 0.0))
-        notas["crescimento_entradas"] = self.normalizar_crescimento(indicadores.get("crescimento_entradas", 0.0))
-        notas["taxa_reinvestimento"] = self.normalizar_reinvestimento(indicadores.get("taxa_reinvestimento", 0.0))
-        notas["autossuficiencia"] = self.normalizar_autossuficiencia(indicadores.get("autossuficiencia", 0.0))
+        notas['gco'] = self.normalizar_gco(indicadores.get('gco', 0.0), indicadores.get('entradas_operacionais', 0.0))
+        notas['margem_op'] = self.normalizar_margem(indicadores.get('margem_op', 0.0))
+        notas['peso_retiradas'] = self.normalizar_peso_retiradas(indicadores.get('peso_retiradas', 0.0))
+        notas['intensidade_fin'] = self.normalizar_intensidade_fin(indicadores.get('intensidade_fin', 0.0), indicadores.get('margem_op', 0.0))
+        notas['crescimento_entradas'] = self.normalizar_crescimento(indicadores.get('crescimento_entradas', 0.0))
+        notas['taxa_reinvestimento'] = self.normalizar_reinvestimento(indicadores.get('taxa_reinvestimento', 0.0))
+        notas['autossuficiencia'] = self.normalizar_autossuficiencia(indicadores.get('autossuficiencia', 0.0))
 
         score = 0.0
         contributions = {}
@@ -373,377 +383,550 @@ class ScoreCalculator:
             contributions[key] = round(contrib, 2)
             score += contrib
 
+        score = round(score, 1)
+
         return {
-            "score": round(score, 1),
+            "score": score,
             "notas": notas,
             "contribuicoes": contributions,
-            "pesos": self.pesos,
+            "pesos": self.pesos
         }
 
-
-# ------------------------
-# Wrapper do cálculo do score
-# ------------------------
+# --- FUNÇÃO: CÁLCULO DO SCORE FINANCEIRO ---
 def calcular_score_fluxo(df: pd.DataFrame):
+    """Calcula todos os indicadores e o score final."""
     try:
-        ind = IndicadoresFluxo(df)
-        valores = ind.resumo_indicadores()
-        sc = ScoreCalculator()
-        r = sc.calcular_score(valores)
-        return {
-            "score_final": r["score"],
-            "notas": r["notas"],
-            "contribuicoes": r["contribuicoes"],
-            "pesos": r["pesos"],
-            "valores": valores,
+        indicadores_calc = IndicadoresFluxo(df)
+        indicadores = indicadores_calc.resumo_indicadores()
+        score_calc = ScoreCalculator()
+        resultado = score_calc.calcular_score(indicadores)
+        resultado_full = {
+            'score_final': resultado['score'],
+            'notas': resultado['notas'],
+            'contribuicoes': resultado['contribuicoes'],
+            'pesos': resultado['pesos'],
+            'valores': indicadores,
+            'componentes': {
+                'caixa_operacional': indicadores.get('gco', 0.0),
+                'entradas_operacionais': indicadores.get('entradas_operacionais', 0.0),
+                'caixa_investimento': indicadores.get('intensidade_inv', 0.0),
+                'caixa_financiamento': indicadores.get('intensidade_fin', 0.0)
+            }
         }
-    except Exception:
-        return {"score_final": 0.0, "notas": {}, "contribuicoes": {}, "pesos": {}, "valores": {}}
+        return resultado_full
+    except Exception as e:
+        # st.error(f"Erro no cálculo dos indicadores/score: {e}")
+        return {
+            'score_final': 0.0,
+            'notas': {},
+            'contribuicoes': {},
+            'pesos': {},
+            'valores': {},
+            'componentes': {}
+        }
 
-
-# ------------------------
-# Relatório de Fluxo de Caixa (tabela) - mesma base utilizada pelos gráficos
-# ------------------------
+# --- FUNÇÃO PARA CRIAR RELATÓRIO DE FLUXO DE CAIXA ---
 def criar_relatorio_fluxo_caixa(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any]):
+    """Cria a tabela detalhada de Fluxo de Caixa por Atividade e Mês."""
     st.subheader("Relatório de Fluxo de Caixa")
-
+    
     if df.empty:
-        st.info("Nenhum dado disponível.")
+        st.info("Nenhum dado disponível. Por favor, processe os extratos primeiro.")
         return
-
-    dfc = df.copy()
-    if "data" in dfc.columns:
-        dfc["data"] = pd.to_datetime(dfc["data"], errors="coerce", dayfirst=True)
-    # normalizar colunas textuais
-    for col in ["tipo_fluxo", "tipo_movimentacao", "conta_analitica", "conta_display"]:
-        if col in dfc.columns:
-            try:
-                dfc[col] = dfc[col].astype(str).str.upper().str.strip()
-            except Exception:
-                pass
-
-    dfc = dfc.dropna(subset=["data"])
-    dfc["mes_ano"] = dfc["data"].dt.to_period("M")
-    dfc["fluxo"] = dfc.apply(lambda r: r["valor"] if str(r.get("tipo_movimentacao", "")).upper().startswith("CRED") else -r["valor"], axis=1)
-    df_fluxo = dfc[dfc["tipo_fluxo"] != "NEUTRO"].copy()
-
-    if df_fluxo.empty:
-        st.info("Nenhum dado de fluxo (OPERACIONAL/INVESTIMENTO/FINANCIAMENTO) encontrado no período.")
-        return
-
-    meses = sorted(df_fluxo["mes_ano"].unique())
+    
+    df = df.copy()
+    df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
+    df.dropna(subset=['data'], inplace=True)
+    df['mes_ano'] = df['data'].dt.to_period('M')
+    df['fluxo'] = df.apply(
+        lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'],
+        axis=1
+    )
+    
+    df_fluxo = df[df['tipo_fluxo'] != 'NEUTRO'].copy()
+    meses = sorted(df_fluxo['mes_ano'].unique())
+    
     meses_pt = {
-        1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
-        5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
-        9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
+        1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
+        5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
+        9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
     }
-    colunas_meses = [f"{meses_pt[m.month]}/{str(m.year)[2:]}" for m in meses]
+    
+    colunas_meses = []
+    for mes in meses:
+        mes_nome = meses_pt[mes.month]
+        ano = mes.year % 100
+        colunas_meses.append(f"{mes_nome}/{ano:02d}")
+    
+    # Mapeamento de contas para garantir a ordem
+    todas_contas = df_fluxo.groupby(['tipo_fluxo', 'conta_analitica', 'nome_conta']).size().reset_index()[['tipo_fluxo', 'conta_analitica', 'nome_conta']]
+    relatorio_linhas = []
+    
+    # 1. ATIVIDADES OPERACIONAIS
+    contas_op = todas_contas[todas_contas['tipo_fluxo'] == 'OPERACIONAL'].sort_values('conta_analitica')
+    if not contas_op.empty:
+        relatorio_linhas.append({'Categoria': '**ATIVIDADES OPERACIONAIS**', 'tipo': 'header'})
+        
+        for _, conta in contas_op.iterrows():
+            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+            for mes in meses:
+                df_mes_conta = df_fluxo[
+                    (df_fluxo['mes_ano'] == mes) & 
+                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
+                ]
+                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+                linha[mes_col] = valor
+            relatorio_linhas.append(linha)
+        
+        # Total Operacional
+        linha_total_op = {'Categoria': '**Total Caixa Operacional**', 'tipo': 'total'}
+        for mes in meses:
+            df_mes_op = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'OPERACIONAL')]
+            valor = df_mes_op['fluxo'].sum() if not df_mes_op.empty else 0
+            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+            linha_total_op[mes_col] = valor
+        relatorio_linhas.append(linha_total_op)
+        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
 
-    todas_contas = df_fluxo.groupby(["tipo_fluxo", "conta_analitica", "nome_conta"]).size().reset_index()[["tipo_fluxo", "conta_analitica", "nome_conta"]]
-    linhas = []
-
-    def adicionar_bloco(tipo_fluxo_padrao: str, titulo: str):
-        contas = todas_contas[todas_contas["tipo_fluxo"].str.contains(tipo_fluxo_padrao, na=False)].sort_values("conta_analitica")
-        if contas.empty:
-            return
-        linhas.append({"Categoria": f"**{titulo}**", "tipo": "header"})
-        for _, c in contas.iterrows():
-            item = {"Categoria": f"  {c['conta_analitica']} - {c['nome_conta']}", "tipo": "item"}
-            for m in meses:
-                valor = df_fluxo[(df_fluxo["mes_ano"] == m) & (df_fluxo["conta_analitica"] == c["conta_analitica"])]["fluxo"].sum()
-                item[f"{meses_pt[m.month]}/{str(m.year)[2:]}"] = valor
-            linhas.append(item)
-        # total do bloco
-        tot = {"Categoria": f"**Total {titulo}**", "tipo": "total"}
-        for m in meses:
-            tot[f"{meses_pt[m.month]}/{str(m.year)[2:]}"] = df_fluxo[(df_fluxo["mes_ano"] == m) & (df_fluxo["tipo_fluxo"].str.contains(tipo_fluxo_padrao, na=False))]["fluxo"].sum()
-        linhas.append(tot)
-        linhas.append({"Categoria": "", "tipo": "blank"})
-
-    adicionar_bloco("OPER", "ATIVIDADES OPERACIONAIS")
-    adicionar_bloco("INV", "ATIVIDADES DE INVESTIMENTO")
-    adicionar_bloco("FIN", "ATIVIDADES DE FINANCIAMENTO")
-
-    linha_caixa = {"Categoria": "**CAIXA GERADO NO MÊS**", "tipo": "total"}
-    for m in meses:
-        linha_caixa[f"{meses_pt[m.month]}/{str(m.year)[2:]}"] = df_fluxo[df_fluxo["mes_ano"] == m]["fluxo"].sum()
-    linhas.append(linha_caixa)
-
-    df_rel = pd.DataFrame(linhas).fillna("")
+    # 2. ATIVIDADES DE INVESTIMENTO
+    contas_inv = todas_contas[todas_contas['tipo_fluxo'] == 'INVESTIMENTO'].sort_values('conta_analitica')
+    if not contas_inv.empty:
+        relatorio_linhas.append({'Categoria': '**ATIVIDADES DE INVESTIMENTO**', 'tipo': 'header'})
+        
+        for _, conta in contas_inv.iterrows():
+            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+            for mes in meses:
+                df_mes_conta = df_fluxo[
+                    (df_fluxo['mes_ano'] == mes) & 
+                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
+                ]
+                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+                linha[mes_col] = valor
+            relatorio_linhas.append(linha)
+        
+        # Total Investimento
+        linha_total_inv = {'Categoria': '**Total Caixa de Investimento**', 'tipo': 'total'}
+        for mes in meses:
+            df_mes_inv = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'INVESTIMENTO')]
+            valor = df_mes_inv['fluxo'].sum() if not df_mes_inv.empty else 0
+            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+            linha_total_inv[mes_col] = valor
+        relatorio_linhas.append(linha_total_inv)
+        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
+    
+    # 3. ATIVIDADES DE FINANCIAMENTO
+    contas_fin = todas_contas[todas_contas['tipo_fluxo'] == 'FINANCIAMENTO'].sort_values('conta_analitica')
+    if not contas_fin.empty:
+        relatorio_linhas.append({'Categoria': '**ATIVIDADES DE FINANCIAMENTO**', 'tipo': 'header'})
+        
+        for _, conta in contas_fin.iterrows():
+            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+            for mes in meses:
+                df_mes_conta = df_fluxo[
+                    (df_fluxo['mes_ano'] == mes) & 
+                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
+                ]
+                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+                linha[mes_col] = valor
+            relatorio_linhas.append(linha)
+        
+        # Total Financiamento
+        linha_total_fin = {'Categoria': '**Total Caixa de Financiamento**', 'tipo': 'total'}
+        for mes in meses:
+            df_mes_fin = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'FINANCIAMENTO')]
+            valor = df_mes_fin['fluxo'].sum() if not df_mes_fin.empty else 0
+            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+            linha_total_fin[mes_col] = valor
+        relatorio_linhas.append(linha_total_fin)
+        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
+    
+    # 4. CAIXA GERADO NO MÊS
+    linha_separador = {'Categoria': '═' * 50, 'tipo': 'separator'}
+    for mes_col in colunas_meses:
+        linha_separador[mes_col] = ''
+    relatorio_linhas.append(linha_separador)
+    
+    linha_caixa_gerado = {'Categoria': '**CAIXA GERADO NO MÊS**', 'tipo': 'total'}
+    for mes in meses:
+        df_mes_total = df_fluxo[df_fluxo['mes_ano'] == mes]
+        valor = df_mes_total['fluxo'].sum() if not df_mes_total.empty else 0
+        mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+        linha_caixa_gerado[mes_col] = valor
+    relatorio_linhas.append(linha_caixa_gerado)
+    
+    # Criar DataFrame
+    df_relatorio = pd.DataFrame(relatorio_linhas)
+    
+    # Preencher NaN com valores vazios antes de formatar
+    df_relatorio = df_relatorio.fillna('')
+    
+    # Formatar valores monetários
     for col in colunas_meses:
-        if col in df_rel.columns:
-            df_rel[col] = df_rel[col].apply(lambda v: formatar_brl(v) if isinstance(v, (int, float)) and v != 0 else "")
+        if col in df_relatorio.columns:
+            df_relatorio[col] = df_relatorio[col].apply(
+                lambda x: formatar_brl(x) if isinstance(x, (int, float)) and x != 0 else ''
+            )
+    
+    # Remover coluna 'tipo'
+    df_display = df_relatorio.drop(columns=['tipo'])
+    
+    # Exibir tabela (altura aumentada para reduzir rolagem — cerca de 30 linhas visíveis)
+    st.markdown('<div class="fluxo-table">', unsafe_allow_html=True)
+    st.dataframe(
+        df_display,
+        use_container_width=True,
+        hide_index=True,
+        height=800,
+        column_config={
+            "Categoria": st.column_config.TextColumn("Categoria", width="large"),
+            **{col: st.column_config.TextColumn(col, width="medium") for col in colunas_meses}
+        }
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    return None
 
-    df_show = df_rel.drop(columns=["tipo"])
-    st.dataframe(df_show, use_container_width=True, hide_index=True, height=780,
-                 column_config={"Categoria": st.column_config.TextColumn("Categoria", width="large"), **{col: st.column_config.TextColumn(col, width="small") for col in colunas_meses}})
-
-
-# ------------------------
-# Gráfico de Indicadores
-# ------------------------
+# --- FUNÇÃO PARA CRIAR GRÁFICO DE INDICADORES ---
 def criar_grafico_indicadores(df: pd.DataFrame):
+    """Cria gráfico com evolução dos indicadores financeiros."""
     st.subheader("Evolução dos Indicadores Financeiros")
+    
     if df.empty:
         st.info("Nenhum dado disponível para indicadores.")
         return
-
+    
+    # Preparar dados
     df2 = df.copy()
-    if "data" in df2.columns:
-        df2["data"] = pd.to_datetime(df2["data"], errors="coerce", dayfirst=True)
-    for col in ["tipo_fluxo", "tipo_movimentacao", "conta_analitica", "conta_display"]:
-        if col in df2.columns:
-            try:
-                df2[col] = df2[col].astype(str).str.upper().str.strip()
-            except Exception:
-                pass
-    df2 = df2.dropna(subset=["data"])
-    df2["mes_ano"] = df2["data"].dt.to_period("M")
-    df2["fluxo"] = df2.apply(lambda r: r["valor"] if str(r.get("tipo_movimentacao", "")).upper().startswith("CRED") else -r["valor"], axis=1)
-    df_fluxo = df2[df2["tipo_fluxo"] != "NEUTRO"].copy()
-    if df_fluxo.empty:
-        st.info("Nenhum dado de fluxo para gerar indicadores.")
-        return
-
-    meses = sorted(df_fluxo["mes_ano"].unique())
+    df2['data'] = pd.to_datetime(df2['data'], errors='coerce', dayfirst=True)
+    df2.dropna(subset=['data'], inplace=True)
+    df2['mes_ano'] = df2['data'].dt.to_period('M')
+    df2['fluxo'] = df2.apply(
+        lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'],
+        axis=1
+    )
+    
+    # Filtrar apenas operações válidas (excluir NEUTRO)
+    df_fluxo = df2[df2['tipo_fluxo'] != 'NEUTRO'].copy()
+    
+    meses = sorted(df_fluxo['mes_ano'].unique())
     indicadores_data = []
+    
     for mes in meses:
-        df_mes = df_fluxo[df_fluxo["mes_ano"] == mes]
-        caixa_op = df_mes[df_mes["tipo_fluxo"].str.contains("OPER", na=False)]["fluxo"].sum()
-        caixa_inv = df_mes[df_mes["tipo_fluxo"].str.contains("INV", na=False)]["fluxo"].sum()
-        caixa_fin = df_mes[df_mes["tipo_fluxo"].str.contains("FIN", na=False)]["fluxo"].sum()
-        entradas_op = df_mes[(df_mes["tipo_fluxo"].str.contains("OPER", na=False)) & (df_mes["tipo_movimentacao"] == "CREDITO")]["valor"].sum()
+        df_mes = df_fluxo[df_fluxo['mes_ano'] == mes]
+        mes_str = mes.strftime('%m/%Y')
+        
+        # Calcular componentes
+        caixa_op = df_mes[df_mes['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
+        caixa_inv = df_mes[df_mes['tipo_fluxo'] == 'INVESTIMENTO']['fluxo'].sum()
+        caixa_fin = df_mes[df_mes['tipo_fluxo'] == 'FINANCIAMENTO']['fluxo'].sum()
+        
+        entradas_op = df_mes[
+            (df_mes['tipo_fluxo'] == 'OPERACIONAL') & 
+            (df_mes['tipo_movimentacao'] == 'CREDITO')
+        ]['valor'].sum()
+        
+        # Calcular indicadores com tratamento de zero
         margem_caixa_op = (caixa_op / entradas_op * 100) if entradas_op > 0 else 0.0
         intensidade_inv = (abs(caixa_inv) / caixa_op * 100) if caixa_op != 0 else 0.0
         intensidade_fin = (caixa_fin / caixa_op * 100) if caixa_op != 0 else 0.0
-        retiradas = abs(df_mes[(df_mes["conta_analitica"].str.contains("FIN-05|RET|PRÓ|PRO", na=False)) & (df_mes["fluxo"] < 0)]["fluxo"].sum())
-        total_debitos_mes = df_mes[df_mes["fluxo"] < 0]["valor"].sum()
+        retiradas = abs(df_mes[(df_mes['conta_analitica']=='FIN-05') & (df_mes['tipo_movimentacao']=='DEBITO')]['valor'].sum())
+        total_debitos_mes = df_mes[df_mes['tipo_movimentacao']=='DEBITO']['valor'].sum()
         peso_retiradas = (retiradas / total_debitos_mes * 100) if total_debitos_mes != 0 else 0.0
+        
         indicadores_data.append({
-            "Mês": mes.strftime("%m/%Y"),
-            "Margem de Caixa Operacional (%)": margem_caixa_op,
-            "Intensidade de Investimento (%)": intensidade_inv,
-            "Intensidade de Financiamento (%)": intensidade_fin,
-            "Peso de Retiradas (%)": peso_retiradas,
+            'Mês': mes_str,
+            'Margem de Caixa Operacional (%)': margem_caixa_op,
+            'Intensidade de Investimento (%)': intensidade_inv,
+            'Intensidade de Financiamento (%)': intensidade_fin,
+            'Peso de Retiradas (%)': peso_retiradas
         })
-
-    df_ind = pd.DataFrame(indicadores_data)
-    if df_ind.empty:
-        st.info("Nenhum indicador computado.")
-        return
-
+    
+    df_indicadores = pd.DataFrame(indicadores_data)
+    
+    # Criar gráfico principal com múltiplas linhas
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df_ind["Mês"], y=df_ind["Margem de Caixa Operacional (%)"], mode="lines+markers", name="Margem (%)", line=dict(color=ACCENT_COLOR, width=3)))
-    fig.add_trace(go.Scatter(x=df_ind["Mês"], y=df_ind["Intensidade de Investimento (%)"], mode="lines+markers", name="Intensidade Invest (%)", line=dict(color=INVESTMENT_COLOR, width=3)))
-    fig.add_trace(go.Scatter(x=df_ind["Mês"], y=df_ind["Intensidade de Financiamento (%)"], mode="lines+markers", name="Intensidade Fin (%)", line=dict(color=FINANCING_COLOR, width=3)))
-    fig.add_trace(go.Scatter(x=df_ind["Mês"], y=df_ind["Peso de Retiradas (%)"], mode="lines+markers", name="Peso Retiradas (%)", line=dict(color=NEGATIVE_COLOR, width=3, dash="dash")))
-
-    fig.update_layout(title="Evolução dos Indicadores Financeiros (%) ao longo do tempo", xaxis_title="Mês", yaxis_title="Percentual (%)", height=420, plot_bgcolor="white", hovermode="x unified")
+    if not df_indicadores.empty:
+        fig.add_trace(go.Scatter(
+            x=df_indicadores['Mês'],
+            y=df_indicadores['Margem de Caixa Operacional (%)'],
+            mode='lines+markers',
+            name='Margem de Caixa Operacional (%)',
+            line=dict(color=ACCENT_COLOR, width=3)
+        ))
+        fig.add_trace(go.Scatter(
+            x=df_indicadores['Mês'],
+            y=df_indicadores['Intensidade de Investimento (%)'],
+            mode='lines+markers',
+            name='Intensidade de Investimento (%)',
+            line=dict(color=INVESTMENT_COLOR, width=3)
+        ))
+        fig.add_trace(go.Scatter(
+            x=df_indicadores['Mês'],
+            y=df_indicadores['Intensidade de Financiamento (%)'],
+            mode='lines+markers',
+            name='Intensidade de Financiamento (%)',
+            line=dict(color=FINANCING_COLOR, width=3)
+        ))
+        fig.add_trace(go.Scatter(
+            x=df_indicadores['Mês'],
+            y=df_indicadores['Peso de Retiradas (%)'],
+            mode='lines+markers',
+            name='Peso de Retiradas (%)',
+            line=dict(color=NEGATIVE_COLOR, width=3, dash='dash')
+        ))
+    
+    fig.update_layout(
+        title='Evolução dos Indicadores Financeiros (%) ao longo do tempo',
+        xaxis_title='Mês',
+        yaxis_title='Percentual (%)',
+        height=420,
+        plot_bgcolor='white',
+        font=dict(family="Roboto"),
+        hovermode='x unified'
+    )
+    
     st.plotly_chart(fig, use_container_width=True)
-
+    
+    # Explicação dos indicadores
     with st.expander("📊 Entenda os indicadores"):
         st.markdown("""
         **Margem de Caixa Operacional**: percentual do caixa operacional em relação às entradas operacionais.
-        **Intensidade de Investimento**: quanto do caixa está sendo reinvestido.
-        **Intensidade de Financiamento**: dependência de fontes externas (empréstimos, aportes).
-        **Peso de Retiradas**: impacto das retiradas pessoais sobre as saídas do período.
+        Indica a eficiência operacional na geração de caixa.
+        
+        **Intensidade de Investimento**: percentual do caixa de investimento em relação ao caixa operacional.
+        Indica quanto da geração operacional está sendo investido (pode reduzir caixa no curto prazo, mas fortalecer no longo prazo).
+        
+        **Intensidade de Financiamento**: percentual do caixa de financiamento em relação ao caixa operacional.
+        Indica a dependência de fontes externas de capital (empréstimos, aportes).
+        
+        **Peso de Retiradas**: percentual das retiradas pessoais sobre o total de saídas.
+        Indica o impacto das retiradas dos sócios no fluxo do negócio.
         """)
+    
+    st.markdown("---")
 
-
-# ------------------------
-# Dashboard (gráficos essenciais usando a MESMA base do relatório)
-# ------------------------
+# --- FUNÇÃO PARA CRIAR DASHBOARD ---
 def criar_dashboard(df: pd.DataFrame):
-    st.subheader("Análise Gerencial do Caixa")
-
+    """Cria dashboard com gráficos de análise."""
+    st.subheader("Dashboard: Análise de Fluxo de Caixa")
+    
     if df.empty:
         st.info("Nenhum dado disponível para o dashboard.")
         return
 
-    df2 = df.copy()
-    if "data" in df2.columns:
-        df2["data"] = pd.to_datetime(df2["data"], errors="coerce", dayfirst=True)
-    for col in ["tipo_fluxo", "tipo_movimentacao", "conta_analitica", "conta_display"]:
-        if col in df2.columns:
-            try:
-                df2[col] = df2[col].astype(str).str.upper().str.strip()
-            except Exception:
-                pass
-    df2 = df2.dropna(subset=["data"])
-
-    # Base unificada: calcular 'fluxo' do mesmo jeito que o relatório
-    df2["fluxo"] = df2.apply(lambda r: r["valor"] if str(r.get("tipo_movimentacao", "")).upper().startswith("CRED") else -r["valor"], axis=1)
-    df_fluxo = df2[df2["tipo_fluxo"] != "NEUTRO"].copy()
-
-    if df_fluxo.empty:
-        st.info("Nenhum dado de fluxo (OPER/INV/FIN) encontrado no período.")
-        return
-
-    # ============ Caixa Operacional e Retiradas (mesma base do relatório) ============
-    caixa_operacional = df_fluxo[df_fluxo["tipo_fluxo"].str.contains("OPER", na=False)]["fluxo"].sum()
-    df_retiradas = df2[(df2["conta_analitica"].str.contains("FIN-05|RET|PRÓ|PRO", na=False)) & (df2["fluxo"] < 0)].copy()
-    retiradas_pessoais = abs(df_retiradas["fluxo"].sum())
-
-    # Preparar DataFrame para o gráfico comparativo
-    df_comp = pd.DataFrame({
-        "Categoria": ["Caixa Operacional Gerado", "Retiradas dos Sócios"],
-        "Valor": [max(caixa_operacional, 0.0), retiradas_pessoais]
-    })
-
-    st.markdown("#### Comparativo: Caixa Operacional vs Retiradas Pessoais")
-    if df_comp["Valor"].sum() > 0:
-        fig_comp = px.pie(
-            df_comp, values="Valor", names="Categoria", hole=0.35,
-            color="Categoria",
+    try:
+        # Preparar dados
+        df2 = df.copy()
+        df2['data'] = pd.to_datetime(df2['data'], errors='coerce', dayfirst=True)
+        df2.dropna(subset=['data'], inplace=True)
+        df2['fluxo'] = df2.apply(
+            lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'],
+            axis=1
+        )
+        df2['mes_ano_str'] = df2['data'].dt.strftime('%Y-%m')
+        
+        # Filtrar apenas operações válidas (excluir NEUTRO)
+        df_fluxo = df2[df2['tipo_fluxo'] != 'NEUTRO'].copy()
+        
+        # 1. Gráfico de Barras por Tipo de Fluxo
+        st.markdown("#### Fluxo de Caixa Mensal por Categoria")
+        
+        df_fluxo_agrupado = df_fluxo.groupby(['mes_ano_str', 'tipo_fluxo'])['fluxo'].sum().reset_index()
+        
+        fig_dcf = px.bar(
+            df_fluxo_agrupado,
+            x='mes_ano_str',
+            y='fluxo',
+            color='tipo_fluxo',
+            barmode='group',
+            title='Evolução do Fluxo de Caixa por Tipo',
+            labels={'fluxo': 'Fluxo (R$)', 'mes_ano_str': 'Mês/Ano', 'tipo_fluxo': 'Tipo de Fluxo'},
             color_discrete_map={
-                "Caixa Operacional Gerado": ACCENT_COLOR,
-                "Retiradas dos Sócios": NEGATIVE_COLOR
+                'OPERACIONAL': ACCENT_COLOR,
+                'INVESTIMENTO': INVESTMENT_COLOR,
+                'FINANCIAMENTO': FINANCING_COLOR
             }
         )
-        fig_comp.update_traces(textposition="inside", textinfo="label+percent")
-        st.plotly_chart(fig_comp, use_container_width=True)
+        fig_dcf.update_layout(height=400, plot_bgcolor='white', font=dict(family="Roboto"))
+        st.plotly_chart(fig_dcf, use_container_width=True)
+        
+        st.markdown("---")
 
-        # Mensagem interpretativa
-        if caixa_operacional <= 0:
-            st.error("🚨 O Caixa Operacional está negativo ou zero. Retiradas não são sustentáveis.")
-        elif retiradas_pessoais > caixa_operacional:
-            st.error("🚨 As retiradas foram maiores do que o caixa gerado. Ajuste urgente.")
-        elif retiradas_pessoais > caixa_operacional * 0.5:
-            st.warning("⚠️ As retiradas representam mais de 50% do Caixa Operacional.")
-        elif retiradas_pessoais > caixa_operacional * 0.3:
-            st.info("Retiradas moderadas — acompanhar mensalmente.")
+        # 2. Gráfico de Pizza: Caixa Operacional vs Retiradas Pessoais
+        st.markdown("#### Comparativo: Caixa Operacional vs Retiradas Pessoais")
+        
+        caixa_operacional = df_fluxo[df_fluxo['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
+        
+        # Retiradas pessoais são da conta FIN-05 e devem ser negativas (débitos)
+        retiradas_pessoais = abs(df2[
+            (df2['conta_analitica'] == 'FIN-05') & 
+            (df2['tipo_movimentacao'] == 'DEBITO')
+        ]['valor'].sum())
+        
+        if caixa_operacional > 0 or retiradas_pessoais > 0:
+            dados_comparativo = pd.DataFrame({
+                'Categoria': ['Caixa Operacional Gerado', 'Retiradas Pessoais (Sócios/Pró-labore)'],
+                'Valor': [caixa_operacional, retiradas_pessoais]
+            })
+            
+            fig_comparativo = px.pie(
+                dados_comparativo,
+                values='Valor',
+                names='Categoria',
+                title='Distribuição: Geração Operacional vs Retiradas',
+                color_discrete_sequence=[ACCENT_COLOR, NEGATIVE_COLOR],
+                hole=0.3
+            )
+            
+            fig_comparativo.update_traces(
+                textposition='inside',
+                textinfo='percent+label',
+                hovertemplate='<b>%{label}</b><br>Valor: %{value:.2f}<br>Percentual: %{percent}<extra></extra>'
+            )
+            
+            fig_comparativo.update_layout(
+                height=400, 
+                font=dict(family="Roboto"),
+                showlegend=True
+            )
+            
+            st.plotly_chart(fig_comparativo, use_container_width=True)
+            
+            # Análise contextual
+            if caixa_operacional <= 0:
+                st.warning("🚨 **Atenção**: O Caixa Operacional está negativo ou zero. As retiradas pessoais não são sustentáveis neste período.")
+            elif retiradas_pessoais > caixa_operacional * 0.5:
+                st.warning("⚠️ **Alerta**: As retiradas pessoais representam mais de 50% do Caixa Operacional gerado. Isso pode comprometer a capacidade de reinvestimento e a saúde financeira do negócio.")
+            else:
+                st.success("✅ **Saudável**: O Caixa Operacional gerado é suficiente para cobrir as retiradas pessoais, indicando sustentabilidade.")
         else:
-            st.success("Retiradas em nível saudável.")
-    else:
-        st.info("Não há valores suficientes para o comparativo Caixa vs Retiradas.")
+            st.info("Não há dados de Caixa Operacional ou Retiradas Pessoais para o período selecionado.")
 
-    st.markdown("---")
+        st.markdown("---")
 
-    # ============ Pizza: Distribuição das Saídas por Categoria (base do relatório) ============
-    st.markdown("#### Distribuição das Saídas por Categoria (todas as saídas)")
-    df_saidas = df2[df2["fluxo"] < 0].copy()
-    if not df_saidas.empty:
-        df_saidas["saida_abs"] = df_saidas["fluxo"].abs()
-        df_saidas_cat = df_saidas.groupby("conta_display")["saida_abs"].sum().reset_index().sort_values("saida_abs", ascending=False)
-        if not df_saidas_cat.empty:
-            fig_pizza = px.pie(df_saidas_cat, values="saida_abs", names="conta_display", hole=0.35)
-            fig_pizza.update_traces(textposition="inside", textinfo="label+percent")
-            st.plotly_chart(fig_pizza, use_container_width=True)
+        # 3. Gráfico de Barras: Top 5 Contas de Débito (Saídas)
+        st.markdown("#### Top 5 Contas de Débito (Saídas)")
+        
+        df_debitos = df2[df2['tipo_movimentacao'] == 'DEBITO'].copy()
+        df_debitos_agrupado = df_debitos.groupby('conta_display')['valor'].sum().reset_index()
+        df_debitos_agrupado['valor'] = df_debitos_agrupado['valor'] * -1 # Para exibir como negativo
+        df_debitos_agrupado = df_debitos_agrupado.sort_values('valor', ascending=True).head(5)
+        
+        if not df_debitos_agrupado.empty:
+            fig_top_debitos = px.bar(
+                df_debitos_agrupado,
+                x='valor',
+                y='conta_display',
+                orientation='h',
+                title='Maiores Saídas (Débitos)',
+                labels={'valor': 'Valor (R$)', 'conta_display': 'Conta'},
+                color_discrete_sequence=[NEGATIVE_COLOR]
+            )
+            fig_top_debitos.update_layout(
+                height=400, 
+                plot_bgcolor='white', 
+                font=dict(family="Roboto"),
+                yaxis={'categoryorder':'total ascending'}
+            )
+            st.plotly_chart(fig_top_debitos, use_container_width=True)
         else:
-            st.info("Nenhuma categoria de saída encontrada.")
-    else:
-        st.info("Nenhuma saída (débito) registrada no período.")
+            st.info("Nenhuma transação de débito encontrada para o período.")
 
+        st.markdown("---")
 
-# ------------------------
-# Função principal: secao_relatorios_dashboard
-# ------------------------
+        # 4. Gráfico de Barras: Top 5 Contas de Crédito (Entradas)
+        st.markdown("#### Top 5 Contas de Crédito (Entradas)")
+        
+        df_creditos = df2[df2['tipo_movimentacao'] == 'CREDITO'].copy()
+        df_creditos_agrupado = df_creditos.groupby('conta_display')['valor'].sum().reset_index()
+        df_creditos_agrupado = df_creditos_agrupado.sort_values('valor', ascending=False).head(5)
+        
+        if not df_creditos_agrupado.empty:
+            fig_top_creditos = px.bar(
+                df_creditos_agrupado,
+                x='valor',
+                y='conta_display',
+                orientation='h',
+                title='Maiores Entradas (Créditos)',
+                labels={'valor': 'Valor (R$)', 'conta_display': 'Conta'},
+                color_discrete_sequence=[INVESTMENT_COLOR]
+            )
+            fig_top_creditos.update_layout(
+                height=400, 
+                plot_bgcolor='white', 
+                font=dict(family="Roboto"),
+                yaxis={'categoryorder':'total descending'}
+            )
+            st.plotly_chart(fig_top_creditos, use_container_width=True)
+        else:
+            st.info("Nenhuma transação de crédito encontrada para o período.")
+
+    except Exception as e:
+        st.error(f"Erro ao gerar dashboard: {e}")
+        # st.code(traceback.format_exc())
+
+# --- FUNÇÃO PRINCIPAL DA SEÇÃO 3 ---
 def secao_relatorios_dashboard(df_transacoes: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any]):
-    """
-    Função principal para montar a seção 3: Relatórios Gerenciais e Dashboard.
-    Recebe o DataFrame já enriquecido (idealmente via enriquecer_com_plano_contas).
-    """
-
+    """Função que agrupa a exibição do Score, Dashboard e Relatório de Fluxo de Caixa."""
     st.header("3. Relatórios Gerenciais e Dashboard")
+    
+    # 1. Cálculo dos Indicadores e Score
+    resultado_score = calcular_score_fluxo(df_transacoes)
+    score = resultado_score['score_final']
+    indicadores = resultado_score['valores']
+    retiradas_pessoais_val = indicadores.get('retiradas_pessoais', 0.0)
 
-    if df_transacoes is None or df_transacoes.empty:
-        st.info("Nenhum dado disponível para relatório.")
-        return
-
-    # Normalizações defensivas (textos)
-    df = df_transacoes.copy()
-    for col in ["tipo_fluxo", "tipo_movimentacao", "conta_analitica", "conta_display"]:
-        if col in df.columns:
-            try:
-                df[col] = df[col].astype(str).str.upper().str.strip()
-            except Exception:
-                pass
-
-    if "data" in df.columns:
-        df["data"] = pd.to_datetime(df["data"], errors="coerce", dayfirst=True)
-        df = df.dropna(subset=["data"])
-
-    # 1) Abertura explicativa (HTML)
-    st.markdown(
-        f"""
-    <div style='padding: 15px; background-color: #F9F5EB; border-radius: 10px;
-                border-left: 4px solid {ACCENT_COLOR}; font-size:15px; line-height:1.6;'>
-        <h3 style='margin-top:0; color:{ACCENT_COLOR};'>O que é o Score Financeiro?</h3>
-        <p>
-            O <b>Score Financeiro</b> é um indicador que resume a saúde financeira do seu negócio 
-            de forma simples e visual. Ele funciona como um <b>check-up do fluxo de caixa</b>:
-            mostra se a empresa está gerando caixa, se os custos estão equilibrados e se as retiradas 
-            dos sócios estão num nível sustentável.
-        </p>
-        <p>O Score avalia sete pilares importantes:</p>
-        <ul>
-            <li>Geração de Caixa Operacional</li>
-            <li>Margem de Caixa</li>
-            <li>Retiradas Pessoais</li>
-            <li>Autossuficiência</li>
-            <li>Reinvestimentos</li>
-            <li>Crescimento das Entradas</li>
-            <li>Dependência de Financiamentos</li>
-        </ul>
-        <p>
-            Quanto mais perto de <b>100</b>, mais forte e sustentável está o negócio. 
-            A seguir, você verá seu Score Financeiro e uma análise rápida com orientações práticas.
-        </p>
-    </div>
-    """,
-        unsafe_allow_html=True,
+    # 2. Mini-Relatório e Score
+    st.markdown("#### Score Financeiro e Análise Rápida")
+    
+    html_relatorio, classe_texto = gerar_mini_relatorio_local(
+        score, 
+        indicadores, 
+        retiradas_pessoais_val
     )
-
-    # 2) Score + Análise Rápida
-    resultado_score = calcular_score_fluxo(df)
-    score = resultado_score.get("score_final", 0.0)
-    indicadores = resultado_score.get("valores", {})
-    retiradas_pessoais_val = indicadores.get("retiradas_pessoais", 0.0)
-
-    st.markdown("### Score Financeiro e Análise Rápida")
-
-    html_relatorio, classe_texto = gerar_mini_relatorio_local(score, indicadores, retiradas_pessoais_val)
-
+    
     col_score, col_resumo = st.columns([1, 3])
-
+    
     with col_score:
-        st.markdown(
-            f"""
-        <div style='text-align:center; padding: 10px; border: 2px solid {ACCENT_COLOR};
-                    border-radius: 10px; background-color: #F9F5EB;'>
+        st.markdown(f"""
+        <div style='text-align:center; padding: 10px; border: 2px solid {ACCENT_COLOR}; border-radius: 10px; background-color: #F9F5EB;'>
             <h1 style='color:{ACCENT_COLOR}; margin: 0;'>{score:.1f}</h1>
             <p style='margin: 0; font-weight: bold;'>Score Financeiro</p>
         </div>
-        """,
-            unsafe_allow_html=True,
-        )
+        """, unsafe_allow_html=True)
         st.markdown(f"<p style='text-align:center; font-weight:bold; margin-top: 10px;'>{classe_texto}</p>", unsafe_allow_html=True)
 
     with col_resumo:
-        # render HTML sem sanitização
-        render_html(html_relatorio, height=220)
+        st.markdown(html_relatorio, unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # 3) Análise Gerencial (gráficos essenciais, usando a base do fluxo)
-    criar_dashboard(df)
+    # 3. Dashboard
+    criar_dashboard(df_transacoes)
+
+    # 4. Gráfico de Indicadores
+    criar_grafico_indicadores(df_transacoes)
+
+    # 5. Relatório de Fluxo de Caixa (Tabela)
+    criar_relatorio_fluxo_caixa(df_transacoes, PLANO_DE_CONTAS)
 
     st.markdown("---")
-
-    # 4) Análise Avançada (Evolução dos Indicadores + Relatório)
-    st.subheader("📊 Análise Avançada")
-    st.markdown("Explore a estrutura completa do caixa e a evolução dos indicadores ao longo do tempo.")
-
-    criar_grafico_indicadores(df)
-    criar_relatorio_fluxo_caixa(df, PLANO_DE_CONTAS)
-
-    # Detalhamento do score
-    with st.expander("Detalhamento do Score Financeiro"):
+    
+    # 6. Detalhes do Score (Opcional, para debug/análise avançada)
+    with st.expander("Detalhes do Cálculo do Score"):
+        st.markdown("#### Notas e Contribuições por Indicador")
+        
         df_notas = pd.DataFrame({
-            "Indicador": list(resultado_score.get("notas", {}).keys()),
-            "Nota (0-100)": list(resultado_score.get("notas", {}).values()),
-            "Peso (%)": [resultado_score.get("pesos", {}).get(k, 0) for k in resultado_score.get("notas", {}).keys()],
-            "Contribuição para o Score": list(resultado_score.get("contribuicoes", {}).values())
+            'Indicador': list(resultado_score['notas'].keys()),
+            'Nota (0-100)': list(resultado_score['notas'].values()),
+            'Peso (%)': [resultado_score['pesos'].get(k, 0) for k in resultado_score['notas'].keys()],
+            'Contribuição para o Score': list(resultado_score['contribuicoes'].values())
         })
+        
         st.dataframe(df_notas, hide_index=True)
+        
+        st.markdown("#### Valores Brutos dos Indicadores")
         st.json(indicadores)
