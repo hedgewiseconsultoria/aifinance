@@ -639,20 +639,9 @@ def secao_relatorios_dashboard(df_transacoes: pd.DataFrame, PLANO_DE_CONTAS: Dic
             O <b>Score Financeiro</b> é um indicador que resume a saúde financeira do seu negócio 
             de forma simples e visual. Ele funciona como um <b>check-up do fluxo de caixa</b>:
             mostra se a empresa está gerando caixa, se os custos estão equilibrados e se as retiradas 
-            dos sócios estão num nível sustentável.
+            dos sócios estão num nível sustentável. Quanto mais perto de <b>100</b>, mais forte e sustentável está o negócio. 
         </p>
-        <p>O Score avalia sete pilares importantes:</p>
-        <ul>
-            <li>Geração de Caixa Operacional</li>
-            <li>Margem de Caixa</li>
-            <li>Retiradas Pessoais</li>
-            <li>Autossuficiência</li>
-            <li>Reinvestimentos</li>
-            <li>Crescimento das Entradas</li>
-            <li>Dependência de Financiamentos</li>
-        </ul>
-        <p>
-            Quanto mais perto de <b>100</b>, mais forte e sustentável está o negócio. 
+            
             A seguir, você verá seu Score Financeiro e uma análise rápida com orientações práticas.
         </p>
     </div>
