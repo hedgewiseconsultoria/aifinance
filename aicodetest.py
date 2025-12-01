@@ -681,15 +681,27 @@ elif page == "Revisão de Dados":
 # --------------------------
 elif page == "Dashboard & Relatórios":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
-    st.markdown("Selecione o período:")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        data_inicial_str = st.text_input("Data Inicial (DD/MM/AAAA)", "")
-    with col2:
-        data_final_str = st.text_input("Data Final (DD/MM/AAAA)", "")
+    with st.container():
+        st.markdown(
+            """
+            <div style='background:white; padding:20px; border-radius:12px;
+                         border:1px solid #DDD; margin-bottom:20px;'>
+                <h4 style='margin-bottom:12px; color:#0A2342;'>📅 Selecione o Período</h4>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    if st.button("Gerar Relatórios e Dashboard"):
+        col1, col2 = st.columns(2)
+        with col1:
+            data_inicial_str = st.text_input("Data Inicial (DD/MM/AAAA)", "")
+        with col2:
+            data_final_str = st.text_input("Data Final (DD/MM/AAAA)", "")
+
+        gerar_periodo = st.button("Gerar Relatórios e Dashboard")
+
+     if gerar_periodo:
         try:
             data_inicial = pd.to_datetime(data_inicial_str, format="%d/%m/%Y", errors="coerce")
             data_final = pd.to_datetime(data_final_str, format="%d/%m/%Y", errors="coerce")
