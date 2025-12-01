@@ -682,18 +682,30 @@ elif page == "Revisão de Dados":
 elif page == "Dashboard & Relatórios":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
 
-    # === CSS igual ao estilo do auth.py ===
+    # === CSS (ajustado para exibir a caixa branca corretamente) ===
     st.markdown(
         """
         <style>
+            /* Caixa branca ao redor da seleção de período */
             .period-box {
-                background-color: #FFFFFF;
+                background-color: #FFFFFF !important;
                 border: 1px solid #D9D9D9;
-                border-radius: 10px;
-                padding: 25px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.06);
-                margin-bottom: 25px;
+                border-radius: 12px;
+                padding: 25px 30px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+                margin-top: 15px;
+                margin-bottom: 30px;
             }
+
+            /* Título do card */
+            .period-title {
+                font-size: 20px;
+                font-weight: 600;
+                color: #0A2342;
+                margin-bottom: 20px;
+            }
+
+            /* Inputs de data */
             input[type="text"] {
                 border: 1px solid #0A2342 !important;
                 border-radius: 6px !important;
@@ -703,11 +715,10 @@ elif page == "Dashboard & Relatórios":
                 border-color: #007BFF !important;
                 box-shadow: 0 0 4px #007BFF !important;
             }
-            .period-title {
-                font-size: 20px;
-                font-weight: 600;
-                color: #0A2342;
-                margin-bottom: 15px;
+
+            /* Mantém o bloco alinhado e limpo no Streamlit */
+            .block-container {
+                padding-top: 20px !important;
             }
         </style>
         """,
@@ -725,7 +736,7 @@ elif page == "Dashboard & Relatórios":
         data_final_str = st.text_input("Data Final", placeholder="DD/MM/AAAA", key="dt_fim")
 
     gerar = st.button("Gerar Relatórios e Dashboard")
-    st.markdown("</div>", unsafe_allow_html=True)   # fecha caixa
+    st.markdown("</div>", unsafe_allow_html=True)   # fecha o card
 
     # === Lógica original ===
     if gerar:
@@ -779,6 +790,7 @@ elif page == "Dashboard & Relatórios":
             st.error(f"Erro ao gerar relatórios/dashboard: {e}")
     else:
         st.info("Nenhum dado disponível para relatório.")
+
 
 
 
