@@ -682,6 +682,7 @@ elif page == "Revisão de Dados":
 elif page == "Dashboard & Relatórios":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
 
+    # 🔥 NOVO BLOCO VISUAL DE SELEÇÃO DE PERÍODO
     with st.container():
         st.markdown(
             """
@@ -701,10 +702,15 @@ elif page == "Dashboard & Relatórios":
 
         gerar_periodo = st.button("Gerar Relatórios e Dashboard")
 
-     if gerar_periodo:
+    # 🔥 LÓGICA ORIGINAL DO SEU CÓDIGO (idêntica)
+    if gerar_periodo:
         try:
-            data_inicial = pd.to_datetime(data_inicial_str, format="%d/%m/%Y", errors="coerce")
-            data_final = pd.to_datetime(data_final_str, format="%d/%m/%Y", errors="coerce")
+            data_inicial = pd.to_datetime(
+                data_inicial_str, format="%d/%m/%Y", errors="coerce"
+            )
+            data_final = pd.to_datetime(
+                data_final_str, format="%d/%m/%Y", errors="coerce"
+            )
 
             if pd.isna(data_inicial) or pd.isna(data_final):
                 st.error("Formato de data inválido.")
@@ -727,6 +733,7 @@ elif page == "Dashboard & Relatórios":
                     .lte("data", data_final_iso)
                     .execute()
                 )
+
                 resultado_data = getattr(resultado, "data", resultado)
 
                 if not resultado_data:
@@ -739,14 +746,19 @@ elif page == "Dashboard & Relatórios":
                     df_relatorio["valor"] = (
                         pd.to_numeric(df_relatorio["valor"], errors="coerce").fillna(0)
                     )
+
                     df_relatorio = enriquecer_com_plano_contas(df_relatorio)
+
                     st.session_state["df_transacoes_editado"] = df_relatorio.copy()
+
                     st.success(
                         f"{len(df_relatorio)} transações carregadas para o período!"
                     )
+
         except Exception as e:
             st.error(f"Erro ao gerar relatórios: {e}")
 
+    # 🔥 SEÇÃO DE RELATÓRIOS/DASHBOARD (idem ao original)
     if not st.session_state.get("df_transacoes_editado", pd.DataFrame()).empty:
         df_final = st.session_state["df_transacoes_editado"].copy()
         try:
