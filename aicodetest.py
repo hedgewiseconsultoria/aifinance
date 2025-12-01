@@ -725,7 +725,7 @@ elif page == "Dashboard & Relatórios":
         data_final_str = st.text_input("Data Final", placeholder="DD/MM/AAAA", key="dt_fim")
 
     gerar = st.button("Gerar Relatórios e Dashboard")
-    st.markdown("</div>", unsafe_allow_html=True)   # fecha caixa
+   # st.markdown("</div>", unsafe_allow_html=True)   # fecha caixa
 
     # === Lógica original ===
     if gerar:
