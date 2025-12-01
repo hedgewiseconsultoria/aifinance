@@ -654,3 +654,6 @@ def secao_relatorios_dashboard(df_transacoes, PLANO_DE_CONTAS):
         })
         st.dataframe(df_notas, hide_index=True)
         st.json(indicadores)
+
+st.write(df_transacoes.head(20))
+st.write(df_transacoes.dtypes)
