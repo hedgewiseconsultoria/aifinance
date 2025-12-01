@@ -682,49 +682,56 @@ elif page == "Revisão de Dados":
 elif page == "Dashboard & Relatórios":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
 
-    # ⚡ BLOCO VISUAL PROFISSIONAL PARA SELEÇÃO DE PERÍODO
+    # === CSS igual ao estilo do auth.py ===
     st.markdown(
         """
-        <div style="
-            background-color: #FFFFFF;
-            padding: 25px;
-            border-radius: 12px;
-            border: 1px solid #D9D9D9;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            margin-bottom: 25px;
-        ">
-            <h4 style="color:#0A2342; margin-top:0; margin-bottom:15px;">
-                📅 Selecione o Período
-            </h4>
-        </div>
+        <style>
+            .period-box {
+                background-color: #FFFFFF;
+                border: 1px solid #D9D9D9;
+                border-radius: 10px;
+                padding: 25px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+                margin-bottom: 25px;
+            }
+            input[type="text"] {
+                border: 1px solid #0A2342 !important;
+                border-radius: 6px !important;
+                padding: 8px 10px !important;
+            }
+            input[type="text"]:focus {
+                border-color: #007BFF !important;
+                box-shadow: 0 0 4px #007BFF !important;
+            }
+            .period-title {
+                font-size: 20px;
+                font-weight: 600;
+                color: #0A2342;
+                margin-bottom: 15px;
+            }
+        </style>
         """,
         unsafe_allow_html=True,
     )
 
-    with st.container():
-        colA, colB = st.columns(2)
+    # === CARD DE PERÍODO ===
+    st.markdown('<div class="period-box">', unsafe_allow_html=True)
+    st.markdown('<div class="period-title">📅 Selecione o Período</div>', unsafe_allow_html=True)
 
-        with colA:
-            st.markdown("**Data Inicial**")
-            data_inicial_str = st.text_input("", placeholder="DD/MM/AAAA", key="dt_ini")
+    col1, col2 = st.columns(2)
+    with col1:
+        data_inicial_str = st.text_input("Data Inicial", placeholder="DD/MM/AAAA", key="dt_ini")
+    with col2:
+        data_final_str = st.text_input("Data Final", placeholder="DD/MM/AAAA", key="dt_fim")
 
-        with colB:
-            st.markdown("**Data Final**")
-            data_final_str = st.text_input("", placeholder="DD/MM/AAAA", key="dt_fim")
+    gerar = st.button("Gerar Relatórios e Dashboard")
+    st.markdown("</div>", unsafe_allow_html=True)   # fecha caixa
 
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        botao_ok = st.button("Gerar Relatórios e Dashboard")
-
-    # ⚡ LÓGICA ORIGINAL (SEM ALTERAÇÕES ESTRUTURAIS)
-    if botao_ok:
+    # === Lógica original ===
+    if gerar:
         try:
-            data_inicial = pd.to_datetime(
-                data_inicial_str, format="%d/%m/%Y", errors="coerce"
-            )
-            data_final = pd.to_datetime(
-                data_final_str, format="%d/%m/%Y", errors="coerce"
-            )
+            data_inicial = pd.to_datetime(data_inicial_str, format="%d/%m/%Y", errors="coerce")
+            data_final = pd.to_datetime(data_final_str, format="%d/%m/%Y", errors="coerce")
 
             if pd.isna(data_inicial) or pd.isna(data_final):
                 st.error("Formato de data inválido.")
@@ -732,12 +739,11 @@ elif page == "Dashboard & Relatórios":
                 data_inicial_iso = data_inicial.strftime("%Y-%m-%d")
                 data_final_iso = data_final.strftime("%Y-%m-%d")
 
-                # ============== USER ID AJUSTADO ================
+                # USER ID
                 if isinstance(user, dict):
                     user_id = user.get("id")
                 else:
                     user_id = getattr(user, "id", None)
-                # =================================================
 
                 resultado = (
                     supabase.table("transacoes")
@@ -754,25 +760,17 @@ elif page == "Dashboard & Relatórios":
                     st.warning("Nenhuma transação encontrada no período.")
                 else:
                     df_relatorio = pd.DataFrame(resultado_data)
-                    df_relatorio["data"] = pd.to_datetime(
-                        df_relatorio["data"], errors="coerce"
-                    )
-                    df_relatorio["valor"] = (
-                        pd.to_numeric(df_relatorio["valor"], errors="coerce").fillna(0)
-                    )
-
+                    df_relatorio["data"] = pd.to_datetime(df_relatorio["data"], errors="coerce")
+                    df_relatorio["valor"] = pd.to_numeric(df_relatorio["valor"], errors="coerce").fillna(0)
                     df_relatorio = enriquecer_com_plano_contas(df_relatorio)
 
                     st.session_state["df_transacoes_editado"] = df_relatorio.copy()
-
-                    st.success(
-                        f"{len(df_relatorio)} transações carregadas para o período!"
-                    )
+                    st.success(f"{len(df_relatorio)} transações carregadas para o período!")
 
         except Exception as e:
             st.error(f"Erro ao gerar relatórios: {e}")
 
-    # ⚡ RELATÓRIOS E DASHBOARD
+    # === Dashboard / Relatórios ===
     if not st.session_state.get("df_transacoes_editado", pd.DataFrame()).empty:
         df_final = st.session_state["df_transacoes_editado"].copy()
         try:
