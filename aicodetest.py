@@ -682,50 +682,69 @@ elif page == "Revisão de Dados":
 elif page == "Dashboard & Relatórios":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
 
-    # === CSS (ajustado para exibir a caixa branca corretamente) ===
+    # === CSS (corrigido: sem alterações globais, só estilo local) ===
     st.markdown(
         """
         <style>
-            /* Caixa branca ao redor da seleção de período */
+            /* Estilo restrito apenas ao card do período */
             .period-box {
                 background-color: #FFFFFF !important;
                 border: 1px solid #D9D9D9;
                 border-radius: 12px;
-                padding: 25px 30px;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.10);
-                margin-top: 15px;
+                padding: 22px 26px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+                margin-top: 18px;
                 margin-bottom: 30px;
+                /* não afeta header/containers globais */
+                width: 100%;
+                max-width: 1180px;    /* limita para não invadir header */
+                box-sizing: border-box;
             }
 
-            /* Título do card */
-            .period-title {
-                font-size: 20px;
+            /* Ajuste fino do título dentro do card */
+            .period-box .period-title {
+                font-size: 18px;
                 font-weight: 600;
                 color: #0A2342;
-                margin-bottom: 20px;
+                margin-bottom: 14px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
             }
 
-            /* Inputs de data */
-            input[type="text"] {
+            /* Inputs de data — apenas inputs dentro do card */
+            .period-box input[type="text"] {
                 border: 1px solid #0A2342 !important;
                 border-radius: 6px !important;
                 padding: 8px 10px !important;
             }
-            input[type="text"]:focus {
+            .period-box input[type="text"]:focus {
                 border-color: #007BFF !important;
                 box-shadow: 0 0 4px #007BFF !important;
+                outline: none !important;
             }
 
-            /* Mantém o bloco alinhado e limpo no Streamlit */
-            .block-container {
-                padding-top: 20px !important;
+            /* Botão - estilo leve (aplica somente se o botão estiver dentro do card) */
+            .period-box .stButton > button {
+                background-color: #0A2342;
+                color: #ffffff;
+                border-radius: 8px;
+                padding: 8px 16px;
+                box-shadow: none;
+                border: none;
             }
+            .period-box .stButton > button:hover {
+                opacity: 0.95;
+            }
+
+            /* Garantia: não mexer em header, logo ou em containers globais do Streamlit */
+            /* NÃO adicionar regras para .block-container, header, nav, ou body aqui */
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    # === CARD DE PERÍODO ===
+    # === CARD DE PERÍODO (HTML local, fecha corretamente) ===
     st.markdown('<div class="period-box">', unsafe_allow_html=True)
     st.markdown('<div class="period-title">📅 Selecione o Período</div>', unsafe_allow_html=True)
 
@@ -735,6 +754,7 @@ elif page == "Dashboard & Relatórios":
     with col2:
         data_final_str = st.text_input("Data Final", placeholder="DD/MM/AAAA", key="dt_fim")
 
+    # se preferir o botão dentro do card, use st.button aqui (estilizado acima)
     gerar = st.button("Gerar Relatórios e Dashboard")
     st.markdown("</div>", unsafe_allow_html=True)   # fecha o card
 
@@ -790,6 +810,7 @@ elif page == "Dashboard & Relatórios":
             st.error(f"Erro ao gerar relatórios/dashboard: {e}")
     else:
         st.info("Nenhum dado disponível para relatório.")
+
 
 
 
