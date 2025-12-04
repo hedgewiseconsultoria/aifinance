@@ -421,11 +421,10 @@ page = render_sidebar()
 # --------------------------
 if page == "Upload":
     st.markdown("### 1. Upload e Extração de Dados")
-    import streamlit as st
 
 # O novo texto aprimorado, utilizando a sintaxe Markdown:
 texto_aprimorado = """
-👋 **Bem-vindo(a)! Para gerar suas informações financeiras relevantes, siga os passos:**
+**Bem-vindo(a)! Para gerar suas informações financeiras relevantes, siga os passos:**
 
 1.  **Faça o upload** do(s) seu(s) extrato(s) bancário(s) no formato **PDF**.
 2.  Nosso sistema irá **extrair automaticamente todas as transações**.
