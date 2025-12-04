@@ -10,6 +10,7 @@ import traceback
 import math
 import hashlib
 from datetime import datetime, timedelta
+from streamlit_option_menu import option_menu
 
 # integração auth/supabase (arquivo auth.py que você forneceu)
 from auth import (
@@ -345,16 +346,75 @@ if st.sidebar.button("Sair"):
 
 load_header()
 
-st.sidebar.title("Navegação")
-page = st.sidebar.radio(
-    "Seções:", ["Upload e Extração", "Revisão de Dados", "Dashboard & Relatórios"]
-)
+# ================================
+# SIDEBAR PROFISSIONAL (ESTILO B)
+# ================================
+from streamlit_option_menu import option_menu
+
+with st.sidebar:
+    st.markdown(
+        """
+        <style>
+            .css-1d391kg, .css-1v3fvcr, .css-qri22k {
+                background-color: #FFFFFF !important;
+            }
+            .nav-link {
+                font-size: 15px !important;
+                color: #0A2342 !important;
+                font-weight: 500 !important;
+            }
+            .nav-link:hover {
+                background-color: #e8eef9 !important;
+                color: #0A2342 !important;
+            }
+            .nav-link.active {
+                background-color: #0A2342 !important;
+                color: white !important;
+                border-radius: 8px;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    escolha_menu = option_menu(
+        menu_title="📌 Menu",
+        options=[
+            "Dashboard", 
+            "Transações", 
+            "Perfil", 
+            "Configurações", 
+            "Planos", 
+            "Sair"
+        ],
+        icons=[
+            "bar-chart-fill",   # Dashboard
+            "receipt",          # Transações
+            "person-circle",    # Perfil
+            "gear-fill",        # Configurações
+            "credit-card-2-back",  # Planos
+            "box-arrow-right"   # Sair
+        ],
+        menu_icon="menu-up",
+        default_index=0,
+        styles={
+            "container": {"padding": "0!important", "background-color": "#FFFFFF"},
+            "icon": {"color": "#0A2342", "font-size": "20px"},
+            "nav-link": {
+                "font-size": "15px",
+                "text-align": "left",
+                "margin":"2px",
+                "--hover-color": "#e8eef9",
+            },
+        }
+    )
+
 
 
 # --------------------------
 # 1. Upload e Extração
 # --------------------------
-if page == "Upload e Extração":
+if page == "Transações":
     st.markdown("### 1. Upload e Extração de Dados")
     st.markdown(
         "Faça o upload dos extratos em PDF. O sistema irá extrair as transações."
@@ -543,7 +603,7 @@ if page == "Upload e Extração":
 # --------------------------
 # 2. Revisão de Dados
 # --------------------------
-elif page == "Revisão de Dados":
+elif page == "Transações":
     st.markdown("### 2. Revisão e Correção Manual dos Dados")
 
     if not st.session_state.get("df_transacoes_editado", pd.DataFrame()).empty:
@@ -679,7 +739,7 @@ elif page == "Revisão de Dados":
 # --------------------------
 # 3. Dashboard & Relatórios
 # --------------------------
-elif page == "Dashboard & Relatórios":
+elif page == "Dashboard":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
 
     # === CSS igual ao estilo do auth.py ===
