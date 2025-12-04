@@ -409,7 +409,7 @@ with st.sidebar:
         }
     )
 
-
+page = escolha_menu
 
 # --------------------------
 # 1. Upload e Extração
