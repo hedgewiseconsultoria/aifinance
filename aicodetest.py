@@ -419,7 +419,7 @@ page = render_sidebar()
 # --------------------------
 # 1. Upload e Extração
 # --------------------------
-if page == "Upload e Extração":
+if page == "Upload":
     st.markdown("### 1. Upload e Extração de Dados")
     st.markdown(
         "Faça o upload dos extratos em PDF. O sistema irá extrair as transações."
