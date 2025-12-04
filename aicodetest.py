@@ -420,12 +420,12 @@ page = render_sidebar()
 # 1. Upload e Extração
 # --------------------------
 if page == "Upload":
-    st.markdown("### 1. Upload e Extração de Dados 📄") # Adicionei um emoji
+    st.markdown("### 1. Upload e Extração de Dados") # Adicionei um emoji
 
     # NOVO TEXTO APRIMORADO E ADAPTADO AO CONTEXTO
     st.markdown(
         """
-        👋 **Bem-vindo(a)!** Para gerar sua análise financeira, realize o upload dos extratos:
+         **Bem-vindo(a)!** Para gerar sua análise financeira, realize o upload dos extratos:
         
         1.  **Faça o upload** do(s) seu(s) extrato(s) bancário(s) no formato **PDF** (na seção abaixo).
         2.  Nosso sistema irá **extrair automaticamente** e **classificar** as transações.
