@@ -419,23 +419,23 @@ page = render_sidebar()
 # --------------------------
 # 1. Upload e Extração
 # --------------------------
-if page == "Upload":
-    st.markdown("### 1. Upload e Extração de Dados")
+if page == "Upload e Extração":
+    st.markdown("### 1. Upload e Extração de Dados 📄") # Adicionei um emoji
 
-# O novo texto aprimorado, utilizando a sintaxe Markdown:
-texto_aprimorado = """
-**Bem-vindo(a)! Para gerar suas informações financeiras relevantes, siga os passos:**
-
-1.  **Faça o upload** do(s) seu(s) extrato(s) bancário(s) no formato **PDF**.
-2.  Nosso sistema irá **extrair automaticamente todas as transações**.
-3.  Em seguida, as transações serão **classificadas** em categorias financeiras, utilizando o **plano de contas** específico para microempreendedores que você verá a seguir.
-
-**Tudo pronto para ter uma visão clara das suas finanças!**
-"""
-
-st.markdown(texto_aprimorado)
+    # NOVO TEXTO APRIMORADO E ADAPTADO AO CONTEXTO
+    st.markdown(
+        """
+        👋 **Bem-vindo(a)!** Para gerar sua análise financeira, realize o upload dos extratos:
+        
+        1.  **Faça o upload** do(s) seu(s) extrato(s) bancário(s) no formato **PDF** (na seção abaixo).
+        2.  Nosso sistema irá **extrair automaticamente** e **classificar** as transações.
+        
+        Você pode consultar as categorias de classificação utilizadas no nosso **Plano de Contas** abaixo.
+        """
+    )
 
     with st.expander("Plano de Contas Utilizado", expanded=False):
+        # ... (O código do plano de contas continua o mesmo)
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             st.markdown(
                 "**{} - {}** ({})".format(
@@ -443,7 +443,7 @@ st.markdown(texto_aprimorado)
                 )
             )
             for conta in sintetico["contas"]:
-                st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
+                st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
 
     with st.expander("Upload de Arquivos", expanded=True):
         uploaded_files = st.file_uploader(
@@ -454,7 +454,7 @@ st.markdown(texto_aprimorado)
         )
 
     if uploaded_files:
-
+        st.success("✅ Arquivos prontos para processamento!") # Feedback visual
         if st.button(
             f"Executar Extração e Classificação ({len(uploaded_files)} arquivos)",
             key="analyze_btn",
