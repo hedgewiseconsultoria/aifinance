@@ -339,82 +339,87 @@ else:
     user_email = getattr(user, "email", "")
 # ===========================================
 
-st.sidebar.write(f"Olá, {user_email}")
-
-if st.sidebar.button("Sair"):
-    logout()
-
-load_header()
-
 # ================================
-# SIDEBAR PROFISSIONAL (ESTILO B)
+# SIDEBAR PROFISSIONAL COMPLETO
 # ================================
-from streamlit_option_menu import option_menu
+try:
+    from streamlit_option_menu import option_menu
+    _HAS_OPTION_MENU = True
+except Exception:
+    _HAS_OPTION_MENU = False
 
-with st.sidebar:
-    st.markdown(
-        """
-        <style>
-            .css-1d391kg, .css-1v3fvcr, .css-qri22k {
-                background-color: #FFFFFF !important;
-            }
-            .nav-link {
-                font-size: 15px !important;
-                color: #0A2342 !important;
-                font-weight: 500 !important;
-            }
-            .nav-link:hover {
-                background-color: #e8eef9 !important;
-                color: #0A2342 !important;
-            }
-            .nav-link.active {
-                background-color: #0A2342 !important;
-                color: white !important;
-                border-radius: 8px;
-            }
-        </style>
+def render_sidebar():
+    # ======== LOGO NO TOPO ========
+    try:
+        logo = Image.open(LOGO1_FILENAME)
+        st.sidebar.image(logo, use_container_width=True)
+    except Exception:
+        st.sidebar.markdown(
+            "<h2 style='color:#0A2342; font-weight:700;'>Hedgewise</h2>",
+            unsafe_allow_html=True,
+        )
+
+    st.sidebar.markdown("<hr style='margin:6px 0;'>", unsafe_allow_html=True)
+
+    # ======== MENU ========
+    if _HAS_OPTION_MENU:
+        with st.sidebar:
+            escolha = option_menu(
+                menu_title="Menu",
+                options=["Dashboard", "Upload", "Revisão", "Perfil", "Configurações", "Planos", "Sair"],
+                icons=["bar-chart-fill", "cloud-upload", "pencil-square", "person-circle", "gear-fill", "credit-card-2-back", "box-arrow-right"],
+                menu_icon="list",
+                default_index=0,
+                styles={
+                    "container": {"padding":"0!important", "background-color":"#FFFFFF"},
+                    "menu-title": {"font-size":"15px", "color":"#0A2342", "font-weight":"700", "padding-bottom":"4px"},
+                    "icon": {"color": "#0A2342", "font-size":"18px"},
+                    "nav-link": {
+                        "font-size":"14px",
+                        "color":"#0A2342",
+                        "text-align":"left",
+                        "padding":"6px",
+                        "margin":"2px",
+                        "border-radius":"6px"
+                    },
+                    "nav-link-selected": {"background-color":"#0A2342", "color":"white"},
+                }
+            )
+    else:
+        with st.sidebar:
+            st.markdown("<div style='font-size:15px; color:#0A2342; font-weight:700;'>Menu</div>", unsafe_allow_html=True)
+            escolha = st.radio(
+                "",
+                ["Dashboard", "Upload", "Revisão", "Perfil", "Configurações", "Planos", "Sair"],
+                index=0,
+            )
+
+    # ======== OLÁ, USUÁRIO (APÓS MENU) ========
+    st.sidebar.markdown("<hr style='margin:6px 0;'>", unsafe_allow_html=True)
+    st.sidebar.markdown(
+        f"""
+        <div style="font-size:14px; color:#0A2342; padding:6px 0;">
+            Olá, <strong>{user_email}</strong>
+        </div>
         """,
         unsafe_allow_html=True,
     )
 
-    escolha_menu = option_menu(
-        menu_title="📌 Menu",
-        options=[
-            "Dashboard", 
-            "Transações", 
-            "Perfil", 
-            "Configurações", 
-            "Planos", 
-            "Sair"
-        ],
-        icons=[
-            "bar-chart-fill",   # Dashboard
-            "receipt",          # Transações
-            "person-circle",    # Perfil
-            "gear-fill",        # Configurações
-            "credit-card-2-back",  # Planos
-            "box-arrow-right"   # Sair
-        ],
-        menu_icon="menu-up",
-        default_index=0,
-        styles={
-            "container": {"padding": "0!important", "background-color": "#FFFFFF"},
-            "icon": {"color": "#0A2342", "font-size": "20px"},
-            "nav-link": {
-                "font-size": "15px",
-                "text-align": "left",
-                "margin":"2px",
-                "--hover-color": "#e8eef9",
-            },
-        }
-    )
+    # ======== SAIR DO MENU ========
+    if escolha == "Sair":
+        logout()
+        st.stop()
 
-page = escolha_menu
+    return escolha
+
+# Executar o menu e obter a página atual
+page = render_sidebar()
+
 
 # --------------------------
 # 1. Upload e Extração
 # --------------------------
-if page == "Transações":
+if page == "Upload":
     st.markdown("### 1. Upload e Extração de Dados")
     st.markdown(
         "Faça o upload dos extratos em PDF. O sistema irá extrair as transações."
@@ -603,7 +608,7 @@ if page == "Transações":
 # --------------------------
 # 2. Revisão de Dados
 # --------------------------
-elif page == "Transações":
+elif page == "Revisão":
     st.markdown("### 2. Revisão e Correção Manual dos Dados")
 
     if not st.session_state.get("df_transacoes_editado", pd.DataFrame()).empty:
