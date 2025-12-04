@@ -422,7 +422,8 @@ page = render_sidebar()
 if page == "Upload":
     st.markdown("### 1. Upload e Extração de Dados")
     st.markdown(
-        "Faça o upload dos extratos bancários em PDF. O sistema irá extrair as transações e classificá-las por meio de Inteligência Artificial, aplicando o plano de contas abaixo."
+        "Faça o upload dos extratos bancários em PDF. 
+         - O sistema extrairá as transações e classificá-las, utilizando o plano de contas abaixo."
     )
 
     with st.expander("Plano de Contas Utilizado", expanded=False):
