@@ -420,22 +420,12 @@ page = render_sidebar()
 # 1. Upload e Extração
 # --------------------------
 if page == "Upload e Extração":
-    st.markdown("### 1. Upload e Extração de Dados 📄") # Adicionei um emoji
-
-    # NOVO TEXTO APRIMORADO E ADAPTADO AO CONTEXTO
+    st.markdown("### 1. Upload e Extração de Dados")
     st.markdown(
-        """
-        👋 **Bem-vindo(a)!** Para gerar sua análise financeira, realize o upload dos extratos:
-        
-        1.  **Faça o upload** do(s) seu(s) extrato(s) bancário(s) no formato **PDF** (na seção abaixo).
-        2.  Nosso sistema irá **extrair automaticamente** e **classificar** as transações.
-        
-        Você pode consultar as categorias de classificação utilizadas no nosso **Plano de Contas** abaixo.
-        """
+        "Faça o upload dos extratos em PDF. O sistema irá extrair as transações."
     )
 
     with st.expander("Plano de Contas Utilizado", expanded=False):
-        # ... (O código do plano de contas continua o mesmo)
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             st.markdown(
                 "**{} - {}** ({})".format(
@@ -443,7 +433,7 @@ if page == "Upload e Extração":
                 )
             )
             for conta in sintetico["contas"]:
-                st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
+                st.markdown(f"  - `{conta['codigo']}`: {conta['nome']}")
 
     with st.expander("Upload de Arquivos", expanded=True):
         uploaded_files = st.file_uploader(
@@ -454,7 +444,7 @@ if page == "Upload e Extração":
         )
 
     if uploaded_files:
-        st.success("✅ Arquivos prontos para processamento!") # Feedback visual
+
         if st.button(
             f"Executar Extração e Classificação ({len(uploaded_files)} arquivos)",
             key="analyze_btn",
@@ -462,6 +452,7 @@ if page == "Upload e Extração":
             todas_transacoes = []
             extraction_status = st.empty()
             extraction_status.info("Iniciando extração.")
+
 
             # ============== USER ID AJUSTADO ================
             if isinstance(user, dict):
