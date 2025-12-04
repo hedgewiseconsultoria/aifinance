@@ -423,17 +423,19 @@ if page == "Upload":
     st.markdown("### 1. Upload e Extração de Dados")
     import streamlit as st
 
-st.write("👋 **Bem-vindo(a)!**")
+# O novo texto aprimorado, utilizando a sintaxe Markdown:
+texto_aprimorado = """
+👋 **Bem-vindo(a)! Para gerar suas informações financeiras relevantes, siga os passos:**
 
-st.markdown("Para gerar suas informações financeiras relevantes, siga os passos:")
-
-st.markdown("""
 1.  **Faça o upload** do(s) seu(s) extrato(s) bancário(s) no formato **PDF**.
 2.  Nosso sistema irá **extrair automaticamente todas as transações**.
 3.  Em seguida, as transações serão **classificadas** em categorias financeiras, utilizando o **plano de contas** específico para microempreendedores que você verá a seguir.
-""")
 
-st.success("**Tudo pronto para ter uma visão clara das suas finanças!**") # Usando st.success para destaque
+**Tudo pronto para ter uma visão clara das suas finanças!**
+"""
+
+st.markdown(texto_aprimorado)
+
     with st.expander("Plano de Contas Utilizado", expanded=False):
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             st.markdown(
