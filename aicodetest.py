@@ -1044,7 +1044,7 @@ with col2:
 
 
 # --------------------------
-# 6. CONFIGURAÇÕES
+# CONFIGURAÇÕES
 # --------------------------
 elif page == "Configurações":
 
@@ -1065,9 +1065,8 @@ elif page == "Configurações":
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 6. Configurações do Usuário")
+    st.markdown("### ⚙️ Configurações do Usuário")
 
-    # Identificação usuário
     if isinstance(user, dict):
         user_id = user.get("id")
     else:
@@ -1077,7 +1076,6 @@ elif page == "Configurações":
         st.error("Não foi possível identificar o usuário logado.")
         st.stop()
 
-    # Buscar informações atuais
     try:
         res = supabase.table("users_profiles").select("moeda, tema, formato_data").eq("id", user_id).execute()
         dados_cfg = getattr(res, "data", res)
@@ -1089,25 +1087,25 @@ elif page == "Configurações":
     tema_atual = dados_cfg.get("tema", "claro")
     formato_atual = dados_cfg.get("formato_data", "br")
 
-    # Card Configurações
     st.markdown('<div class="config-card">', unsafe_allow_html=True)
     st.markdown('<div class="config-titulo">Preferências</div>', unsafe_allow_html=True)
 
-    col1, col2 = st.columns(2)
+    colA, colB = st.columns(2)
 
-    with col1:
-        moeda = st.selectbox("Moeda padrão:", ["BRL (R$)", "USD ($)", "EUR (€)"], 
-                             index=["BRL (R$)","USD ($)","EUR (€)"].index(
-                                 "BRL (R$)" if moeda_atual == "BRL" else
-                                 "USD ($)" if moeda_atual == "USD" else "EUR (€)"
-                             ))
+    with colA:
+        moeda = st.selectbox(
+            "Moeda padrão:",
+            ["BRL (R$)", "USD ($)", "EUR (€)"],
+            index=["BRL","USD","EUR"].index(moeda_atual)
+        )
+        tema = st.selectbox("Tema:", ["Claro", "Escuro"], index=0 if tema_atual == "claro" else 1)
 
-        tema = st.selectbox("Tema:", ["Claro", "Escuro"], 
-                            index=0 if tema_atual == "claro" else 1)
-
-    with col2:
-        formato_data = st.selectbox("Formato de data:", ["Brasil (DD/MM/AAAA)", "Internacional (YYYY-MM-DD)"], 
-                                    index=0 if formato_atual == "br" else 1)
+    with colB:
+        formato_data = st.selectbox(
+            "Formato de data:",
+            ["Brasil (DD/MM/AAAA)", "Internacional (YYYY-MM-DD)"],
+            index=0 if formato_atual == "br" else 1
+        )
 
     if st.button("Salvar configurações"):
         try:
