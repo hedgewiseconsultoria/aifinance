@@ -1042,13 +1042,11 @@ with col2:
 
     st.markdown("</div>", unsafe_allow_html=True)  # Fecha card
 
-else:
-    pass
 
 # --------------------------
 # 6. CONFIGURAÇÕES
 # --------------------------
-elif page == "Configurações":
+elif page == "Planos":
 
     st.markdown("""
         <style>
