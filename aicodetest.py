@@ -1042,6 +1042,8 @@ with col2:
 
     st.markdown("</div>", unsafe_allow_html=True)  # Fecha card
 
+# --------- FIM DA SEÇÃO PLANOS ---------
+pass
 
 
 
