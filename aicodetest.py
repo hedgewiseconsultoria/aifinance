@@ -984,12 +984,12 @@ elif page == "Planos":
     st.markdown(f"**Seu plano atual:** `{plano_atual.upper()}`")
     st.markdown("---")
 
-    col1, col2 = st.columns(2)
+    colx, coly = st.columns(2)
 
 # =======================
 # PLANO FREE
 # =======================
-with col1:
+with colx:
     st.markdown("""
         <div class="plano-card">
             <div class="plano-titulo">🔓 Plano FREE</div>
@@ -1017,7 +1017,7 @@ with col1:
 # =======================
 # PLANO PREMIUM
 # =======================
-with col2:
+with coly:
     st.markdown("""
         <div class="plano-card">
             <div class="plano-titulo">💎 Plano PREMIUM</div>
