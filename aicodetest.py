@@ -1046,7 +1046,7 @@ with col2:
 # --------------------------
 # 6. CONFIGURAÇÕES
 # --------------------------
-elif page == "Planos":
+elif page == "Configurações":
 
     st.markdown("""
         <style>
