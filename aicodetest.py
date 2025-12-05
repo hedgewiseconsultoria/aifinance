@@ -856,6 +856,68 @@ elif page == "Dashboard":
     else:
         st.info("Nenhum dado disponível para relatório.")
 
+# --------------------------
+# 4. Perfil do Usuário (SEM AVATAR)
+# --------------------------
+elif page == "Perfil":
+    st.markdown("### 👤 Meu Perfil")
+
+    # Extrair user_id e email — compatível com dict/obj
+    if isinstance(user, dict):
+        user_id = user.get("id")
+        email_user = user.get("email", "")
+    else:
+        user_id = getattr(user, "id", None)
+        email_user = getattr(user, "email", "")
+
+    if not user_id:
+        st.error("Não foi possível identificar o usuário logado.")
+        st.stop()
+
+    st.write(f"**E-mail:** {email_user}")
+    st.markdown("---")
+
+    # Buscar no banco
+    try:
+        perfil_res = supabase.table("users_profiles").select("*").eq("id", user_id).execute()
+        perfil_data = getattr(perfil_res, "data", perfil_res)
+        perfil = perfil_data[0] if perfil_data else {}
+    except Exception as e:
+        st.error(f"Erro ao carregar perfil: {e}")
+        perfil = {}
+
+    # Formulário
+    nome = st.text_input("Nome completo", perfil.get("nome", ""))
+    empresa = st.text_input("Empresa", perfil.get("empresa", ""))
+    cnpj = st.text_input("CNPJ (opcional)", perfil.get("cnpj", ""))
+    socios = st.text_area("Sócios (separados por vírgula)", perfil.get("socios", ""))
+
+    st.markdown("---")
+
+    # Exibir plano atual
+    plano = perfil.get("plano", "free")
+    st.info(f"📌 **Plano atual:** `{plano.upper()}`")
+    st.caption("Mudanças de plano podem ser feitas na aba *Planos*.")
+
+    # Botão salvar
+    if st.button("💾 Salvar Alterações"):
+        try:
+            supabase.table("users_profiles").upsert(
+                {
+                    "id": user_id,
+                    "nome": nome,
+                    "empresa": empresa,
+                    "cnpj": cnpj,
+                    "socios": socios,
+                    "plano": plano  # Mantém o plano atual
+                }
+            ).execute()
+            st.success("Perfil atualizado com sucesso!")
+            st.experimental_rerun()
+        except Exception as e:
+            st.error(f"Erro ao salvar: {e}")
+
+
 
 # --- Footer ---
 st.markdown("---")
