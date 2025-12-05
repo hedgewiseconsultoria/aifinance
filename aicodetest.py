@@ -1042,6 +1042,9 @@ with col2:
 
     st.markdown("</div>", unsafe_allow_html=True)  # Fecha card
 
+else:
+    pass
+
 # --------------------------
 # 6. CONFIGURAÇÕES
 # --------------------------
