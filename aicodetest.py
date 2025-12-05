@@ -877,7 +877,7 @@ elif page == "Perfil":
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("### Meu Perfil")
+    st.markdown("### 4. Meu Perfil")
 
     # Extrair user_id e email — compatível com dict/obj
     if isinstance(user, dict):
