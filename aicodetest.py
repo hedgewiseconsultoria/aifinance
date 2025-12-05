@@ -986,43 +986,62 @@ elif page == "Planos":
 
     col1, col2 = st.columns(2)
 
-    # =======================
-    # PLANO FREE
-    # =======================
-    with col1:
-        st.markdown('<div class="plano-card">', unsafe_allow_html=True)
-        st.markdown('<div class="plano-titulo">🔓 Plano FREE</div>', unsafe_allow_html=True)
-        st.markdown("Ideal para começar:")
-        st.markdown("✔ Upload de extratos (PDF/CSV) <br>✔ Dashboard básico <br>✔ Score simplificado <br>✔ Relatórios resumidos", unsafe_allow_html=True)
-        st.markdown('<div class="plano-preco">R$ 0/mês</div>', unsafe_allow_html=True)
+# =======================
+# PLANO FREE
+# =======================
+with col1:
+    st.markdown("""
+        <div class="plano-card">
+            <div class="plano-titulo">🔓 Plano FREE</div>
+            <p style="margin-top:4px; font-size:15px;">Ideal para começar:</p>
+            <ul style="font-size:14px; line-height:1.5;">
+                <li>✔ Upload de extratos (PDF/CSV)</li>
+                <li>✔ Dashboard básico</li>
+                <li>✔ Score simplificado</li>
+                <li>✔ Relatórios resumidos</li>
+            </ul>
+            <div class="plano-preco">R$ 0/mês</div>
+    """, unsafe_allow_html=True)
 
-        if plano_atual != "free":
-            if st.button("Migrar para FREE"):
-                supabase.table("users_profiles").update({"plano": "free"}).eq("id", user_id).execute()
-                st.success("Plano alterado com sucesso!")
-                st.experimental_rerun()
-        else:
-            st.success("✔ Você já está neste plano")
-        st.markdown('</div>', unsafe_allow_html=True)
+    if plano_atual != "free":
+        if st.button("Migrar para FREE", key="btn_free"):
+            supabase.table("users_profiles").update({"plano": "free"}).eq("id", user_id).execute()
+            st.success("Plano alterado com sucesso!")
+            st.experimental_rerun()
+    else:
+        st.success("✔ Você já está neste plano")
 
-    # =======================
-    # PLANO PREMIUM
-    # =======================
-    with col2:
-        st.markdown('<div class="plano-card">', unsafe_allow_html=True)
-        st.markdown('<div class="plano-titulo">💎 Plano PREMIUM</div>', unsafe_allow_html=True)
-        st.markdown("Para quem quer performance:")
-        st.markdown("🔥 Relatórios completos <br>🔥 Exportações avançadas <br>🔥 Indicadores premium <br>🔥 Comparativos mensais e anuais <br>🔐 Backup prioritário", unsafe_allow_html=True)
-        st.markdown('<div class="plano-preco">R$ 29,90/mês</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)  # Fecha card
 
-        if plano_atual != "premium":
-            if st.button("Quero ser Premium"):
-                supabase.table("users_profiles").update({"plano": "premium"}).eq("id", user_id).execute()
-                st.success("Plano alterado com sucesso!")
-                st.experimental_rerun()
-        else:
-            st.success("✔ Você já está neste plano")
-        st.markdown('</div>', unsafe_allow_html=True)
+
+# =======================
+# PLANO PREMIUM
+# =======================
+with col2:
+    st.markdown("""
+        <div class="plano-card">
+            <div class="plano-titulo">💎 Plano PREMIUM</div>
+            <p style="margin-top:4px; font-size:15px;">Para quem quer performance:</p>
+            <ul style="font-size:14px; line-height:1.5;">
+                <li>🔥 Relatórios completos</li>
+                <li>🔥 Exportações avançadas</li>
+                <li>🔥 Indicadores premium</li>
+                <li>🔥 Comparativos mensais e anuais</li>
+                <li>🔐 Backup prioritário</li>
+            </ul>
+            <div class="plano-preco">R$ 29,90/mês</div>
+    """, unsafe_allow_html=True)
+
+    if plano_atual != "premium":
+        if st.button("Quero ser Premium", key="btn_premium"):
+            supabase.table("users_profiles").update({"plano": "premium"}).eq("id", user_id).execute()
+            st.success("Plano alterado com sucesso!")
+            st.experimental_rerun()
+    else:
+        st.success("✔ Você já está neste plano")
+
+    st.markdown("</div>", unsafe_allow_html=True)  # Fecha card
+
 
 
 # --------------------------
