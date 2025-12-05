@@ -961,7 +961,7 @@ elif page == "Planos":
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 💼 Planos e Assinaturas")
+    st.markdown("### 5. Planos e Assinaturas")
 
     # Identificação
     if isinstance(user, dict):
@@ -981,7 +981,7 @@ elif page == "Planos":
     except:
         plano_atual = "free"
 
-    st.markdown(f"📌 **Seu plano atual:** `{plano_atual.upper()}`")
+    st.markdown(f"**Seu plano atual:** `{plano_atual.upper()}`")
     st.markdown("---")
 
     col1, col2 = st.columns(2)
