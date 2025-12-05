@@ -900,7 +900,7 @@ elif page == "Perfil":
     st.caption("Mudanças de plano podem ser feitas na aba *Planos*.")
 
     # Botão salvar
-    if st.button("💾 Salvar Alterações"):
+    if st.button("Salvar Alterações"):
         try:
             supabase.table("users_profiles").upsert(
                 {
