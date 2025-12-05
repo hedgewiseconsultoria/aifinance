@@ -390,7 +390,7 @@ def render_sidebar():
             st.markdown("<div style='font-size:15px; color:#0A2342; font-weight:700;'>Menu</div>", unsafe_allow_html=True)
             escolha = st.radio(
                 "",
-                ["Dashboard", "Upload", "Revisão", "Perfil", "Configurações", "Planos", "Sair"],
+                ["Dashboard", "Upload", "Revisão", "Perfil", "Planos", "Configurações", "Sair"],
                 index=0,
             )
 
