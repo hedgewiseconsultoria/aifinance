@@ -984,7 +984,7 @@ elif page == "Planos":
     st.markdown(f"**Seu plano atual:** `{plano_atual.upper()}`")
     st.markdown("---")
 
-    col1, col2 = st.columns(2)
+   # col1, col2 = st.columns(2)
 
 # =======================
 # PLANO FREE
