@@ -857,10 +857,27 @@ elif page == "Dashboard":
         st.info("Nenhum dado disponível para relatório.")
 
 # --------------------------
-# 4. Perfil do Usuário (SEM AVATAR)
+# 4. Perfil do Usuário 
 # --------------------------
+
 elif page == "Perfil":
-    st.markdown("### 👤 Meu Perfil")
+
+    # === CSS IGUAL AO DA TELA DE LOGIN ===
+    st.markdown("""
+        <style>
+            input[type="text"], input[type="email"], textarea {
+                border: 1px solid #0A2342 !important;
+                border-radius: 6px !important;
+                padding: 8px 10px !important;
+            }
+            input[type="text"]:focus, input[type="email"]:focus, textarea:focus {
+                border-color: #007BFF !important;
+                box-shadow: 0 0 4px #007BFF !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### Meu Perfil")
 
     # Extrair user_id e email — compatível com dict/obj
     if isinstance(user, dict):
@@ -896,7 +913,7 @@ elif page == "Perfil":
 
     # Exibir plano atual
     plano = perfil.get("plano", "free")
-    st.info(f"📌 **Plano atual:** `{plano.upper()}`")
+    st.info(f" **Plano atual:** `{plano.upper()}`")
     st.caption("Mudanças de plano podem ser feitas na aba *Planos*.")
 
     # Botão salvar
@@ -918,8 +935,10 @@ elif page == "Perfil":
             st.error(f"Erro ao salvar: {e}")
 
 
-
+# --------------------------
 # --- Footer ---
+# --------------------------
+
 st.markdown("---")
 try:
     footer_logo = Image.open(LOGO_FILENAME)
