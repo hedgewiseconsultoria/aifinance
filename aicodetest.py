@@ -937,97 +937,52 @@ elif page == "Perfil":
 # --------------------------
 # 5. PLANOS
 # --------------------------
-def render_planos(user, supabase_client):
-    st.markdown("""
-        <style>
-            .plano-card {
-                border: 1px solid #0A2342;
-                border-radius: 10px;
-                padding: 15px;
-                margin-bottom: 12px;
-                background-color: #F8FBFF;
-            }
-            .plano-titulo {
-                font-size: 20px;
-                font-weight: 700;
-                color: #0A2342;
-                margin-bottom:6px;
-            }
-            .plano-preco {
-                font-size: 22px;
-                font-weight: 700;
-                color: #007BFF;
-                margin-top:8px;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
+elif page == "Planos":
     st.markdown("### Planos e Assinaturas")
 
-    if isinstance(user, dict):
-        user_id_local = user.get("id")
-    else:
-        user_id_local = getattr(user, "id", None)
-
-    if not user_id_local:
-        st.error("Não foi possível identificar o usuário logado.")
-        return
-
-    plano_atual = "free"
+    # Busca plano atual
     try:
-        res = supabase_client.table("users_profiles").select("plano").eq("id", user_id_local).execute()
-        data = getattr(res, "data", res)
-        if data:
-            plano_atual = data[0].get("plano", "free").lower()
-    except Exception:
-        pass
+        res = supabase.table("users_profiles").select("plano").eq("id", user_id).execute()
+        plano_atual = res.data[0]["plano"].lower() if res.data else "free"
+    except:
+        plano_atual = "free"
 
-    st.markdown(f"**Seu plano atual:** `{plano_atual.upper()}`")
+    st.info(f"**Seu plano atual:** `{plano_atual.upper()}`")
     st.markdown("---")
 
-    c1, c2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-    with c1:
+    with col1:
         st.markdown('<div class="plano-card">', unsafe_allow_html=True)
-        st.markdown('<div class="plano-titulo">Plano FREE</div>', unsafe_allow_html=True)
-        st.markdown("<ul style='font-size:14px; line-height:1.6;'><li>Upload de extratos PDF</li><li>Dashboard básico</li><li>Relatórios resumidos</li><li>Classificação com IA</li></ul>", unsafe_allow_html=True)
-        st.markdown('<div class="plano-preco">R$ 0,00/mês</div>', unsafe_allow_html=True)
-
+        st.markdown("<div class='plano-titulo'>Plano FREE</div>", unsafe_allow_html=True)
+        st.markdown("• Upload ilimitado de PDFs<br>• Dashboard básico<br>• Relatórios resumidos<br>• Classificação IA", unsafe_allow_html=True)
+        st.markdown("<div class='plano-preco'>R$ 0,00/mês</div>", unsafe_allow_html=True)
         if plano_atual != "free":
-            if st.button("Voltar para FREE", key="btn_downgrade"):
-                supabase_client.table("users_profiles").update({"plano": "free"}).eq("id", user_id_local).execute()
-                st.success("Voltou para o plano FREE")
+            if st.button("Voltar para FREE", key="free_btn", use_container_width=True):
+                supabase.table("users_profiles").update({"plano": "free"}).eq("id", user_id).execute()
+                st.success("Downgrade realizado!")
                 st.rerun()
         else:
-            st.success("Você já está no FREE")
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.success("Você já está no plano FREE")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    with c2:
+    with col2:
         st.markdown('<div class="plano-card">', unsafe_allow_html=True)
-        st.markdown('<div class="plano-titulo">Plano PREMIUM</div>', unsafe_allow_html=True)
-        st.markdown("<ul style='font-size:14px; line-height:1.6;'><li>Tudo do FREE +</li><li>Relatórios avançados</li><li>Exportação Excel/PDF</li><li>Indicadores completos</li><li>Comparativos mensais/anuais</li><li>Suporte prioritário</li></ul>", unsafe_allow_html=True)
-        st.markdown('<div class="plano-preco">R$ 29,90/mês</div>', unsafe_allow_html=True)
-
+        st.markdown("<div class='plano-titulo'>Plano PREMIUM</div>", unsafe_allow_html=True)
+        st.markdown("• Tudo do Free +<br>• Relatórios avançados<br>• Exportação Excel/PDF<br>• Comparativos mensais<br>• Suporte prioritário", unsafe_allow_html=True)
+        st.markdown("<div class='plano-preco'>R$ 29,90/mês</div>", unsafe_allow_html=True)
         if plano_atual != "premium":
-            if st.button("Assinar PREMIUM", key="btn_upgrade"):
-                supabase_client.table("users_profiles").update({"plano": "premium"}).eq("id", user_id_local).execute()
-                st.success("Parabéns! Agora você é PREMIUM")
+            if st.button("Virar PREMIUM", type="primary", key="premium_btn", use_container_width=True):
+                supabase.table("users_profiles").update({"plano": "premium"}).eq("id", user_id).execute()
+                st.success("Parabéns! Você agora é PREMIUM")
                 st.balloons()
                 st.rerun()
         else:
             st.success("Você já é PREMIUM")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-
-# ================================================================
-# CHAMADA DA PÁGINA PLANOS (mesmo nível dos outros elifs)
-# ================================================================
-elif page == "Planos":
-    render_planos(user, supabase)
-
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # --------------------------
-# --- Footer (o mesmo de antes, só mais organizado) ---
+# --- Footer ----
 # --------------------------
 st.markdown("---")
 try:
