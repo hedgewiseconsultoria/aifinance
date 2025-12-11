@@ -939,7 +939,7 @@ elif page == "Perfil":
 # --------------------------
 
 elif page == "Planos":
-    st.markdown("### Planos e Assinaturas")
+    st.markdown("### 5. Planos e Assinaturas")
 
     # --- Pegar plano atual do usuário ---
     user_id = user.get("id") if isinstance(user, dict) else getattr(user, "id", None)
@@ -1047,6 +1047,98 @@ elif page == "Planos":
                 st.success("Parabéns! Você agora é PREMIUM")
                 st.balloons()
                 st.rerun()
+
+# --------------------------
+# 6. CONFIGURAÇÕES
+# --------------------------
+elif page == "Configurações":
+
+    st.markdown("""
+        <style>
+            .config-card {
+                border: 1px solid #0A2342;
+                border-radius: 10px;
+                padding: 15px;
+                margin-bottom: 12px;
+                background-color: #F8FBFF;
+            }
+            .config-titulo {
+                font-size: 20px; 
+                font-weight: 700; 
+                color: #0A2342;
+            }
+            input[type="password"] {
+                border: 1px solid #0A2342 !important;
+                border-radius: 6px !important;
+                padding: 8px 10px !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### 6. Configurações")
+
+    if isinstance(user, dict):
+        user_id = user.get("id")
+        email_user = user.get("email", "")
+    else:
+        user_id = getattr(user, "id", None)
+        email_user = getattr(user, "email", "")
+
+    if not user_id:
+        st.error("Não foi possível identificar o usuário logado.")
+        st.stop()
+
+    # buscar configurações simples (se existirem)
+    try:
+        res = supabase.table("users_profiles").select("moeda, formato_data").eq("id", user_id).execute()
+        dados_cfg = getattr(res, "data", res)
+        dados_cfg = dados_cfg[0] if dados_cfg else {}
+    except:
+        dados_cfg = {}
+
+    moeda_atual = dados_cfg.get("moeda", "BRL")
+    formato_atual = dados_cfg.get("formato_data", "br")
+
+    st.markdown('<div class="config-card">', unsafe_allow_html=True)
+    st.markdown('<div class="config-titulo">Preferências Básicas</div>', unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        moeda = st.selectbox("Moeda padrão:", ["BRL (R$)", "USD ($)", "EUR (€)"], index=0 if moeda_atual=="BRL" else 1 if moeda_atual=="USD" else 2)
+        formato_data = st.selectbox("Formato de data:", ["Brasil (DD/MM/AAAA)", "Internacional (YYYY-MM-DD)"], index=0 if formato_atual=="br" else 1)
+
+    with col2:
+        st.markdown("**Alterar senha**")
+        nova = st.text_input("Nova senha", type="password")
+        nova2 = st.text_input("Repita a nova senha", type="password")
+
+        if st.button("Alterar senha"):
+            if not nova or not nova2:
+                st.warning("Preencha os dois campos de senha.")
+            elif nova != nova2:
+                st.error("As senhas não coincidem.")
+            else:
+                try:
+                    # utiliza supabase auth para atualizar a senha do usuário atual
+                    supabase.auth.update_user({"password": nova})
+                    st.success("Senha atualizada com sucesso!")
+                except Exception as e:
+                    st.error(f"Erro ao alterar senha: {e}")
+
+    # salvar preferências
+    if st.button("Salvar preferências"):
+        try:
+            supabase.table("users_profiles").update({
+                "moeda": "BRL" if "BRL" in moeda else "USD" if "USD" in moeda else "EUR",
+                "formato_data": "br" if "Brasil" in formato_data else "iso"
+            }).eq("id", user_id).execute()
+            st.success("Preferências salvas!")
+            st.experimental_rerun()
+        except Exception as e:
+            st.error(f"Erro ao salvar preferências: {e}")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 # --------------------------
 # --- Footer ----
