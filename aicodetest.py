@@ -961,28 +961,26 @@ def render_planos(user, supabase_client):
             }
         </style>
     """, unsafe_allow_html=True)
-    
+
     st.markdown("### Planos e Assinaturas")
-    
-    # Identificação segura do usuário
+
     if isinstance(user, dict):
         user_id_local = user.get("id")
     else:
         user_id_local = getattr(user, "id", None)
-    
+
     if not user_id_local:
         st.error("Não foi possível identificar o usuário logado.")
         return
-    
-    # Buscar plano atual
+
     plano_atual = "free"
     try:
-        res_local = supabase_client.table("users_profiles").select("plano").eq("id", user_id_local).execute()
-        dados_local = getattr(res_local, "data", res_local)
-        if dados_local:
-            plano_atual = dados_local[0].get("plano", "free").lower()
-    except Exception as e:
-        st.warning("Não foi possível carregar o plano atual. Usando FREE como padrão.")
+        res = supabase_client.table("users_profiles").select("plano").eq("id", user_id_local).execute()
+        data = getattr(res, "data", res)
+        if data:
+            plano_atual = data[0].get("plano", "free").lower()
+    except Exception:
+        pass
 
     st.markdown(f"**Seu plano atual:** `{plano_atual.upper()}`")
     st.markdown("---")
@@ -992,96 +990,58 @@ def render_planos(user, supabase_client):
     with c1:
         st.markdown('<div class="plano-card">', unsafe_allow_html=True)
         st.markdown('<div class="plano-titulo">Plano FREE</div>', unsafe_allow_html=True)
-        st.markdown("<p style='margin-top:4px; font-size:15px;'>Ideal para começar:</p>", unsafe_allow_html=True)
-        st.markdown("""
-        <ul style='font-size:14px; line-height:1.5;'>
-            <li>Upload de extratos (PDF)</li>
-            <li>Dashboard básico</li>
-            <li>Relatórios resumidos</li>
-            <li>Classificação automática com IA</li>
-        </ul>
-        """, unsafe_allow_html=True)
+        st.markdown("<ul style='font-size:14px; line-height:1.6;'><li>Upload de extratos PDF</li><li>Dashboard básico</li><li>Relatórios resumidos</li><li>Classificação com IA</li></ul>", unsafe_allow_html=True)
         st.markdown('<div class="plano-preco">R$ 0,00/mês</div>', unsafe_allow_html=True)
 
         if plano_atual != "free":
-            if st.button("Voltar para FREE", key="plan_free_btn"):
-                try:
-                    supabase_client.table("users_profiles").update({"plano": "free"}).eq("id", user_id_local).execute()
-                    st.success("Downgrade para FREE realizado com sucesso!")
-                    st.experimental_rerun()
-                except Exception as e:
-                    st.error(f"Erro ao alterar plano: {e}")
+            if st.button("Voltar para FREE", key="btn_downgrade"):
+                supabase_client.table("users_profiles").update({"plano": "free"}).eq("id", user_id_local).execute()
+                st.success("Voltou para o plano FREE")
+                st.rerun()
         else:
-            st.success("Você já está no plano FREE")
+            st.success("Você já está no FREE")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with c2:
         st.markdown('<div class="plano-card">', unsafe_allow_html=True)
         st.markdown('<div class="plano-titulo">Plano PREMIUM</div>', unsafe_allow_html=True)
-        st.markdown("<p style='margin-top:4px; font-size:15px;'>Para quem quer mais:</p>", unsafe_allow_html=True)
-        st.markdown("""
-        <ul style='font-size:14px; line-height:1.5;'>
-            <li>Tudo do FREE +</li>
-            <li>Relatórios avançados</li>
-            <li>Exportação em Excel/PDF</li>
-            <li>Indicadores financeiros completos</li>
-            <li>Comparativos mensais/anuais</li>
-            <li>Suporte prioritário</li>
-        </ul>
-        """, unsafe_allow_html=True)
+        st.markdown("<ul style='font-size:14px; line-height:1.6;'><li>Tudo do FREE +</li><li>Relatórios avançados</li><li>Exportação Excel/PDF</li><li>Indicadores completos</li><li>Comparativos mensais/anuais</li><li>Suporte prioritário</li></ul>", unsafe_allow_html=True)
         st.markdown('<div class="plano-preco">R$ 29,90/mês</div>', unsafe_allow_html=True)
 
         if plano_atual != "premium":
-            if st.button("Assinar PREMIUM", key="plan_premium_btn"):
-                try:
-                    supabase_client.table("users_profiles").update({"plano": "premium"}).eq("id", user_id_local).execute()
-                    st.success("Parabéns! Você agora é PREMIUM")
-                    st.balloons()
-                    st.experimental_rerun()
-                except Exception as e:
-                    st.error(f"Erro ao ativar Premium: {e}")
+            if st.button("Assinar PREMIUM", key="btn_upgrade"):
+                supabase_client.table("users_profiles").update({"plano": "premium"}).eq("id", user_id_local).execute()
+                st.success("Parabéns! Agora você é PREMIUM")
+                st.balloons()
+                st.rerun()
         else:
             st.success("Você já é PREMIUM")
         st.markdown('</div>', unsafe_allow_html=True)
 
 
-# --------------------------
-# FLUXO PRINCIPAL - INSERIR AQUI NO SEU CÓDIGO ORIGINAL
-# --------------------------
-
-# ... (todo o código anterior permanece igual até o final)
-
+# ================================================================
+# CHAMADA DA PÁGINA PLANOS (mesmo nível dos outros elifs)
+# ================================================================
 elif page == "Planos":
     render_planos(user, supabase)
 
-# (depois vem o footer que já estava no seu código)
-
-
-
 
 # --------------------------
-# --- Footer ---
+# --- Footer (o mesmo de antes, só mais organizado) ---
 # --------------------------
-
 st.markdown("---")
 try:
     footer_logo = Image.open(LOGO_FILENAME)
-    footer_col1, footer_col2 = st.columns([1, 35])
-    with footer_col1:
+    col1, col2 = st.columns([1, 20])
+    with col1:
         st.image(footer_logo, width=40)
-    with footer_col2:
+    with col2:
         st.markdown(
-            """
-        <p style="font-size: 0.9rem; color: #6c757d; margin: 0;">
-        Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
-        </p>""",
-            unsafe_allow_html=True,
+            "<p style='font-size:0.9rem; color:#6c757d; margin:0;'>Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>",
+            unsafe_allow_html=True
         )
 except Exception:
     st.markdown(
-        """
-    <p style="font-size: 0.9rem; color: #6c757d; margin: 0;">
-    Análise de Extrato Empresarial | Dados extraídos e classificados com IA.
-    </p>""",
-        unsafe_allow_html=True,
+        "<p style='font-size:0.9rem; color:#6c757d; margin:0;'>Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>",
+        unsafe_allow_html=True
     )
