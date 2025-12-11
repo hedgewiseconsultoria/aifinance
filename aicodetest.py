@@ -946,7 +946,7 @@ elif page == "Planos":
                 border: 1px solid #0A2342;
                 border-radius: 10px;
                 padding: 15px;
-                margin-bottom: 36px;
+                margin-bottom: 12px;
                 background-color: #F8FBFF;
             }
             .plano-titulo {
