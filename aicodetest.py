@@ -937,9 +937,7 @@ elif page == "Perfil":
 # --------------------------
 # 5. PLANOS
 # --------------------------
-# --------------------------
-# PLANOS
-# --------------------------
+
 elif page == "Planos":
 
     st.markdown("""
@@ -948,7 +946,7 @@ elif page == "Planos":
                 border: 1px solid #0A2342;
                 border-radius: 10px;
                 padding: 15px;
-                margin-bottom: 12px;
+                margin-bottom: 36px;
                 background-color: #F8FBFF;
             }
             .plano-titulo {
@@ -966,7 +964,7 @@ elif page == "Planos":
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 💼 Planos e Assinaturas")
+    st.markdown("### Planos e Assinaturas")
 
     # Identificação
     if isinstance(user, dict):
@@ -986,7 +984,7 @@ elif page == "Planos":
     except:
         plano_atual = "free"
 
-    st.markdown(f"📌 **Seu plano atual:** `{plano_atual.upper()}`")
+    st.markdown(f" **Seu plano atual:** `{plano_atual.upper()}`")
     st.markdown("---")
 
     col1, col2 = st.columns(2)
