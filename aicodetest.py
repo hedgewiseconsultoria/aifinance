@@ -1011,7 +1011,8 @@ elif page == "Planos":
              else "<button style='background:#6c757d; color:white; padding:12px; border:none; border-radius:8px; width:100%; font-weight:bold;'>Voltar para FREE</button>"}
         </div>
         """, unsafe_allow_html=True)
-
+    
+    st.markdown("---")
         if plano_atual != "free":
             if st.button("Downgrade para FREE", key="downgrade_free", use_container_width=True):
                 supabase.table("users_profiles").update({"plano": "free"}).eq("id", user_id).execute()
@@ -1038,7 +1039,8 @@ elif page == "Planos":
              else "<button style='background:#007BFF; color:white; padding:14px; border:none; border-radius:10px; width:100%; font-weight:bold; font-size:18px;'>Quero ser Premium</button>"}
         </div>
         """, unsafe_allow_html=True)
-
+  
+st.markdown("---")
         if plano_atual != "premium":
             if st.button("Assinar Plano PREMIUM Agora", type="primary", key="upgrade_premium", use_container_width=True):
                 supabase.table("users_profiles").update({"plano": "premium"}).eq("id", user_id).execute()
