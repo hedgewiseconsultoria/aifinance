@@ -939,88 +939,112 @@ elif page == "Perfil":
 # --------------------------
 
 elif page == "Planos":
-
-    st.markdown("""
-        <style>
-            .plano-card {
-                border: 1px solid #0A2342;
-                border-radius: 10px;
-                padding: 15px;
-                margin-bottom: 12px;
-                background-color: #F8FBFF;
-            }
-            .plano-titulo {
-                font-size: 20px; 
-                font-weight: 700; 
-                color: #0A2342;
-                margin-bottom:6px;
-            }
-            .plano-preco {
-                font-size: 22px; 
-                font-weight: 700; 
-                color: #007BFF;
-                margin-top:8px;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
     st.markdown("### Planos e Assinaturas")
 
-    # Identificação
-    if isinstance(user, dict):
-        user_id = user.get("id")
-    else:
-        user_id = getattr(user, "id", None)
-
+    # --- Pegar plano atual do usuário ---
+    user_id = user.get("id") if isinstance(user, dict) else getattr(user, "id", None)
     if not user_id:
-        st.error("Não foi possível identificar o usuário logado.")
+        st.error("Usuário não identificado.")
         st.stop()
 
-    # Obter plano atual
     try:
         res = supabase.table("users_profiles").select("plano").eq("id", user_id).execute()
-        dados = getattr(res, "data", res)
-        plano_atual = (dados[0].get("plano", "free") if dados else "free").lower()
+        plano_atual = res.data[0]["plano"].lower() if res.data else "free"
     except:
         plano_atual = "free"
 
-    st.markdown(f" **Seu plano atual:** `{plano_atual.upper()}`")
+    st.info(f"**Seu plano atual:** `{plano_atual.upper()}`")
     st.markdown("---")
+
+    # CSS dos cards (agora com altura mínima e fundo correto)
+    st.markdown("""
+    <style>
+        .card-plano {
+            background: white;
+            border: 2px solid #0A2342;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 6px 16px rgba(10, 35, 66, 0.12);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .titulo-plano {
+            font-size: 26px;
+            font-weight: 800;
+            color: #0A2342;
+            margin-bottom: 12px;
+        }
+        .preco-plano {
+            font-size: 36px;
+            font-weight: 900;
+            color: #007BFF;
+            margin: 16px 0;
+        }
+        .lista-beneficios {
+            font-size: 15px;
+            line-height: 1.7;
+            margin: 16px 0;
+            flex-grow: 1;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown('<div class="plano-card">', unsafe_allow_html=True)
-        st.markdown('<div class="plano-titulo">Plano FREE</div>', unsafe_allow_html=True)
-        st.markdown("<p style='margin-top:4px; font-size:15px;'>Ideal para começar:</p>", unsafe_allow_html=True)
-        st.markdown("<ul style='font-size:14px; line-height:1.5;'><li>✔ Upload de extratos (PDF/CSV)</li><li>✔ Dashboard básico</li><li>✔ Score simplificado</li><li>✔ Relatórios resumidos</li></ul>", unsafe_allow_html=True)
-        st.markdown('<div class="plano-preco">R$ 0/mês</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="card-plano">
+            <div class="titulo-plano">Plano FREE</div>
+            <p style="color:#555; margin-bottom:16px;">Ideal para começar</p>
+            <div class="lista-beneficios">
+                Upload de extratos (PDF)<br>
+                Dashboard básico<br>
+                Score simplificado<br>
+                Relatórios resumidos<br>
+                Classificação automática com IA
+            </div>
+            <div class="preco-plano">R$ 0<small style="font-size:18px;">/mês</small></div>
+            {"<button style='background:#28a745; color:white; padding:12px; border:none; border-radius:8px; width:100%; font-weight:bold; cursor:not-allowed;'>Você já está neste plano</button>" 
+             if plano_atual == "free" 
+             else "<button style='background:#6c757d; color:white; padding:12px; border:none; border-radius:8px; width:100%; font-weight:bold;'>Voltar para FREE</button>"}
+        </div>
+        """, unsafe_allow_html=True)
 
         if plano_atual != "free":
-            if st.button("Migrar para FREE", key="plan_free"):
+            if st.button("Downgrade para FREE", key="downgrade_free", use_container_width=True):
                 supabase.table("users_profiles").update({"plano": "free"}).eq("id", user_id).execute()
-                st.success("Plano alterado com sucesso!")
-                st.experimental_rerun()
-        else:
-            st.success("✔ Você já está neste plano")
-        st.markdown('</div>', unsafe_allow_html=True)
+                st.success("Você voltou para o plano FREE")
+                st.rerun()
 
     with col2:
-        st.markdown('<div class="plano-card">', unsafe_allow_html=True)
-        st.markdown('<div class="plano-titulo">Plano PREMIUM</div>', unsafe_allow_html=True)
-        st.markdown("<p style='margin-top:4px; font-size:15px;'>Para quem quer performance:</p>", unsafe_allow_html=True)
-        st.markdown("<ul style='font-size:14px; line-height:1.5;'><li>🔥 Relatórios completos</li><li>🔥 Exportações avançadas</li><li>🔥 Indicadores premium</li><li>🔥 Comparativos mensais e anuais</li><li>🔐 Backup prioritário</li></ul>", unsafe_allow_html=True)
-        st.markdown('<div class="plano-preco">R$ 29,90/mês</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="card-plano">
+            <div class="titulo-plano">Plano PREMIUM</div>
+            <p style="color:#555; margin-bottom:16px;">Para quem quer performance máxima</p>
+            <div class="lista-beneficios">
+                Tudo do FREE +<br>
+                Relatórios completos e personalizados<br>
+                Exportação Excel + PDF<br>
+                Indicadores financeiros avançados<br>
+                Comparativos mensais e anuais<br>
+                Backup prioritário e histórico ilimitado<br>
+                Suporte por WhatsApp
+            </div>
+            <div class="preco-plano">R$ 29,90<small style="font-size:18px;">/mês</small></div>
+            {"<button style='background:#007BFF; color:white; padding:14px; border:none; border-radius:10px; width:100%; font-weight:bold; font-size:18px;'>Você já é PREMIUM</button>" 
+             if plano_atual == "premium" 
+             else "<button style='background:#007BFF; color:white; padding:14px; border:none; border-radius:10px; width:100%; font-weight:bold; font-size:18px;'>Quero ser Premium</button>"}
+        </div>
+        """, unsafe_allow_html=True)
 
         if plano_atual != "premium":
-            if st.button("Quero ser Premium", key="plan_premium"):
+            if st.button("Assinar Plano PREMIUM Agora", type="primary", key="upgrade_premium", use_container_width=True):
                 supabase.table("users_profiles").update({"plano": "premium"}).eq("id", user_id).execute()
-                st.success("Plano alterado com sucesso!")
-                st.experimental_rerun()
-        else:
-            st.success("✔ Você já está neste plano")
-        st.markdown('</div>', unsafe_allow_html=True)
-
+                st.success("Parabéns! Você agora é PREMIUM")
+                st.balloons()
+                st.rerun()
 
 # --------------------------
 # --- Footer ----
