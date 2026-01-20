@@ -40,50 +40,6 @@
       padding: 0 20px;
     }
 
-    /* HERO */
-    .hero {
-      padding: 60px 0;
-      background: var(--white);
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-      text-align: center;
-    }
-
-    .hero img {
-      width: 200px;
-      margin-bottom: 25px;
-    }
-
-    .hero h1 {
-      font-size: 36px;
-      font-weight: 700;
-      color: var(--primary);
-      margin-bottom: 15px;
-    }
-
-    .hero p {
-      font-size: 18px;
-      color: var(--secondary);
-      max-width: 780px;
-      margin: auto;
-      margin-bottom: 30px;
-    }
-
-    .button-primary {
-      display: inline-block;
-      background: var(--primary);
-      color: var(--white);
-      text-decoration: none;
-      padding: 14px 30px;
-      border-radius: var(--radius);
-      font-weight: 600;
-      font-size: 18px;
-      transition: 0.2s;
-    }
-
-    .button-primary:hover {
-      opacity: 0.9;
-    }
-
     /* SECTION BASE */
     section {
       padding: 60px 0;
@@ -104,6 +60,23 @@
       margin: 0 auto 40px auto;
     }
 
+    /* HERO COMPATÍVEL COM AUTH */
+    .button-primary {
+      display: inline-block;
+      background: var(--primary);
+      color: var(--white);
+      text-decoration: none;
+      padding: 14px 30px;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 18px;
+      transition: 0.2s;
+    }
+
+    .button-primary:hover {
+      opacity: 0.9;
+    }
+
     /* BENEFITS CARDS */
     .cards {
       display: grid;
@@ -122,7 +95,7 @@
       font-weight: 600;
       margin-bottom: 10px;
     }
- 
+
     /* CREDIBILIDADE */
     .cred {
       text-align: center;
@@ -144,28 +117,6 @@
       color: var(--primary);
       font-weight: 600;
       text-decoration: none;
-    }
-
-    /* FOOTER */
-    footer {
-      padding: 30px 20px;
-      text-align: center;
-      background: var(--white);
-      border-top: 1px solid #ddd;
-      font-size: 14px;
-      margin-top: 40px;
-    }
-
-    footer img {
-      height: 30px;
-      margin-bottom: 10px;
-      opacity: 0.9;
-    }
-
-    footer a {
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 600;
     }
 
     @media (max-width: 600px) {
@@ -211,7 +162,6 @@
     </div>
   </div>
 </div>
-
 
   <!-- PARA QUEM É -->
   <section>
@@ -278,6 +228,45 @@
     </div>
   </section>
 
+  <!-- PLANOS -->
+  <section style="background: var(--white);">
+    <div class="container">
+      <h2>Planos de Acesso</h2>
+      <p class="section-sub">
+        Escolha a forma de usar o FinanceAI conforme sua necessidade. Sem burocracia e com preço acessível.
+      </p>
+
+      <div class="cards">
+        <div class="card">
+          <h3>Plano Free</h3>
+          <p><strong>Duração:</strong> 7 dias corridos</p>
+          <p><strong>Envio de extratos:</strong> até 1 mês de movimentação bancária</p>
+          <p><strong>Indicado para:</strong> testar e validar o serviço</p>
+          <p style="color:#4F6D7A; font-size:14px; margin-top:8px;">
+            *Expira em 7 dias e possui limite de 1 mês de movimentação bancária.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Plano Premium</h3>
+          <p><strong>Acesso:</strong> ilimitado</p>
+          <p><strong>Envio de extratos:</strong> até 12 meses no início</p>
+          <p><strong>Ideal para:</strong> diagnóstico financeiro real e previsões</p>
+          <p><strong>Investimento:</strong> R$ 29,90/mês</p>
+          <p style="color:#0A2342; font-size:14px; margin-top:8px; font-weight:600;">
+            Menos que uma McOferta de Big Mac por mês! 🍔
+          </p>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-top:35px;">
+        <a class="button-primary" href="https://inteligenciafinanceira.streamlit.app" target="_blank">
+          Começar Agora
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- CREDIBILIDADE -->
   <section>
     <div class="container">
@@ -291,8 +280,6 @@
       </div>
     </div>
   </section>
-
-  
 
 </body>
 </html>
