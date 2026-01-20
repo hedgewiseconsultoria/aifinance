@@ -66,7 +66,7 @@ def load_header(show_user=True):
                 'Análise Financeira Inteligente</div>',
                 unsafe_allow_html=True,
             )
-            st.caption("Traduzindo números em histórias que façam sentido...")
+            st.caption("Transformando números em histórias que façam sentido...")
 
             if show_user and "user" in st.session_state:
                 user = st.session_state.get("user")
@@ -296,3 +296,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
