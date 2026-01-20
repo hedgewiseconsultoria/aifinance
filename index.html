@@ -2,160 +2,277 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FinanceAI — Inteligência Financeira para Seu Negócio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinanceAI — Controle Financeiro com IA, sem Burocracia</title>
+
+  <!-- Fonte moderna -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
   <style>
     :root {
       --primary: #0A2342;
       --secondary: #4F6D7A;
       --light: #F5F7FA;
+      --white: #FFFFFF;
+      --radius: 12px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
     }
 
     body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
       background: var(--light);
       color: var(--primary);
+      line-height: 1.5;
     }
 
-    header {
-      padding: 40px 20px;
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: auto;
+      padding: 0 20px;
+    }
+
+    /* HERO */
+    .hero {
+      padding: 60px 0;
+      background: var(--white);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
       text-align: center;
-      background: white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
-    header img {
-      width: 180px;
-      margin-bottom: 20px;
+    .hero img {
+      width: 200px;
+      margin-bottom: 25px;
     }
 
-    header h1 {
-      font-size: 32px;
-      margin: 0;
+    .hero h1 {
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 15px;
     }
 
-    header p {
+    .hero p {
       font-size: 18px;
-      margin-top: 10px;
       color: var(--secondary);
+      max-width: 780px;
+      margin: auto;
+      margin-bottom: 30px;
     }
 
-    .cta {
-      margin-top: 20px;
-    }
-
-    .cta a {
+    .button-primary {
       display: inline-block;
-      padding: 12px 24px;
       background: var(--primary);
-      color: white;
-      border-radius: 6px;
-      font-size: 18px;
+      color: var(--white);
       text-decoration: none;
+      padding: 14px 30px;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 18px;
       transition: 0.2s;
     }
 
-    .cta a:hover {
-      opacity: 0.85;
+    .button-primary:hover {
+      opacity: 0.9;
     }
 
+    /* SECTION BASE */
     section {
-      padding: 60px 20px;
-      max-width: 900px;
-      margin: 0 auto;
-      text-align: center;
+      padding: 60px 0;
     }
 
     section h2 {
-      font-size: 26px;
+      font-size: 28px;
+      font-weight: 700;
       margin-bottom: 20px;
+      text-align: center;
     }
 
-    .features {
+    section p.section-sub {
+      text-align: center;
+      font-size: 17px;
+      color: var(--secondary);
+      max-width: 750px;
+      margin: 0 auto 40px auto;
+    }
+
+    /* BENEFITS CARDS */
+    .cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 20px;
-      margin-top: 30px;
     }
 
     .card {
-      background: white;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-      text-align: left;
+      background: var(--white);
+      padding: 25px;
+      border-radius: var(--radius);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     }
 
-    footer {
-      padding: 30px 20px;
+    .card h3 {
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    /* CREDIBILIDADE */
+    .cred {
       text-align: center;
-      background: white;
-      border-top: 1px solid #ddd;
-      margin-top: 60px;
-      font-size: 14px;
+      margin-top: 40px;
+    }
+
+    .cred img {
+      height: 38px;
+      margin-bottom: 12px;
+      opacity: 0.9;
+    }
+
+    .cred p {
+      font-size: 15px;
       color: var(--secondary);
     }
 
+    .cred a {
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    /* FOOTER */
+    footer {
+      padding: 30px 20px;
+      text-align: center;
+      background: var(--white);
+      border-top: 1px solid #ddd;
+      font-size: 14px;
+      margin-top: 40px;
+    }
+
     footer img {
-      height: 32px;
+      height: 30px;
       margin-bottom: 10px;
       opacity: 0.9;
     }
 
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
     @media (max-width: 600px) {
-      header h1 { font-size: 26px; }
-      header p { font-size: 16px; }
+      .hero h1 { font-size: 28px; }
+      .hero p { font-size: 16px; }
     }
   </style>
 </head>
+
 <body>
 
-<header>
-  <img src="https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/main/FinanceAI_1.png"
-       alt="FinanceAI Logo" />
-  <h1>FinanceAI</h1>
-  <p>Inteligência financeira para controlar, analisar e melhorar sua saúde financeira.</p>
-  <div class="cta">
-    <a href="https://inteligenciafinanceira.streamlit.app" target="_blank">
-      Acessar o App
-    </a>
-  </div>
-</header>
-
-<section>
-  <h2>Benefícios para o Seu Negócio</h2>
-  <div class="features">
-    <div class="card">
-      <h3>Controle Completo</h3>
-      <p>Organize entradas e saídas com facilidade e visualize sua situação financeira em tempo real.</p>
-    </div>
-    <div class="card">
-      <h3>Análises Inteligentes</h3>
-      <p>Relatórios, indicadores e score financeiro para facilitar decisões importantes.</p>
-    </div>
-    <div class="card">
-      <h3>Projeções & Insights</h3>
-      <p>Entenda tendências e tenha previsões de fluxo de caixa para evitar surpresas.</p>
+  <!-- HERO -->
+  <div class="hero">
+    <div class="container">
+      <img src="https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/main/FinanceAI_1.png" alt="FinanceAI Logo">
+      <h1>Controle financeiro inteligente com IA — sem contador e sem burocracia</h1>
+      <p>
+        Para micro e pequenos empreendedores que querem entender a saúde financeira do negócio apenas com os extratos bancários.
+        Acesse o app, envie seu PDF e receba relatórios, alertas e diagnósticos automáticos.
+      </p>
+      <a class="button-primary" href="https://inteligenciafinanceira.streamlit.app" target="_blank">Acessar o App e Enviar Extratos</a>
     </div>
   </div>
-</section>
 
-<section>
-  <h2>Como Funciona</h2>
-  <p>
-    Cadastre-se, registre suas transações e obtenha análises automáticas,
-    gráficos e relatórios estratégicos para sua tomada de decisão financeira.
-  </p>
-</section>
+  <!-- PARA QUEM É -->
+  <section>
+    <div class="container">
+      <h2>Feito para quem não quer burocracia</h2>
+      <p class="section-sub">
+        Ideal para MEIs, autônomos, profissionais liberais e microempresas que não querem gastar com contador e consultoria financeira para ter visibilidade do negócio.
+      </p>
+      <div class="cards">
+        <div class="card"><h3>MEIs</h3><p>Controle sem planilhas nem softwares caros.</p></div>
+        <div class="card"><h3>Autônomos</h3><p>Tenha clareza sobre entradas e saídas.</p></div>
+        <div class="card"><h3>Microempresas</h3><p>Diagnóstico real sem contratar consultoria financeira.</p></div>
+      </div>
+    </div>
+  </section>
 
-<footer>
-  <img src="https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/main/logo_hedgewise.png"
-       alt="Hedgewise Logo" />
-  © FinanceAI — Todos os direitos reservados<br>
-  Desenvolvido por Hedgewise Consultoria<br>
-  contato: seuemail@empresa.com
-</footer>
+  <!-- O PROBLEMA -->
+  <section style="background: var(--white);">
+    <div class="container">
+      <h2>O problema é a falta de controle e o excesso de complexidade</h2>
+      <p class="section-sub">
+        Pequenos negócios quebram por falta de controle financeiro.
+        Só que quando tentam resolver, encontram:
+        <br><br>
+        💸 Contadores e consultorias caras<br>
+        📝 Planilhas e ERPs burocráticos<br>
+        📊 Ferramentas difíceis de manter<br><br>
+        Resultado: o negócio continua às cegas.
+      </p>
+    </div>
+  </section>
+
+  <!-- A SOLUÇÃO -->
+  <section>
+    <div class="container">
+      <h2>A solução com IA</h2>
+      <p class="section-sub">
+        Com a FinanceAI basta enviar os extratos bancários em PDF. A IA analisa tudo e entrega:
+      </p>
+      <div class="cards">
+        <div class="card"><h3>📌 Score financeiro</h3><p>Entenda a saúde geral do negócio.</p></div>
+        <div class="card"><h3>📉 Vazamentos e riscos</h3><p>Aponte onde está perdendo dinheiro.</p></div>
+        <div class="card"><h3>📈 Tendências e projeções</h3><p>Veja a evolução financeira ao longo do tempo.</p></div>
+        <div class="card"><h3>📑 Relatórios automáticos</h3><p>Insights claros e visualmente organizados.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMO FUNCIONA -->
+  <section style="background: var(--white);">
+    <div class="container">
+      <h2>Como funciona</h2>
+      <p class="section-sub">Simples, rápido e sem burocracia:</p>
+      <div class="cards">
+        <div class="card"><h3>1. Acesse o App</h3><p>Faça login e entre no painel.</p></div>
+        <div class="card"><h3>2. Envie o PDF</h3><p>Faça upload dos extratos bancários.</p></div>
+        <div class="card"><h3>3. IA analisa</h3><p>Transformamos movimentos bancários em dados.</p></div>
+        <div class="card"><h3>4. Receba o diagnóstico</h3><p>Relatórios, alertas e insights úteis.</p></div>
+      </div>
+      <br><br>
+      <div style="text-align:center;">
+        <a class="button-primary" href="https://inteligenciafinanceira.streamlit.app" target="_blank">Acessar o App e Enviar Extratos</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CREDIBILIDADE -->
+  <section>
+    <div class="container">
+      <div class="cred">
+        <img src="https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/main/logo_hedgewise.png" alt="Hedgewise Logo">
+        <p>
+          Desenvolvido pela <strong>Hedgewise Consultoria</strong>, especialista em risco e inteligência financeira.<br><br>
+          📸 Instagram: <a href="https://instagram.com/hedgewise_risco" target="_blank">@hedgewise_risco</a><br>
+          📩 E-mail: <a href="mailto:hedgewise.consultoria@gmail.com">hedgewise.consultoria@gmail.com</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <img src="https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/main/logo_hedgewise.png" alt="Hedgewise Logo">
+    © FinanceAI — Todos os direitos reservados<br>
+    Contato: <a href="mailto:hedgewise.consultoria@gmail.com">hedgewise.consultoria@gmail.com</a><br>
+    Instagram: <a href="https://instagram.com/hedgewise_risco" target="_blank">@hedgewise_risco</a>
+  </footer>
 
 </body>
 </html>
