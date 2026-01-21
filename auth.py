@@ -140,7 +140,7 @@ def login_page():
 
     with col_center:
         with st.container():
-            st.markdown('<div class="auth-wrapper"><div class="auth-card">', unsafe_allow_html=True)
+           
 
             st.subheader("Acesso ao sistema")
 
@@ -284,7 +284,7 @@ def reset_password_page():
                 except Exception as e:
                     st.error(f"Erro: {e}")
 
-            st.markdown('</div></div>', unsafe_allow_html=True)
+            
 
 
 # ==========================
@@ -319,5 +319,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
