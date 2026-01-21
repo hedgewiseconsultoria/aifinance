@@ -58,7 +58,7 @@ def load_header(show_user=True):
         col1, col2 = st.columns([2, 6])
 
         with col1:
-            st.image(logo, width=240)
+            st.image(logo, width=300)
 
         with col2:
             st.markdown(
@@ -319,6 +319,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
