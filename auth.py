@@ -125,11 +125,11 @@ def load_header(show_user=True):
 
 def login_page():
     load_header(show_user=False)
-    load_auth_styles()
 
-    _, center, _ = st.columns([2, 3, 2])
+    # Colunas largas e estáveis
+    col_left, col_center, col_right = st.columns([3, 4, 3])
 
-    with center:
+    with col_center:
         st.subheader("Acesso ao sistema")
 
         aba = st.radio(
@@ -137,6 +137,8 @@ def login_page():
             ["Entrar", "Criar Conta", "Esqueci a Senha"],
             horizontal=True
         )
+
+        st.markdown("---")
 
         # -------- LOGIN --------
         if aba == "Entrar":
@@ -154,19 +156,11 @@ def login_page():
                         "password": senha
                     })
 
-                    user = res.user
-                    if not user:
+                    if not res.user:
                         st.error("E-mail ou senha inválidos.")
                         return
 
-                    st.session_state["user"] = user
-
-                    user_id = extract_user_field(user, "id", None)
-                    if user_id:
-                        supabase.table("users_profiles").upsert(
-                            {"id": user_id, "plano": "free"}
-                        ).execute()
-
+                    st.session_state["user"] = res.user
                     _safe_rerun()
 
                 except Exception as e:
@@ -174,56 +168,34 @@ def login_page():
 
         # -------- CADASTRO --------
         elif aba == "Criar Conta":
-            st.info("Preencha os dados para criar sua conta.")
-
             email = st.text_input("E-mail")
             senha = st.text_input("Senha", type="password")
             nome = st.text_input("Nome completo")
-            empresa = st.text_input("Empresa")
-            cnpj = st.text_input("CNPJ (opcional)")
-            socios = st.text_input("Sócios (separados por vírgula)")
-            plano = st.radio("Plano", ["free", "premium"], horizontal=True)
-
-            if cnpj:
-                st.caption(f"CNPJ formatado: {format_cnpj(cnpj)}")
 
             if st.button("Criar conta", use_container_width=True):
-                if not email or not senha or not nome:
-                    st.warning("Preencha e-mail, senha e nome.")
-                    return
-
                 try:
                     res = supabase.auth.sign_up({
                         "email": email,
                         "password": senha
                     })
 
-                    user = res.user
-                    user_id = extract_user_field(user, "id", str(uuid.uuid4()))
-
+                    uid = extract_user_field(res.user, "id", str(uuid.uuid4()))
                     supabase.table("users_profiles").upsert({
-                        "id": user_id,
+                        "id": uid,
                         "nome": nome,
-                        "empresa": empresa,
-                        "cnpj": format_cnpj(cnpj),
-                        "socios": socios,
-                        "plano": plano,
+                        "plano": "free"
                     }).execute()
 
-                    st.success("Conta criada! Verifique seu e-mail para confirmar.")
+                    st.success("Conta criada! Verifique seu e-mail.")
 
                 except Exception as e:
-                    st.error(f"Erro ao criar conta: {e}")
+                    st.error(f"Erro: {e}")
 
         # -------- RESET --------
         else:
             email = st.text_input("E-mail cadastrado")
 
             if st.button("Enviar redefinição", use_container_width=True):
-                if not email:
-                    st.warning("Informe o e-mail.")
-                    return
-
                 try:
                     supabase.auth.reset_password_for_email(
                         email,
@@ -232,6 +204,7 @@ def login_page():
                     st.success("E-mail enviado! Verifique sua caixa de entrada.")
                 except Exception as e:
                     st.error(f"Erro: {e}")
+
 
 
 # ==========================
@@ -308,3 +281,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
