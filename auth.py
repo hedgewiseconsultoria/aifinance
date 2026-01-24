@@ -8,6 +8,7 @@ from supabase import create_client
 from PIL import Image
 import re
 import uuid
+from datetime import datetime, timedelta  # <<< AJUSTE
 
 # ==========================
 # CONFIGURAÇÕES
@@ -140,7 +141,6 @@ def login_page():
 
     with col_center:
         with st.container():
-           
 
             st.subheader("Acesso ao sistema")
 
@@ -175,7 +175,7 @@ def login_page():
                             user_id = extract_user_field(user, "id", None)
                             if user_id:
                                 supabase.table("users_profiles").upsert(
-                                    {"id": user_id, "plano": "free"}
+                                    {"id": user_id}
                                 ).execute()
 
                             _safe_rerun()
@@ -185,7 +185,7 @@ def login_page():
 
             # -------- CADASTRO --------
             elif aba == "Criar Conta":
-                st.info("Crie sua conta gratuitamente.")
+                st.info("Crie sua conta gratuitamente e teste por 7 dias.")
 
                 email = st.text_input("E-mail")
                 senha = st.text_input("Senha", type="password")
@@ -193,37 +193,64 @@ def login_page():
                 empresa = st.text_input("Empresa")
                 cnpj = st.text_input("CNPJ (opcional)")
                 socios = st.text_input("Sócios (separados por vírgula)")
-                plano = st.radio("Plano", ["free", "premium"], horizontal=True)
 
                 if cnpj:
                     st.caption(f"CNPJ formatado: {format_cnpj(cnpj)}")
 
+                # -------- LGPD + TRIAL --------
+                trial_inicio = datetime.utcnow()
+                trial_fim = trial_inicio + timedelta(days=7)
+
+                aceite_lgpd = st.checkbox(
+                    "Li e concordo com a Política de Privacidade e com o tratamento "
+                    "dos meus dados financeiros."
+                )
+
+                with st.expander("🔒 Política de Privacidade (LGPD)"):
+                    st.markdown("""
+                    - O aplicativo permite o envio voluntário de extratos bancários e dados financeiros  
+                    - As informações são utilizadas exclusivamente para análise financeira personalizada  
+                    - Os dados são armazenados em ambiente seguro, com criptografia e controle de acesso  
+                    - O acesso é restrito exclusivamente ao usuário responsável pelo envio  
+                    - O serviço é oferecido em período de teste gratuito por 7 dias  
+                    - Após o período de teste, a continuidade depende da contratação do plano premium  
+                    - O usuário pode solicitar a exclusão definitiva dos dados a qualquer momento  
+                    """)
+
                 if st.button("Criar conta", use_container_width=True):
                     if not email or not senha or not nome:
                         st.warning("Preencha e-mail, senha e nome.")
-                    else:
-                        try:
-                            res = supabase.auth.sign_up({
-                                "email": email,
-                                "password": senha
-                            })
+                        return
 
-                            user = res.user
-                            user_id = extract_user_field(user, "id", str(uuid.uuid4()))
+                    if not aceite_lgpd:
+                        st.warning("É necessário aceitar a Política de Privacidade para continuar.")
+                        return
 
-                            supabase.table("users_profiles").upsert({
-                                "id": user_id,
-                                "nome": nome,
-                                "empresa": empresa,
-                                "cnpj": format_cnpj(cnpj),
-                                "socios": socios,
-                                "plano": plano,
-                            }).execute()
+                    try:
+                        res = supabase.auth.sign_up({
+                            "email": email,
+                            "password": senha
+                        })
 
-                            st.success("Conta criada! Verifique seu e-mail.")
+                        user = res.user
+                        user_id = extract_user_field(user, "id", str(uuid.uuid4()))
 
-                        except Exception as e:
-                            st.error(f"Erro ao criar conta: {e}")
+                        supabase.table("users_profiles").upsert({
+                            "id": user_id,
+                            "nome": nome,
+                            "empresa": empresa,
+                            "cnpj": format_cnpj(cnpj),
+                            "socios": socios,
+                            "plano": "trial",
+                            "trial_inicio": trial_inicio.isoformat(),
+                            "trial_fim": trial_fim.isoformat(),
+                            "lgpd_consentimento": True
+                        }).execute()
+
+                        st.success("Conta criada! Você possui 7 dias de teste gratuito.")
+
+                    except Exception as e:
+                        st.error(f"Erro ao criar conta: {e}")
 
             # -------- RESET --------
             else:
@@ -241,8 +268,6 @@ def login_page():
                             st.success("E-mail enviado! Verifique sua caixa de entrada.")
                         except Exception as e:
                             st.error(f"Erro: {e}")
-
-            st.markdown('</div></div>', unsafe_allow_html=True)
 
 
 # ==========================
@@ -284,8 +309,6 @@ def reset_password_page():
                 except Exception as e:
                     st.error(f"Erro: {e}")
 
-            
-
 
 # ==========================
 # LOGOUT
@@ -319,8 +342,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
