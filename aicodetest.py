@@ -9,7 +9,7 @@ from google.genai import types
 import traceback
 import math
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from streamlit_option_menu import option_menu
 
 # integração auth/supabase (arquivo auth.py que você forneceu)
@@ -22,6 +22,19 @@ from auth import (
 
 # funções de relatórios (arquivo reports_functions.py)
 from reports_functions import secao_relatorios_dashboard
+
+
+def verificar_trial(perfil):
+    trial_fim = perfil.get("trial_fim")
+    if not trial_fim:
+        return True, None
+
+    fim = datetime.fromisoformat(trial_fim.replace("Z", "+00:00"))
+    agora = datetime.now(timezone.utc)
+
+    dias_restantes = (fim - agora).days
+    return agora <= fim, max(dias_restantes, 0)
+
 
 
 # ----------------------
@@ -333,6 +346,27 @@ if "user" not in st.session_state:
 # Compatibilidade total com user objeto OU dict
 user = st.session_state["user"]
 
+
+# ===== CONTROLE DE TRIAL (PATCH MÍNIMO) =====
+perfil = (
+    supabase.table("users_profiles")
+    .select("*")
+    .eq("id", getattr(user, "id", user.get("id")))
+    .single()
+    .execute()
+    .data
+)
+
+trial_ativo, dias_restantes = verificar_trial(perfil)
+
+if trial_ativo:
+    st.info(f"🟢 Período de teste ativo — restam {dias_restantes} dias.")
+else:
+    st.warning("🔴 Seu período de teste terminou. Algumas funcionalidades estão bloqueadas.")
+# ===========================================
+
+
+
 if isinstance(user, dict):
     user_email = user.get("email", "")
 else:
@@ -452,6 +486,11 @@ if page == "Upload":
             accept_multiple_files=True,
             key="pdf_uploader",
         )
+
+    if not trial_ativo:
+        st.warning("Funcionalidades de análise estão disponíveis apenas para o plano premium.")
+        st.stop()
+
 
     if uploaded_files:
         st.success("✅ Arquivos prontos para processamento!") # Feedback visual
