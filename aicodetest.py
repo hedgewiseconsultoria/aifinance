@@ -348,14 +348,20 @@ user = st.session_state["user"]
 
 
 # ===== CONTROLE DE TRIAL (PATCH MÍNIMO) =====
+if isinstance(user, dict):
+    user_id = user.get("id")
+else:
+    user_id = getattr(user, "id", None)
+
 perfil = (
     supabase.table("users_profiles")
     .select("*")
-    .eq("id", getattr(user, "id", user.get("id")))
+    .eq("id", user_id)
     .single()
     .execute()
     .data
 )
+
 
 trial_ativo, dias_restantes = verificar_trial(perfil)
 
