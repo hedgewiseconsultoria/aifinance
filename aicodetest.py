@@ -1057,7 +1057,6 @@ elif page == "Planos":
                 Dashboard<br>
                 Score de saúde financeira<br>
                 Relatório de fluxo de caixa
-                
             </div>
             <div class="preco-plano">R$ 0<small style="font-size:18px;">/mês</small></div>
             <button style='background:#6c757d; color:white; padding:12px; border:none; border-radius:8px; width:100%; font-weight:bold; cursor:not-allowed;'>
