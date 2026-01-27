@@ -7,8 +7,7 @@ from typing import Dict, Any, List
 from datetime import datetime, timedelta
 import traceback
 
-# Variáveis de cor (assumindo que serão definidas no aicodetest.txt)
-# Para evitar erros de referência, vou definir placeholders aqui, mas o código principal deve ter as corretas.
+# Variáveis de cor
 try:
     PRIMARY_COLOR = st.session_state.get('PRIMARY_COLOR', "#0A2342")
     SECONDARY_COLOR = st.session_state.get('SECONDARY_COLOR', "#000000")
@@ -24,9 +23,6 @@ except:
     FINANCING_COLOR = "#FFC107"
     INVESTMENT_COLOR = "#28A745"
 
-# --- FUNÇÃO DE FORMATAÇÃO BRL (Deve ser importada do aicodetest.txt) ---
-# Assumindo que 'formatar_brl' e 'PLANO_DE_CONTAS' serão importados do arquivo principal.
-# Para fins de teste e modularidade, vou incluir uma versão simples aqui.
 def formatar_brl(valor: float) -> str:
     """Formata um valor float para a moeda Real Brasileiro (R$ xx.xxx,xx)."""
     try:
@@ -36,125 +32,549 @@ def formatar_brl(valor: float) -> str:
     except Exception:
         return f"R$ {valor:.2f}"
 
-# --- FUNÇÃO LOCAL: GERAR MINI-RELATÓRIO --- 
-def gerar_mini_relatorio_local(score: float, indicadores: Dict[str, float], retiradas_pessoais_val: float):
-    """Gera HTML limpo do mini-relatório (pronto para st.markdown com unsafe_allow_html=True),
-    com linguagem simplificada e sem exibir a métrica de intensidade de financiamento.
-    Retorna: (html, classe_texto)
+# ====================================
+# GAMIFICAÇÃO: BADGES E CONQUISTAS
+# ====================================
+
+def obter_badge_score(score: float) -> dict:
+    """Retorna badge e mensagem motivacional baseado no score."""
+    if score >= 85:
+        return {
+            'emoji': '🏆',
+            'titulo': 'Campeão das Finanças!',
+            'cor': '#FFD700',
+            'mensagem': 'Parabéns! Seu negócio está no topo! Continue assim.',
+            'nivel': 'OURO'
+        }
+    elif score >= 70:
+        return {
+            'emoji': '🥈',
+            'titulo': 'Negócio Saudável',
+            'cor': '#C0C0C0',
+            'mensagem': 'Muito bem! Seu negócio está estável. Pequenos ajustes podem te levar ao ouro.',
+            'nivel': 'PRATA'
+        }
+    elif score >= 55:
+        return {
+            'emoji': '🥉',
+            'titulo': 'No Caminho Certo',
+            'cor': '#CD7F32',
+            'mensagem': 'Bom trabalho! Você está no caminho certo. Foque em melhorar o caixa.',
+            'nivel': 'BRONZE'
+        }
+    elif score >= 40:
+        return {
+            'emoji': '⚠️',
+            'titulo': 'Atenção Necessária',
+            'cor': '#FFA500',
+            'mensagem': 'Cuidado! Seu negócio precisa de atenção. Vamos trabalhar juntos para melhorar.',
+            'nivel': 'ALERTA'
+        }
+    else:
+        return {
+            'emoji': '🚨',
+            'titulo': 'Situação Crítica',
+            'cor': '#DC3545',
+            'mensagem': 'Momento de agir! Seu negócio precisa de ações urgentes. Não desanime, vamos reverter isso.',
+            'nivel': 'CRÍTICO'
+        }
+
+def criar_barra_progresso_score(score: float) -> str:
+    """Cria uma barra de progresso visual para o score."""
+    porcentagem = min(score, 100)
+    
+    if score >= 85:
+        cor = '#28A745'
+    elif score >= 70:
+        cor = '#007BFF'
+    elif score >= 55:
+        cor = '#FFC107'
+    elif score >= 40:
+        cor = '#FFA500'
+    else:
+        cor = '#DC3545'
+    
+    html = f"""
+    <div style='width: 100%; background-color: #E0E0E0; border-radius: 10px; height: 30px; position: relative; margin: 15px 0;'>
+        <div style='width: {porcentagem}%; background-color: {cor}; border-radius: 10px; height: 30px; transition: width 0.5s ease;'></div>
+        <div style='position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #000;'>
+            {score:.1f}/100
+        </div>
+    </div>
     """
-    # --- dados base ---
+    return html
+
+# ====================================
+# MINI-RELATÓRIO COM STORYTELLING
+# ====================================
+
+def gerar_mini_relatorio_storytelling(score: float, indicadores: Dict[str, float], retiradas_pessoais_val: float):
+    """
+    Gera mini-relatório com storytelling e linguagem coloquial.
+    Foca em contar a história financeira do negócio de forma acessível.
+    """
     gco = indicadores.get('gco', 0.0)
     entradas_op = indicadores.get('entradas_operacionais', 0.0)
     autossuf = indicadores.get('autossuficiencia', 0.0)
     taxa_reinv = indicadores.get('taxa_reinvestimento', 0.0)
     peso_retiradas = indicadores.get('peso_retiradas', 0.0)
-
-    # --- funções auxiliares ---
-    def cor_icone(valor, tipo="financeiro", contexto_caixa_negativo=False):
-        """Retorna ícone colorido representando risco."""
-        if tipo == "financeiro":
-            if contexto_caixa_negativo:
-                return "🔴"
-            return "🟢" if valor > 0 else ("🟠" if valor == 0 else "🔴")
-        if tipo == "autossuficiencia":
-            if valor == float('inf') or valor > 1.0:
-                return "🟢"
-            elif valor >= 0.5:
-                return "🟠"
-            else:
-                return "🔴"
-        return ""
-
-    def span_valor(valor_formatado, cor):
-        return f"<span style='font-weight:700;'>{cor} {valor_formatado}</span>"
-
-    # --- resumo contextualizado (coerente com a classificação) ---
-    if score >= 85:
-        resumo = "Situação muito saudável: boa geração de caixa e equilíbrio nas finanças."
-        classe_texto = "Classe A – Excelente: finanças equilibradas e bom controle de caixa."
-    elif score >= 70:
-        resumo = "Situação estável, mas requer acompanhamento de retiradas e uso de financiamentos."
-        classe_texto = "Classe B – Boa: estrutura financeira estável, mantenha o acompanhamento periódico."
-    elif score >= 55:
-        if gco > 0:
-            resumo = "Situação aceitável: o caixa operacional está positivo, mas o score indica que há espaço para melhorar a eficiência financeira."
-            classe_texto = "Classe C – Moderado: o caixa é positivo e a autossuficiência é boa; acompanhe retiradas e mantenha disciplina financeira."
-        else:
-            resumo = "Caixa pressionado — atenção às despesas fixas e retiradas para evitar desequilíbrio."
-            classe_texto = "Classe D – Alto risco: atenção às despesas e à liquidez, recomenda-se reforçar o caixa."
-    elif score >= 40:
-        if gco > 0 and autossuf >= 1.0:
-            resumo = "Situação aceitável, mas exige disciplina para manter o equilíbrio do caixa."
-            classe_texto = "Classe C – Moderado: o caixa é positivo e a autossuficiência é boa; acompanhe retiradas e mantenha disciplina financeira."
-        else:
-            resumo = "Risco elevado: o caixa tende a ficar pressionado se não houver ajuste nas retiradas e custos."
-            classe_texto = "Classe D – Alto risco: atenção às despesas e à liquidez, recomenda-se reforçar o caixa."
-    else:
-        resumo = "Situação crítica: priorize ações imediatas para reforçar o caixa e renegociar dívidas."
-        classe_texto = "Classe E – Crítico: risco elevado de desequilíbrio financeiro, ações corretivas imediatas são recomendadas."
-
-    # --- comentários ---
+    
+    badge = obter_badge_score(score)
+    
+    # História do Caixa Operacional
     if gco > 0:
-        comentario_gco = "isso contribui positivamente para a saúde financeira e reduz o risco da empresa."
+        historia_caixa = f"💰 Ótima notícia! Seu negócio gerou <b>{formatar_brl(gco)}</b> de caixa operacional neste período. Isso significa que as vendas estão cobrindo os custos do dia a dia e ainda sobra dinheiro."
+        emoji_caixa = "✅"
     elif gco == 0:
-        comentario_gco = "a neutralidade indica que o negócio está apenas se mantendo, sem gerar caixa adicional."
+        historia_caixa = f"⚖️ Seu negócio está no ponto de equilíbrio - as entradas cobriram exatamente as saídas. É hora de pensar em como aumentar as vendas ou reduzir custos."
+        emoji_caixa = "⚠️"
     else:
-        comentario_gco = "este valor negativo aumenta o risco e indica que a operação está consumindo mais do que gera."
-
+        historia_caixa = f"🚨 Atenção! Seu caixa operacional está <b>negativo em {formatar_brl(abs(gco))}</b>. Isso significa que você gastou mais do que ganhou nas operações do dia a dia."
+        emoji_caixa = "❌"
+    
+    # História das Retiradas
     if gco < 0:
-        comentario_retiradas = "🚨 o caixa operacional está negativo, portanto não há sustentabilidade para retiradas neste período."
+        historia_retiradas = f"🛑 Com o caixa operacional negativo, qualquer retirada pessoal está prejudicando ainda mais o negócio."
     elif retiradas_pessoais_val <= 0:
-        comentario_retiradas = "não houve retiradas pessoais, o que ajuda na preservação do caixa."
-    elif retiradas_pessoais_val < 0.3 * max(entradas_op, 1):
-        comentario_retiradas = "retiradas em nível saudável, sem comprometer o caixa."
-    elif retiradas_pessoais_val < 0.6 * max(entradas_op, 1):
-        comentario_retiradas = "retiradas moderadas, que merecem monitoramento."
+        historia_retiradas = f"👍 Você não fez retiradas pessoais neste período, o que está ajudando a fortalecer o caixa do negócio."
     else:
-        comentario_retiradas = "retiradas elevadas, que aumentam o risco financeiro e reduzem a folga de caixa."
-
+        percentual_ret = (retiradas_pessoais_val / max(entradas_op, 1)) * 100
+        if percentual_ret < 30:
+            historia_retiradas = f"✅ Suas retiradas de <b>{formatar_brl(retiradas_pessoais_val)}</b> estão em um nível saudável ({percentual_ret:.1f}% das entradas). Você está retirando o suficiente sem prejudicar o negócio."
+        elif percentual_ret < 60:
+            historia_retiradas = f"⚠️ Suas retiradas de <b>{formatar_brl(retiradas_pessoais_val)}</b> representam {percentual_ret:.1f}% das suas entradas. Dá pra continuar, mas fica de olho!"
+        else:
+            historia_retiradas = f"🚨 Cuidado! Você está retirando <b>{formatar_brl(retiradas_pessoais_val)}</b> ({percentual_ret:.1f}% das entradas). Isso é muito e pode quebrar o caixa do negócio."
+    
+    # História da Autossuficiência
     if autossuf == float('inf') or autossuf > 1.5:
-        comentario_autossuf = "excelente autossuficiência: o negócio gera caixa suficiente para cobrir retiradas e investimentos."
+        historia_autossuf = f"🌟 Seu negócio é super independente! Você consegue pagar tudo (retiradas e investimentos) com o dinheiro que entra das vendas."
     elif autossuf >= 1.0:
-        comentario_autossuf = "autossuficiência adequada, com boa capacidade de financiar obrigações internas."
+        historia_autossuf = f"👍 Seu negócio está se pagando! Você consegue cobrir as obrigações com o caixa que gera."
     elif autossuf >= 0.5:
-        comentario_autossuf = "autossuficiência parcial: é preciso reforçar geração interna de caixa."
+        historia_autossuf = f"⚠️ Seu negócio está conseguindo cobrir metade das obrigações. Você ainda depende de empréstimos ou capital próprio pro resto."
     else:
-        comentario_autossuf = "baixo nível de autossuficiência: o negócio depende de capital externo, elevando o risco."
-
-    # --- recomendações ---
-    recs = []
+        historia_autossuf = f"🚨 Seu negócio está muito dependente de dinheiro externo (empréstimos, aportes). Isso aumenta o risco!"
+    
+    # Dicas Práticas (linguagem coloquial)
+    dicas = []
     if gco <= 0:
-        recs.append("Revise as entradas operacionais e priorize ações que aumentem as vendas ou captação de receitas.")
+        dicas.append("🎯 <b>Prioridade #1:</b> Aumentar as vendas ou reduzir custos. Seu negócio precisa gerar mais caixa!")
     if peso_retiradas > 0.5 or (entradas_op > 0 and (retiradas_pessoais_val / entradas_op) > 0.5):
-        recs.append("Reduza retiradas pessoais para preservar caixa operacional.")
+        dicas.append("💡 <b>Dica importante:</b> Reduza suas retiradas pessoais por enquanto. Deixe o dinheiro trabalhar no negócio.")
     if taxa_reinv >= 0.30:
-        recs.append("Bom nível de reinvestimento — mantenha disciplina para colher ganhos futuros.")
+        dicas.append("🚀 <b>Parabéns:</b> Você está reinvestindo no negócio! Continue assim que os resultados vão aparecer.")
     if autossuf < 0.5:
-        recs.append("Aumente a autossuficiência operacional antes de expandir investimentos.")
-    if not recs:
-        recs.append("Mantenha controles atuais de custos e planejamento financeiro.")
+        dicas.append("⚡ <b>Meta:</b> Antes de investir mais, foque em fazer o negócio se pagar sozinho.")
+    if score < 70 and gco > 0:
+        dicas.append("📈 <b>Você está quase lá!</b> Com o caixa positivo, pequenos ajustes vão te levar ao próximo nível.")
+    
+    if not dicas:
+        dicas.append("✨ <b>Continue assim!</b> Mantenha o controle e o planejamento que você está indo bem.")
+    
+    # Próximo Nível (gamificação)
+    if score < 85:
+        proximo_nivel = None
+        if score >= 70:
+            proximo_nivel = {'nome': 'Campeão (Ouro)', 'pontos_necessarios': 85 - score}
+        elif score >= 55:
+            proximo_nivel = {'nome': 'Negócio Saudável (Prata)', 'pontos_necessarios': 70 - score}
+        elif score >= 40:
+            proximo_nivel = {'nome': 'No Caminho Certo (Bronze)', 'pontos_necessarios': 55 - score}
+        else:
+            proximo_nivel = {'nome': 'Atenção Necessária', 'pontos_necessarios': 40 - score}
+        
+        texto_proximo = f"<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; color: white; margin: 15px 0;'>" \
+                       f"<b>🎯 Próximo Nível:</b> {proximo_nivel['nome']}<br>" \
+                       f"<small>Você precisa de mais <b>{proximo_nivel['pontos_necessarios']:.1f} pontos</b> para alcançar!</small>" \
+                       f"</div>"
+    else:
+        texto_proximo = "<div style='background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 15px; border-radius: 10px; color: #000; margin: 15px 0;'>" \
+                       "<b>🏆 Você alcançou o nível máximo!</b> Mantenha essa excelência!" \
+                       "</div>"
+    
+    # HTML final
+    html = f"""
+    <div style='background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
+        <div style='text-align: center; margin-bottom: 20px;'>
+            <div style='font-size: 60px; margin-bottom: 10px;'>{badge['emoji']}</div>
+            <h2 style='color: {badge['cor']}; margin: 10px 0;'>{badge['titulo']}</h2>
+            <p style='color: #666; font-size: 16px; margin: 10px 0;'>{badge['mensagem']}</p>
+        </div>
+        
+        <h3 style='color: {PRIMARY_COLOR}; border-bottom: 2px solid {ACCENT_COLOR}; padding-bottom: 10px; margin-top: 25px;'>
+            📖 A História do Seu Negócio Neste Período
+        </h3>
+        
+        <div style='line-height: 1.8; font-size: 15px; margin: 20px 0;'>
+            <p><b>{emoji_caixa} Caixa Operacional:</b><br>{historia_caixa}</p>
+            <p><b>💳 Suas Retiradas:</b><br>{historia_retiradas}</p>
+            <p><b>🏢 Independência do Negócio:</b><br>{historia_autossuf}</p>
+        </div>
+        
+        <h3 style='color: {PRIMARY_COLOR}; border-bottom: 2px solid {ACCENT_COLOR}; padding-bottom: 10px; margin-top: 25px;'>
+            💡 Dicas Práticas Pra Você
+        </h3>
+        
+        <div style='line-height: 1.8; font-size: 15px; margin: 20px 0;'>
+            {"<br>".join(dicas)}
+        </div>
+        
+        {texto_proximo}
+    </div>
+    """
+    
+    return html, badge
 
-    # --- formatação dos valores ---
-    val_gco = span_valor(formatar_brl(gco), cor_icone(gco, "financeiro"))
-    val_retir = span_valor(formatar_brl(retiradas_pessoais_val), cor_icone(retiradas_pessoais_val, "financeiro", contexto_caixa_negativo=(gco < 0)))
-    aut_text = "∞" if autossuf == float('inf') else f"{autossuf:.2f}"
-    val_aut = span_valor(aut_text, cor_icone(autossuf, "autossuficiencia"))
+# ====================================
+# GRÁFICOS MELHORADOS
+# ====================================
 
-    # --- HTML final (sem classe dentro) ---
-    html = (
-        "<div style='line-height:1.6;font-size:15px;'>"
-        f"<b>Score Financeiro:</b> {score:.1f}<br><br>"
-        f"<b>Resumo:</b> {resumo}<br><br>"
-        f"<b>Caixa operacional gerado (período):</b> {val_gco} — {comentario_gco}<br>"
-        f"<b>Retiradas de sócios:</b> {val_retir} — {comentario_retiradas}<br>"
-        f"<b>Autossuficiência operacional:</b> {val_aut} — {comentario_autossuf}<br><br>"
-        f"<b>Recomendações práticas:</b> {' '.join(recs)}"
-        "</div>"
+def criar_grafico_top_saidas_melhorado(df: pd.DataFrame):
+    """Cria gráfico de saídas com análise de vazamentos."""
+    st.markdown("### 🔴 Onde Você Está Perdendo Dinheiro?")
+    st.markdown("Identificar os maiores gastos é o primeiro passo para controlar o caixa.")
+    
+    df_debitos = df[df['tipo_movimentacao'] == 'DEBITO'].copy()
+    df_debitos_agrupado = df_debitos.groupby('conta_display')['valor'].sum().reset_index()
+    df_debitos_agrupado['valor_abs'] = df_debitos_agrupado['valor'].abs()
+    df_debitos_agrupado = df_debitos_agrupado.sort_values('valor_abs', ascending=False).head(5)
+    
+    if not df_debitos_agrupado.empty:
+        # Calcular percentuais
+        total_saidas = df_debitos_agrupado['valor_abs'].sum()
+        df_debitos_agrupado['percentual'] = (df_debitos_agrupado['valor_abs'] / total_saidas * 100).round(1)
+        
+        # Gráfico de barras horizontal com cores degradê
+        fig = go.Figure()
+        
+        cores_gradiente = ['#DC3545', '#E74C3C', '#F1948A', '#FADBD8', '#F9E5E3']
+        
+        for idx, row in df_debitos_agrupado.iterrows():
+            fig.add_trace(go.Bar(
+                y=[row['conta_display']],
+                x=[row['valor_abs']],
+                orientation='h',
+                marker=dict(color=cores_gradiente[idx % len(cores_gradiente)]),
+                text=f"{formatar_brl(row['valor_abs'])} ({row['percentual']}%)",
+                textposition='outside',
+                hovertemplate=f"<b>{row['conta_display']}</b><br>" +
+                             f"Valor: {formatar_brl(row['valor_abs'])}<br>" +
+                             f"Representa {row['percentual']}% das saídas<extra></extra>",
+                showlegend=False
+            ))
+        
+        fig.update_layout(
+            title=dict(
+                text="Top 5 Maiores Gastos do Período",
+                font=dict(size=18, color=PRIMARY_COLOR, family="Arial Black")
+            ),
+            xaxis_title="Valor Gasto (R$)",
+            yaxis_title="",
+            height=400,
+            plot_bgcolor='#F9F9F9',
+            paper_bgcolor='white',
+            font=dict(family="Roboto", size=12),
+            margin=dict(l=20, r=150, t=60, b=40)
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Análise automática
+        maior_gasto = df_debitos_agrupado.iloc[0]
+        if maior_gasto['percentual'] > 40:
+            st.warning(f"⚠️ **Atenção!** '{maior_gasto['conta_display']}' representa {maior_gasto['percentual']}% "
+                      f"de todas as suas saídas ({formatar_brl(maior_gasto['valor_abs'])}). "
+                      f"Esse é um ponto crítico para você revisar e tentar reduzir.")
+        elif maior_gasto['percentual'] > 25:
+            st.info(f"💡 Seu maior gasto é '{maior_gasto['conta_display']}' com {formatar_brl(maior_gasto['valor_abs'])} "
+                   f"({maior_gasto['percentual']}%). Analise se há como otimizar esse valor.")
+        else:
+            st.success(f"✅ Seus gastos estão bem distribuídos! O maior é '{maior_gasto['conta_display']}' "
+                      f"com {maior_gasto['percentual']}%, o que indica bom controle financeiro.")
+    else:
+        st.info("Não há registros de saídas para este período.")
+
+def criar_grafico_top_entradas_melhorado(df: pd.DataFrame):
+    """Cria gráfico de entradas com análise de concentração de receitas."""
+    st.markdown("### 🟢 De Onde Vem o Seu Dinheiro?")
+    st.markdown("Entender suas fontes de receita ajuda a planejar o crescimento do negócio.")
+    
+    df_creditos = df[df['tipo_movimentacao'] == 'CREDITO'].copy()
+    df_creditos_agrupado = df_creditos.groupby('conta_display')['valor'].sum().reset_index()
+    df_creditos_agrupado = df_creditos_agrupado.sort_values('valor', ascending=False).head(5)
+    
+    if not df_creditos_agrupado.empty:
+        # Calcular percentuais
+        total_entradas = df_creditos_agrupado['valor'].sum()
+        df_creditos_agrupado['percentual'] = (df_creditos_agrupado['valor'] / total_entradas * 100).round(1)
+        
+        # Gráfico de barras horizontal com cores degradê
+        fig = go.Figure()
+        
+        cores_gradiente = ['#28A745', '#48C774', '#69D391', '#8FE3AF', '#B5F3CD']
+        
+        for idx, row in df_creditos_agrupado.iterrows():
+            fig.add_trace(go.Bar(
+                y=[row['conta_display']],
+                x=[row['valor']],
+                orientation='h',
+                marker=dict(color=cores_gradiente[idx % len(cores_gradiente)]),
+                text=f"{formatar_brl(row['valor'])} ({row['percentual']}%)",
+                textposition='outside',
+                hovertemplate=f"<b>{row['conta_display']}</b><br>" +
+                             f"Valor: {formatar_brl(row['valor'])}<br>" +
+                             f"Representa {row['percentual']}% das entradas<extra></extra>",
+                showlegend=False
+            ))
+        
+        fig.update_layout(
+            title=dict(
+                text="Top 5 Maiores Fontes de Receita",
+                font=dict(size=18, color=PRIMARY_COLOR, family="Arial Black")
+            ),
+            xaxis_title="Valor Recebido (R$)",
+            yaxis_title="",
+            height=400,
+            plot_bgcolor='#F9F9F9',
+            paper_bgcolor='white',
+            font=dict(family="Roboto", size=12),
+            margin=dict(l=20, r=150, t=60, b=40)
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Análise automática de concentração
+        maior_entrada = df_creditos_agrupado.iloc[0]
+        if maior_entrada['percentual'] > 70:
+            st.warning(f"⚠️ **Risco de Concentração!** '{maior_entrada['conta_display']}' representa "
+                      f"{maior_entrada['percentual']}% de todas as suas entradas. "
+                      f"Se essa fonte falhar, seu negócio pode ser muito afetado. Considere diversificar suas receitas.")
+        elif maior_entrada['percentual'] > 50:
+            st.info(f"💡 '{maior_entrada['conta_display']}' é sua principal fonte de receita ({maior_entrada['percentual']}%). "
+                   f"É bom, mas pense em desenvolver outras fontes para reduzir riscos.")
+        else:
+            st.success(f"✅ Suas receitas estão bem diversificadas! '{maior_entrada['conta_display']}' "
+                      f"representa {maior_entrada['percentual']}%, o que mostra resiliência do negócio.")
+    else:
+        st.info("Não há registros de entradas para este período.")
+
+def criar_comparativo_caixa_retiradas_melhorado(df: pd.DataFrame):
+    """Gráfico comparativo com melhor explicação."""
+    st.markdown("### ⚖️ O Negócio Está Sustentando Suas Retiradas?")
+    st.markdown("Este gráfico compara o dinheiro que o negócio gera com o quanto você retira dele.")
+    
+    # Calcular caixa operacional
+    df_op = df[df['tipo_fluxo'] == 'OPERACIONAL'].copy()
+    entradas_op = df_op[df_op['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
+    saidas_op = abs(df_op[df_op['tipo_movimentacao'] == 'DEBITO']['valor'].sum())
+    caixa_operacional = entradas_op - saidas_op
+    
+    # Calcular retiradas
+    retiradas_pessoais = abs(df[
+        (df['conta_analitica'] == 'FIN-05') & 
+        (df['tipo_movimentacao'] == 'DEBITO')
+    ]['valor'].sum())
+    
+    if caixa_operacional > 0 or retiradas_pessoais > 0:
+        # Criar gráfico de pizza melhorado
+        dados = pd.DataFrame({
+            'Categoria': ['💰 Caixa Gerado pelo Negócio', '💳 Você Retirou'],
+            'Valor': [max(caixa_operacional, 0), retiradas_pessoais]
+        })
+        
+        fig = go.Figure(data=[go.Pie(
+            labels=dados['Categoria'],
+            values=dados['Valor'],
+            hole=0.4,
+            marker=dict(colors=[ACCENT_COLOR, NEGATIVE_COLOR]),
+            textinfo='label+percent',
+            textposition='outside',
+            hovertemplate='<b>%{label}</b><br>Valor: %{value:,.2f}<br>Percentual: %{percent}<extra></extra>'
+        )])
+        
+        fig.update_layout(
+            title=dict(
+                text="Geração de Caixa vs Retiradas Pessoais",
+                font=dict(size=18, color=PRIMARY_COLOR, family="Arial Black")
+            ),
+            annotations=[dict(text=f'{formatar_brl(caixa_operacional + retiradas_pessoais)}<br>Total',
+                             x=0.5, y=0.5, font_size=14, showarrow=False)],
+            height=450,
+            showlegend=True,
+            font=dict(family="Roboto")
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Análise com linguagem coloquial
+        if caixa_operacional <= 0:
+            st.error("🚨 **Alerta Vermelho!** Seu negócio não está gerando caixa operacional. "
+                    "Qualquer retirada neste momento está 'comendo' o capital do negócio ou aumentando dívidas. "
+                    "É urgente aumentar vendas ou reduzir custos!")
+        elif retiradas_pessoais == 0:
+            st.info(f"💡 Você gerou {formatar_brl(caixa_operacional)} e não fez retiradas. "
+                   f"Isso é ótimo para fortalecer o caixa, mas lembre-se: você também precisa se pagar!")
+        else:
+            percentual = (retiradas_pessoais / caixa_operacional * 100)
+            sobrou = caixa_operacional - retiradas_pessoais
+            
+            if percentual > 70:
+                st.warning(f"⚠️ **Cuidado!** Você está retirando {percentual:.0f}% do caixa que gera. "
+                          f"Sobram apenas {formatar_brl(sobrou)} para investir e lidar com imprevistos. "
+                          f"Tente reduzir as retiradas para dar mais fôlego ao negócio.")
+            elif percentual > 50:
+                st.info(f"💡 Você está retirando {percentual:.0f}% do caixa gerado. "
+                       f"Ainda sobram {formatar_brl(sobrou)} no negócio, mas não há muito espaço para manobra. "
+                       f"Fique atento!")
+            else:
+                st.success(f"✅ **Excelente!** Você retira {percentual:.0f}% do caixa e deixa "
+                          f"{formatar_brl(sobrou)} no negócio. Isso mostra disciplina financeira e "
+                          f"permite que o negócio cresça!")
+    else:
+        st.info("Não há dados suficientes para gerar este comparativo.")
+
+def criar_evolucao_fluxos_caixa(df: pd.DataFrame):
+    """Gráfico de evolução dos três tipos de fluxo de caixa."""
+    st.markdown("### 📊 Como Seu Dinheiro Circula no Tempo?")
+    st.markdown("Acompanhe mês a mês de onde vem e para onde vai o dinheiro do negócio.")
+    
+    if df.empty:
+        st.info("Não há dados suficientes para mostrar a evolução.")
+        return
+    
+    df_copia = df.copy()
+    df_copia['data'] = pd.to_datetime(df_copia['data'], errors='coerce')
+    df_copia = df_copia.dropna(subset=['data'])
+    
+    if df_copia.empty:
+        st.info("Não há dados com datas válidas.")
+        return
+    
+    # Agrupar por mês e tipo de fluxo
+    df_copia['mes'] = df_copia['data'].dt.to_period('M').astype(str)
+    
+    # Calcular saldo por tipo de fluxo
+    df_copia['valor_ajustado'] = df_copia.apply(
+        lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'], 
+        axis=1
     )
+    
+    resumo_mensal = df_copia.groupby(['mes', 'tipo_fluxo'])['valor_ajustado'].sum().reset_index()
+    
+    # Criar gráfico de linhas
+    fig = go.Figure()
+    
+    cores_fluxo = {
+        'OPERACIONAL': ACCENT_COLOR,
+        'INVESTIMENTO': INVESTMENT_COLOR,
+        'FINANCIAMENTO': FINANCING_COLOR,
+        'NEUTRO': '#6C757D'
+    }
+    
+    nomes_fluxo = {
+        'OPERACIONAL': '💼 Operações do Dia a Dia',
+        'INVESTIMENTO': '🚀 Investimentos',
+        'FINANCIAMENTO': '💰 Empréstimos e Aportes',
+        'NEUTRO': '↔️ Transferências'
+    }
+    
+    for tipo_fluxo in resumo_mensal['tipo_fluxo'].unique():
+        dados_fluxo = resumo_mensal[resumo_mensal['tipo_fluxo'] == tipo_fluxo]
+        
+        fig.add_trace(go.Scatter(
+            x=dados_fluxo['mes'],
+            y=dados_fluxo['valor_ajustado'],
+            name=nomes_fluxo.get(tipo_fluxo, tipo_fluxo),
+            mode='lines+markers',
+            line=dict(color=cores_fluxo.get(tipo_fluxo, '#000000'), width=3),
+            marker=dict(size=8),
+            hovertemplate='<b>%{fullData.name}</b><br>' +
+                         'Mês: %{x}<br>' +
+                         'Saldo: R$ %{y:,.2f}<extra></extra>'
+        ))
+    
+    # Adicionar linha zero
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
+    
+    fig.update_layout(
+        title=dict(
+            text="Evolução Mensal dos Fluxos de Caixa",
+            font=dict(size=18, color=PRIMARY_COLOR, family="Arial Black")
+        ),
+        xaxis_title="Mês",
+        yaxis_title="Saldo (R$)",
+        height=500,
+        plot_bgcolor='#F9F9F9',
+        paper_bgcolor='white',
+        font=dict(family="Roboto"),
+        hovermode='x unified',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Análise em cards
+    col1, col2, col3 = st.columns(3)
+    
+    # Fluxo Operacional
+    fluxo_op = resumo_mensal[resumo_mensal['tipo_fluxo'] == 'OPERACIONAL']
+    if not fluxo_op.empty:
+        media_op = fluxo_op['valor_ajustado'].mean()
+        with col1:
+            cor_card = '#D4EDDA' if media_op > 0 else '#F8D7DA'
+            emoji_card = '📈' if media_op > 0 else '📉'
+            st.markdown(f"""
+            <div style='background: {cor_card}; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid {ACCENT_COLOR};'>
+                <div style='font-size: 40px;'>{emoji_card}</div>
+                <h4>Operacional</h4>
+                <p style='font-size: 20px; font-weight: bold; margin: 10px 0;'>{formatar_brl(media_op)}</p>
+                <small>Média mensal</small>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Fluxo de Investimento
+    fluxo_inv = resumo_mensal[resumo_mensal['tipo_fluxo'] == 'INVESTIMENTO']
+    if not fluxo_inv.empty:
+        media_inv = fluxo_inv['valor_ajustado'].mean()
+        with col2:
+            emoji_inv = '🚀' if media_inv < 0 else '💵'
+            texto_inv = 'Investindo' if media_inv < 0 else 'Desinvestindo'
+            st.markdown(f"""
+            <div style='background: #E8F5E9; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid {INVESTMENT_COLOR};'>
+                <div style='font-size: 40px;'>{emoji_inv}</div>
+                <h4>Investimentos</h4>
+                <p style='font-size: 20px; font-weight: bold; margin: 10px 0;'>{formatar_brl(abs(media_inv))}</p>
+                <small>{texto_inv}/mês</small>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Fluxo de Financiamento
+    fluxo_fin = resumo_mensal[resumo_mensal['tipo_fluxo'] == 'FINANCIAMENTO']
+    if not fluxo_fin.empty:
+        media_fin = fluxo_fin['valor_ajustado'].mean()
+        with col3:
+            emoji_fin = '💳' if media_fin > 0 else '💸'
+            texto_fin = 'Captando' if media_fin > 0 else 'Pagando'
+            st.markdown(f"""
+            <div style='background: #FFF3CD; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid {FINANCING_COLOR};'>
+                <div style='font-size: 40px;'>{emoji_fin}</div>
+                <h4>Financiamentos</h4>
+                <p style='font-size: 20px; font-weight: bold; margin: 10px 0;'>{formatar_brl(abs(media_fin))}</p>
+                <small>{texto_fin}/mês</small>
+            </div>
+            """, unsafe_allow_html=True)
 
-    return html, classe_texto
+# ====================================
+# CLASSE INDICADORES (mantida do original)
+# ====================================
 
-# --- CLASSE INDICADORES FLUXO ---
 class IndicadoresFluxo:
     def __init__(self, df: pd.DataFrame):
         self.df = df.copy()
@@ -167,766 +587,364 @@ class IndicadoresFluxo:
 
         self.df['data'] = pd.to_datetime(self.df['data'], errors='coerce', dayfirst=True)
         self.df.dropna(subset=['data'], inplace=True)
-        self.df['mes_ano'] = self.df['data'].dt.to_period('M')
-        self.df['fluxo'] = self.df.apply(
-            lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'],
-            axis=1
+
+        if self.df.empty:
+            self.df_fluxo = pd.DataFrame()
+            return
+
+        self.df['valor_ajustado'] = self.df.apply(
+            lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'], axis=1
         )
-        # Filtrar apenas operações válidas (excluir NEUTRO)
-        self.df_fluxo = self.df[self.df['tipo_fluxo'] != 'NEUTRO'].copy()
 
-    def resumo_indicadores(self) -> Dict[str, float]:
+        self.df_fluxo = self.df.groupby('tipo_fluxo')['valor_ajustado'].sum().reset_index()
+        self.df_fluxo.columns = ['tipo_fluxo', 'saldo']
+
+    def obter_saldo_por_tipo(self, tipo: str) -> float:
         if self.df_fluxo.empty:
-            return {
-                'gco': 0.0, 'entradas_operacionais': 0.0, 'margem_op': 0.0,
-                'autossuficiencia': 0.0, 'taxa_reinvestimento': 0.0,
-                'peso_retiradas': 0.0, 'intensidade_fin': 0.0,
-                'crescimento_entradas': 0.0, 'retiradas_pessoais': 0.0
-            }
+            return 0.0
+        linha = self.df_fluxo[self.df_fluxo['tipo_fluxo'] == tipo]
+        return linha['saldo'].values[0] if not linha.empty else 0.0
 
-        # 1. Geração de Caixa Operacional (GCO)
-        caixa_op = self.df_fluxo[self.df_fluxo['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
-        
-        # 2. Entradas Operacionais (Receitas)
-        entradas_op = self.df_fluxo[
-            (self.df_fluxo['tipo_fluxo'] == 'OPERACIONAL') & 
-            (self.df_fluxo['tipo_movimentacao'] == 'CREDITO')
-        ]['valor'].sum()
+    def obter_entradas_por_tipo(self, tipo: str) -> float:
+        if self.df.empty:
+            return 0.0
+        df_tipo = self.df[self.df['tipo_fluxo'] == tipo]
+        return df_tipo[df_tipo['tipo_movimentacao'] == 'CREDITO']['valor'].sum()
 
-        # 3. Margem de Caixa Operacional (%)
-        margem_op = (caixa_op / entradas_op) if entradas_op > 0 else 0.0
+    def obter_saidas_por_tipo(self, tipo: str) -> float:
+        if self.df.empty:
+            return 0.0
+        df_tipo = self.df[self.df['tipo_fluxo'] == tipo]
+        return abs(df_tipo[df_tipo['tipo_movimentacao'] == 'DEBITO']['valor'].sum())
 
-        # 4. Retiradas Pessoais (FIN-05, Débito)
-        retiradas_pessoais = abs(self.df[
+    def obter_retiradas_pessoais(self) -> float:
+        if self.df.empty:
+            return 0.0
+        df_ret = self.df[
             (self.df['conta_analitica'] == 'FIN-05') & 
             (self.df['tipo_movimentacao'] == 'DEBITO')
-        ]['valor'].sum())
+        ]
+        return abs(df_ret['valor'].sum())
 
-        # 5. Peso de Retiradas (%)
-        total_debitos = self.df[self.df['tipo_movimentacao'] == 'DEBITO']['valor'].sum()
-        peso_retiradas = (retiradas_pessoais / total_debitos) if total_debitos > 0 else 0.0
-
-        # 6. Caixa de Investimento e Financiamento
-        caixa_inv = self.df_fluxo[self.df_fluxo['tipo_fluxo'] == 'INVESTIMENTO']['fluxo'].sum()
-        caixa_fin = self.df_fluxo[self.df_fluxo['tipo_fluxo'] == 'FINANCIAMENTO']['fluxo'].sum()
-
-        # 7. Autossuficiência Operacional
-        # (Caixa Operacional + Caixa Financiamento) / (Caixa Investimento + Retiradas Pessoais)
-        denominador_autossuf = abs(caixa_inv) + retiradas_pessoais
-        if denominador_autossuf == 0:
-            autossuficiencia = float('inf')
-        else:
-            autossuficiencia = (caixa_op + caixa_fin) / denominador_autossuf
-
-        # 8. Taxa de Reinvestimento
-        # (Caixa Operacional - Retiradas Pessoais) / Caixa Operacional
-        if caixa_op > 0:
-            taxa_reinvestimento = (caixa_op - retiradas_pessoais) / caixa_op
-        else:
-            taxa_reinvestimento = 0.0
-
-        # 9. Crescimento de Entradas (Requer dados de períodos anteriores, aqui será um placeholder)
-        # Para simplificar, vamos calcular a variação entre o primeiro e o último mês
-        meses = sorted(self.df_fluxo['mes_ano'].unique())
-        crescimento_entradas = 0.0
-        if len(meses) >= 2:
-            entradas_mes_inicial = self.df_fluxo[
-                (self.df_fluxo['mes_ano'] == meses[0]) & 
-                (self.df_fluxo['tipo_fluxo'] == 'OPERACIONAL') & 
-                (self.df_fluxo['tipo_movimentacao'] == 'CREDITO')
-            ]['valor'].sum()
-            
-            entradas_mes_final = self.df_fluxo[
-                (self.df_fluxo['mes_ano'] == meses[-1]) & 
-                (self.df_fluxo['tipo_fluxo'] == 'OPERACIONAL') & 
-                (self.df_fluxo['tipo_movimentacao'] == 'CREDITO')
-            ]['valor'].sum()
-            
-            if entradas_mes_inicial > 0:
-                crescimento_entradas = (entradas_mes_final - entradas_mes_inicial) / entradas_mes_inicial
-            
-        return {
-            'gco': caixa_op,
-            'entradas_operacionais': entradas_op,
-            'margem_op': margem_op,
-            'autossuficiencia': autossuficiencia,
-            'taxa_reinvestimento': taxa_reinvestimento,
-            'peso_retiradas': peso_retiradas,
-            'intensidade_inv': caixa_inv, # Valor absoluto para cálculo de score
-            'intensidade_fin': caixa_fin, # Valor absoluto para cálculo de score
-            'crescimento_entradas': crescimento_entradas,
-            'retiradas_pessoais': retiradas_pessoais
-        }
-
-# --- CLASSE SCORE CALCULATOR ---
-class ScoreCalculator:
-    def __init__(self):
-        # Pesos definidos para cada indicador (soma deve ser 100)
-        self.pesos = {
-            'gco': 25, # Geração de Caixa Operacional
-            'margem_op': 20, # Margem de Caixa Operacional
-            'peso_retiradas': 15, # Peso das Retiradas Pessoais
-            'autossuficiencia': 15, # Autossuficiência Operacional
-            'taxa_reinvestimento': 10, # Taxa de Reinvestimento
-            'crescimento_entradas': 10, # Crescimento de Entradas
-            'intensidade_fin': 5 # Intensidade de Financiamento
-        }
-
-    def normalizar_gco(self, gco: float, entradas_op: float) -> float:
-        if entradas_op <= 0:
-            return 0.0
-        margem = gco / entradas_op
-        if margem >= 0.3:
-            return 100.0
-        elif margem >= 0.15:
-            return 80.0
-        elif margem > 0:
-            return 60.0
-        elif margem == 0:
-            return 40.0
-        elif margem >= -0.1:
-            return 20.0
-        else:
-            return 0.0
-
-    def normalizar_margem(self, margem_op: float) -> float:
-        if margem_op >= 0.3:
-            return 100.0
-        elif margem_op >= 0.15:
-            return 80.0
-        elif margem_op > 0:
-            return 60.0
-        elif margem_op == 0:
-            return 40.0
-        elif margem_op >= -0.1:
-            return 20.0
-        else:
-            return 0.0
-
-    def normalizar_peso_retiradas(self, peso_retiradas: float) -> float:
-        # Quanto menor o peso, melhor
-        if peso_retiradas <= 0.1:
-            return 100.0
-        elif peso_retiradas <= 0.25:
-            return 80.0
-        elif peso_retiradas <= 0.4:
-            return 60.0
-        elif peso_retiradas <= 0.6:
-            return 40.0
-        else:
-            return 20.0
-
-    def normalizar_intensidade_fin(self, caixa_fin: float, margem_op: float) -> float:
-        # Se a margem operacional for positiva, financiamento é menos crítico
-        if margem_op > 0:
-            if caixa_fin <= 0: # Pagamento de dívida ou neutro
-                return 100.0
-            elif caixa_fin < 0.2 * margem_op: # Pouco financiamento
-                return 80.0
-            else: # Alto financiamento
-                return 60.0
-        else: # Se a margem operacional for negativa ou zero, financiamento é mais crítico
-            if caixa_fin <= 0:
-                return 80.0
-            elif caixa_fin < 0.5 * abs(margem_op):
-                return 40.0
-            else:
-                return 20.0
-
-    def normalizar_crescimento(self, crescimento: float) -> float:
-        if crescimento >= 0.2:
-            return 100.0
-        elif crescimento >= 0.05:
-            return 80.0
-        elif crescimento >= 0:
-            return 60.0
-        else:
-            return 40.0
-
-    def normalizar_reinvestimento(self, taxa_reinv: float) -> float:
-        if taxa_reinv >= 0.5:
-            return 100.0
-        elif taxa_reinv >= 0.3:
-            return 80.0
-        elif taxa_reinv >= 0.1:
-            return 60.0
-        else:
-            return 20.0
-
-    def normalizar_autossuficiencia(self, autossuf: float) -> float:
-        if math.isinf(autossuf):
-            return 100.0
-        if autossuf >= 1.5:
-            return 100.0
-        elif autossuf >= 1.0:
-            return 80.0
-        elif autossuf >= 0.5:
-            return 50.0
-        else:
-            return 20.0
-
-    def calcular_score(self, indicadores: Dict[str, float]) -> Dict[str, Any]:
-        notas = {}
-        notas['gco'] = self.normalizar_gco(indicadores.get('gco', 0.0), indicadores.get('entradas_operacionais', 0.0))
-        notas['margem_op'] = self.normalizar_margem(indicadores.get('margem_op', 0.0))
-        notas['peso_retiradas'] = self.normalizar_peso_retiradas(indicadores.get('peso_retiradas', 0.0))
-        notas['intensidade_fin'] = self.normalizar_intensidade_fin(indicadores.get('intensidade_fin', 0.0), indicadores.get('margem_op', 0.0))
-        notas['crescimento_entradas'] = self.normalizar_crescimento(indicadores.get('crescimento_entradas', 0.0))
-        notas['taxa_reinvestimento'] = self.normalizar_reinvestimento(indicadores.get('taxa_reinvestimento', 0.0))
-        notas['autossuficiencia'] = self.normalizar_autossuficiencia(indicadores.get('autossuficiencia', 0.0))
-
-        score = 0.0
-        contributions = {}
-        for key, peso in self.pesos.items():
-            nota = notas.get(key, 0.0)
-            contrib = nota * (peso / 100.0)
-            contributions[key] = round(contrib, 2)
-            score += contrib
-
-        score = round(score, 1)
-
-        return {
-            "score": score,
-            "notas": notas,
-            "contribuicoes": contributions,
-            "pesos": self.pesos
-        }
-
-# --- FUNÇÃO: CÁLCULO DO SCORE FINANCEIRO ---
-def calcular_score_fluxo(df: pd.DataFrame):
-    """Calcula todos os indicadores e o score final."""
-    try:
-        indicadores_calc = IndicadoresFluxo(df)
-        indicadores = indicadores_calc.resumo_indicadores()
-        score_calc = ScoreCalculator()
-        resultado = score_calc.calcular_score(indicadores)
-        resultado_full = {
-            'score_final': resultado['score'],
-            'notas': resultado['notas'],
-            'contribuicoes': resultado['contribuicoes'],
-            'pesos': resultado['pesos'],
-            'valores': indicadores,
-            'componentes': {
-                'caixa_operacional': indicadores.get('gco', 0.0),
-                'entradas_operacionais': indicadores.get('entradas_operacionais', 0.0),
-                'caixa_investimento': indicadores.get('intensidade_inv', 0.0),
-                'caixa_financiamento': indicadores.get('intensidade_fin', 0.0)
-            }
-        }
-        return resultado_full
-    except Exception as e:
-        # st.error(f"Erro no cálculo dos indicadores/score: {e}")
-        return {
-            'score_final': 0.0,
-            'notas': {},
-            'contribuicoes': {},
-            'pesos': {},
-            'valores': {},
-            'componentes': {}
-        }
-
-# --- FUNÇÃO PARA CRIAR RELATÓRIO DE FLUXO DE CAIXA ---
-def criar_relatorio_fluxo_caixa(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any]):
-    """Cria a tabela detalhada de Fluxo de Caixa por Atividade e Mês."""
-    st.subheader("Relatório de Fluxo de Caixa")
+def calcular_score_fluxo(df: pd.DataFrame) -> Dict[str, Any]:
+    """Calcula o score financeiro baseado em múltiplos indicadores."""
+    ind = IndicadoresFluxo(df)
     
-    if df.empty:
-        st.info("Nenhum dado disponível. Por favor, processe os extratos primeiro.")
-        return
+    gco = ind.obter_saldo_por_tipo('OPERACIONAL')
+    entradas_op = ind.obter_entradas_por_tipo('OPERACIONAL')
+    saidas_op = ind.obter_saidas_por_tipo('OPERACIONAL')
     
-    df = df.copy()
-    df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
-    df.dropna(subset=['data'], inplace=True)
-    df['mes_ano'] = df['data'].dt.to_period('M')
-    df['fluxo'] = df.apply(
-        lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'],
-        axis=1
-    )
+    investimentos = ind.obter_saidas_por_tipo('INVESTIMENTO')
     
-    df_fluxo = df[df['tipo_fluxo'] != 'NEUTRO'].copy()
-    meses = sorted(df_fluxo['mes_ano'].unique())
+    emprestimos_recebidos = ind.obter_entradas_por_tipo('FINANCIAMENTO')
+    pagamentos_emprestimos = ind.obter_saidas_por_tipo('FINANCIAMENTO')
     
-    meses_pt = {
-        1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
-        5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
-        9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+    retiradas_pessoais = ind.obter_retiradas_pessoais()
+    
+    # Indicadores
+    if saidas_op > 0:
+        margem_operacional = gco / saidas_op
+    else:
+        margem_operacional = 1.0 if gco >= 0 else -1.0
+    
+    total_saidas_nao_operacionais = investimentos + pagamentos_emprestimos + retiradas_pessoais
+    if total_saidas_nao_operacionais > 0:
+        autossuficiencia = gco / total_saidas_nao_operacionais
+    else:
+        autossuficiencia = float('inf') if gco > 0 else 0.0
+    
+    if entradas_op > 0:
+        taxa_reinvestimento = investimentos / entradas_op
+    else:
+        taxa_reinvestimento = 0.0
+    
+    if emprestimos_recebidos > 0:
+        cobertura_juros = gco / emprestimos_recebidos
+    else:
+        cobertura_juros = float('inf') if gco > 0 else 0.0
+    
+    if entradas_op > 0:
+        peso_retiradas = retiradas_pessoais / entradas_op
+    else:
+        peso_retiradas = 1.0 if retiradas_pessoais > 0 else 0.0
+    
+    # Notas (0-100)
+    nota_margem = max(0, min(100, 50 + margem_operacional * 100))
+    
+    if autossuficiencia == float('inf'):
+        nota_autossuf = 100.0
+    elif autossuficiencia >= 1.0:
+        nota_autossuf = 80.0 + min(20, (autossuficiencia - 1.0) * 20)
+    else:
+        nota_autossuf = autossuficiencia * 80.0
+    
+    if taxa_reinvestimento <= 0.20:
+        nota_reinv = 100.0 - (0.20 - taxa_reinvestimento) * 200
+    elif taxa_reinvestimento <= 0.40:
+        nota_reinv = 100.0
+    else:
+        nota_reinv = max(0, 100.0 - (taxa_reinvestimento - 0.40) * 100)
+    
+    if cobertura_juros == float('inf'):
+        nota_cobertura = 100.0
+    elif cobertura_juros >= 2.0:
+        nota_cobertura = 100.0
+    elif cobertura_juros >= 1.0:
+        nota_cobertura = 50.0 + (cobertura_juros - 1.0) * 50.0
+    else:
+        nota_cobertura = max(0, cobertura_juros * 50.0)
+    
+    if peso_retiradas <= 0.30:
+        nota_retiradas = 100.0
+    elif peso_retiradas <= 0.60:
+        nota_retiradas = 100.0 - ((peso_retiradas - 0.30) / 0.30) * 50.0
+    else:
+        nota_retiradas = max(0, 50.0 - ((peso_retiradas - 0.60) / 0.40) * 50.0)
+    
+    # Pesos
+    pesos = {
+        'margem_operacional': 0.30,
+        'autossuficiencia': 0.25,
+        'taxa_reinvestimento': 0.15,
+        'cobertura_juros': 0.15,
+        'peso_retiradas': 0.15
     }
     
-    colunas_meses = []
-    for mes in meses:
-        mes_nome = meses_pt[mes.month]
-        ano = mes.year % 100
-        colunas_meses.append(f"{mes_nome}/{ano:02d}")
+    notas = {
+        'margem_operacional': nota_margem,
+        'autossuficiencia': nota_autossuf,
+        'taxa_reinvestimento': nota_reinv,
+        'cobertura_juros': nota_cobertura,
+        'peso_retiradas': nota_retiradas
+    }
     
-    # Mapeamento de contas para garantir a ordem
-    todas_contas = df_fluxo.groupby(['tipo_fluxo', 'conta_analitica', 'nome_conta']).size().reset_index()[['tipo_fluxo', 'conta_analitica', 'nome_conta']]
-    relatorio_linhas = []
+    contribuicoes = {k: notas[k] * pesos[k] for k in notas.keys()}
+    score_final = sum(contribuicoes.values())
     
-    # 1. ATIVIDADES OPERACIONAIS
-    contas_op = todas_contas[todas_contas['tipo_fluxo'] == 'OPERACIONAL'].sort_values('conta_analitica')
-    if not contas_op.empty:
-        relatorio_linhas.append({'Categoria': '**ATIVIDADES OPERACIONAIS**', 'tipo': 'header'})
-        
-        for _, conta in contas_op.iterrows():
-            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
-            for mes in meses:
-                df_mes_conta = df_fluxo[
-                    (df_fluxo['mes_ano'] == mes) & 
-                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
-                ]
-                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
-                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
-                linha[mes_col] = valor
-            relatorio_linhas.append(linha)
-        
-        # Total Operacional
-        linha_total_op = {'Categoria': '**Total Caixa Operacional**', 'tipo': 'total'}
-        for mes in meses:
-            df_mes_op = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'OPERACIONAL')]
-            valor = df_mes_op['fluxo'].sum() if not df_mes_op.empty else 0
-            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
-            linha_total_op[mes_col] = valor
-        relatorio_linhas.append(linha_total_op)
-        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
-
-    # 2. ATIVIDADES DE INVESTIMENTO
-    contas_inv = todas_contas[todas_contas['tipo_fluxo'] == 'INVESTIMENTO'].sort_values('conta_analitica')
-    if not contas_inv.empty:
-        relatorio_linhas.append({'Categoria': '**ATIVIDADES DE INVESTIMENTO**', 'tipo': 'header'})
-        
-        for _, conta in contas_inv.iterrows():
-            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
-            for mes in meses:
-                df_mes_conta = df_fluxo[
-                    (df_fluxo['mes_ano'] == mes) & 
-                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
-                ]
-                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
-                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
-                linha[mes_col] = valor
-            relatorio_linhas.append(linha)
-        
-        # Total Investimento
-        linha_total_inv = {'Categoria': '**Total Caixa de Investimento**', 'tipo': 'total'}
-        for mes in meses:
-            df_mes_inv = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'INVESTIMENTO')]
-            valor = df_mes_inv['fluxo'].sum() if not df_mes_inv.empty else 0
-            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
-            linha_total_inv[mes_col] = valor
-        relatorio_linhas.append(linha_total_inv)
-        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
-    
-    # 3. ATIVIDADES DE FINANCIAMENTO
-    contas_fin = todas_contas[todas_contas['tipo_fluxo'] == 'FINANCIAMENTO'].sort_values('conta_analitica')
-    if not contas_fin.empty:
-        relatorio_linhas.append({'Categoria': '**ATIVIDADES DE FINANCIAMENTO**', 'tipo': 'header'})
-        
-        for _, conta in contas_fin.iterrows():
-            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
-            for mes in meses:
-                df_mes_conta = df_fluxo[
-                    (df_fluxo['mes_ano'] == mes) & 
-                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
-                ]
-                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
-                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
-                linha[mes_col] = valor
-            relatorio_linhas.append(linha)
-        
-        # Total Financiamento
-        linha_total_fin = {'Categoria': '**Total Caixa de Financiamento**', 'tipo': 'total'}
-        for mes in meses:
-            df_mes_fin = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'FINANCIAMENTO')]
-            valor = df_mes_fin['fluxo'].sum() if not df_mes_fin.empty else 0
-            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
-            linha_total_fin[mes_col] = valor
-        relatorio_linhas.append(linha_total_fin)
-        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
-    
-    # 4. CAIXA GERADO NO MÊS
-    linha_separador = {'Categoria': '═' * 50, 'tipo': 'separator'}
-    for mes_col in colunas_meses:
-        linha_separador[mes_col] = ''
-    relatorio_linhas.append(linha_separador)
-    
-    linha_caixa_gerado = {'Categoria': '**CAIXA GERADO NO MÊS**', 'tipo': 'total'}
-    for mes in meses:
-        df_mes_total = df_fluxo[df_fluxo['mes_ano'] == mes]
-        valor = df_mes_total['fluxo'].sum() if not df_mes_total.empty else 0
-        mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
-        linha_caixa_gerado[mes_col] = valor
-    relatorio_linhas.append(linha_caixa_gerado)
-    
-    # Criar DataFrame
-    df_relatorio = pd.DataFrame(relatorio_linhas)
-    
-    # Preencher NaN com valores vazios antes de formatar
-    df_relatorio = df_relatorio.fillna('')
-    
-    # Formatar valores monetários
-    for col in colunas_meses:
-        if col in df_relatorio.columns:
-            df_relatorio[col] = df_relatorio[col].apply(
-                lambda x: formatar_brl(x) if isinstance(x, (int, float)) and x != 0 else ''
-            )
-    
-    # Remover coluna 'tipo'
-    df_display = df_relatorio.drop(columns=['tipo'])
-    
-    # Exibir tabela (altura aumentada para reduzir rolagem — cerca de 30 linhas visíveis)
-    st.markdown('<div class="fluxo-table">', unsafe_allow_html=True)
-    st.dataframe(
-        df_display,
-        use_container_width=True,
-        hide_index=True,
-        height=800,
-        column_config={
-            "Categoria": st.column_config.TextColumn("Categoria", width="large"),
-            **{col: st.column_config.TextColumn(col, width="medium") for col in colunas_meses}
+    return {
+        'score_final': score_final,
+        'notas': notas,
+        'pesos': pesos,
+        'contribuicoes': contribuicoes,
+        'valores': {
+            'gco': gco,
+            'margem_operacional': margem_operacional,
+            'autossuficiencia': autossuficiencia,
+            'taxa_reinvestimento': taxa_reinvestimento,
+            'cobertura_juros': cobertura_juros,
+            'peso_retiradas': peso_retiradas,
+            'entradas_operacionais': entradas_op,
+            'saidas_operacionais': saidas_op,
+            'investimentos': investimentos,
+            'emprestimos_recebidos': emprestimos_recebidos,
+            'pagamentos_emprestimos': pagamentos_emprestimos,
+            'retiradas_pessoais': retiradas_pessoais
         }
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    return None
+    }
 
-# --- FUNÇÃO PARA CRIAR GRÁFICO DE INDICADORES ---
-def criar_grafico_indicadores(df: pd.DataFrame):
-    """Cria gráfico com evolução dos indicadores financeiros."""
-    st.subheader("Evolução dos Indicadores Financeiros")
+def criar_relatorio_fluxo_caixa(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any]):
+    """Cria o relatório de fluxo de caixa em formato tabular."""
+    st.markdown("### 📋 Relatório Detalhado de Fluxo de Caixa")
+    st.markdown("Veja todos os movimentos organizados por tipo de atividade.")
     
-    if df.empty:
-        st.info("Nenhum dado disponível para indicadores.")
-        return
+    ind = IndicadoresFluxo(df)
     
-    # Preparar dados
-    df2 = df.copy()
-    df2['data'] = pd.to_datetime(df2['data'], errors='coerce', dayfirst=True)
-    df2.dropna(subset=['data'], inplace=True)
-    df2['mes_ano'] = df2['data'].dt.to_period('M')
-    df2['fluxo'] = df2.apply(
-        lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'],
-        axis=1
-    )
+    data_relatorio = []
     
-    # Filtrar apenas operações válidas (excluir NEUTRO)
-    df_fluxo = df2[df2['tipo_fluxo'] != 'NEUTRO'].copy()
-    
-    meses = sorted(df_fluxo['mes_ano'].unique())
-    indicadores_data = []
-    
-    for mes in meses:
-        df_mes = df_fluxo[df_fluxo['mes_ano'] == mes]
-        mes_str = mes.strftime('%m/%Y')
+    for sintetico in PLANO_DE_CONTAS.get('sinteticos', []):
+        tipo_fluxo = sintetico['tipo_fluxo']
+        nome_sintetico = sintetico['nome']
         
-        # Calcular componentes
-        caixa_op = df_mes[df_mes['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
-        caixa_inv = df_mes[df_mes['tipo_fluxo'] == 'INVESTIMENTO']['fluxo'].sum()
-        caixa_fin = df_mes[df_mes['tipo_fluxo'] == 'FINANCIAMENTO']['fluxo'].sum()
+        entradas = ind.obter_entradas_por_tipo(tipo_fluxo)
+        saidas = ind.obter_saidas_por_tipo(tipo_fluxo)
+        saldo = ind.obter_saldo_por_tipo(tipo_fluxo)
         
-        entradas_op = df_mes[
-            (df_mes['tipo_fluxo'] == 'OPERACIONAL') & 
-            (df_mes['tipo_movimentacao'] == 'CREDITO')
-        ]['valor'].sum()
-        
-        # Calcular indicadores com tratamento de zero
-        margem_caixa_op = (caixa_op / entradas_op * 100) if entradas_op > 0 else 0.0
-        intensidade_inv = (abs(caixa_inv) / caixa_op * 100) if caixa_op != 0 else 0.0
-        intensidade_fin = (caixa_fin / caixa_op * 100) if caixa_op != 0 else 0.0
-        retiradas = abs(df_mes[(df_mes['conta_analitica']=='FIN-05') & (df_mes['tipo_movimentacao']=='DEBITO')]['valor'].sum())
-        total_debitos_mes = df_mes[df_mes['tipo_movimentacao']=='DEBITO']['valor'].sum()
-        peso_retiradas = (retiradas / total_debitos_mes * 100) if total_debitos_mes != 0 else 0.0
-        
-        indicadores_data.append({
-            'Mês': mes_str,
-            'Margem de Caixa Operacional (%)': margem_caixa_op,
-            'Intensidade de Investimento (%)': intensidade_inv,
-            'Intensidade de Financiamento (%)': intensidade_fin,
-            'Peso de Retiradas (%)': peso_retiradas
+        data_relatorio.append({
+            'Atividade': nome_sintetico,
+            'Entradas (R$)': entradas,
+            'Saídas (R$)': saidas,
+            'Saldo (R$)': saldo
         })
     
-    df_indicadores = pd.DataFrame(indicadores_data)
+    df_relatorio = pd.DataFrame(data_relatorio)
     
-    # Criar gráfico principal com múltiplas linhas
-    fig = go.Figure()
-    if not df_indicadores.empty:
-        fig.add_trace(go.Scatter(
-            x=df_indicadores['Mês'],
-            y=df_indicadores['Margem de Caixa Operacional (%)'],
-            mode='lines+markers',
-            name='Margem de Caixa Operacional (%)',
-            line=dict(color=ACCENT_COLOR, width=3)
-        ))
-        fig.add_trace(go.Scatter(
-            x=df_indicadores['Mês'],
-            y=df_indicadores['Intensidade de Investimento (%)'],
-            mode='lines+markers',
-            name='Intensidade de Investimento (%)',
-            line=dict(color=INVESTMENT_COLOR, width=3)
-        ))
-        fig.add_trace(go.Scatter(
-            x=df_indicadores['Mês'],
-            y=df_indicadores['Intensidade de Financiamento (%)'],
-            mode='lines+markers',
-            name='Intensidade de Financiamento (%)',
-            line=dict(color=FINANCING_COLOR, width=3)
-        ))
-        fig.add_trace(go.Scatter(
-            x=df_indicadores['Mês'],
-            y=df_indicadores['Peso de Retiradas (%)'],
-            mode='lines+markers',
-            name='Peso de Retiradas (%)',
-            line=dict(color=NEGATIVE_COLOR, width=3, dash='dash')
-        ))
+    # Adicionar totais
+    total_entradas = df_relatorio['Entradas (R$)'].sum()
+    total_saidas = df_relatorio['Saídas (R$)'].sum()
+    total_saldo = df_relatorio['Saldo (R$)'].sum()
     
-    fig.update_layout(
-        title='Evolução dos Indicadores Financeiros (%) ao longo do tempo',
-        xaxis_title='Mês',
-        yaxis_title='Percentual (%)',
-        height=420,
-        plot_bgcolor='white',
-        font=dict(family="Roboto"),
-        hovermode='x unified'
-    )
+    df_relatorio.loc[len(df_relatorio)] = {
+        'Atividade': 'TOTAL',
+        'Entradas (R$)': total_entradas,
+        'Saídas (R$)': total_saidas,
+        'Saldo (R$)': total_saldo
+    }
     
-    st.plotly_chart(fig, use_container_width=True)
+    # Formatar valores
+    df_relatorio['Entradas (R$)'] = df_relatorio['Entradas (R$)'].apply(formatar_brl)
+    df_relatorio['Saídas (R$)'] = df_relatorio['Saídas (R$)'].apply(formatar_brl)
+    df_relatorio['Saldo (R$)'] = df_relatorio['Saldo (R$)'].apply(formatar_brl)
     
-    # Explicação dos indicadores
-    with st.expander("📊 Entenda os indicadores"):
-        st.markdown("""
-        **Margem de Caixa Operacional**: percentual do caixa operacional em relação às entradas operacionais.
-        Indica a eficiência operacional na geração de caixa.
-        
-        **Intensidade de Investimento**: percentual do caixa de investimento em relação ao caixa operacional.
-        Indica quanto da geração operacional está sendo investido (pode reduzir caixa no curto prazo, mas fortalecer no longo prazo).
-        
-        **Intensidade de Financiamento**: percentual do caixa de financiamento em relação ao caixa operacional.
-        Indica a dependência de fontes externas de capital (empréstimos, aportes).
-        
-        **Peso de Retiradas**: percentual das retiradas pessoais sobre o total de saídas.
-        Indica o impacto das retiradas dos sócios no fluxo do negócio.
-        """)
+    st.dataframe(df_relatorio, hide_index=True, use_container_width=True)
     
-    st.markdown("---")
+    # Insights
+    if total_saldo > 0:
+        st.success(f"✅ Seu saldo total no período foi positivo: {formatar_brl(total_saldo)}. O negócio aumentou o caixa!")
+    elif total_saldo < 0:
+        st.error(f"🚨 Seu saldo total no período foi negativo: {formatar_brl(abs(total_saldo))}. O caixa diminuiu!")
+    else:
+        st.info("⚖️ Seu saldo ficou neutro - entradas e saídas se equilibraram.")
 
-# --- FUNÇÃO PARA CRIAR DASHBOARD ---
-def criar_dashboard(df: pd.DataFrame):
-    """Cria dashboard com gráficos de análise."""
-    st.subheader("Dashboard: Análise de Fluxo de Caixa")
-    
-    if df.empty:
-        st.info("Nenhum dado disponível para o dashboard.")
-        return
+# ====================================
+# FUNÇÃO PRINCIPAL (NOVA)
+# ====================================
 
-    try:
-        # Preparar dados
-        df2 = df.copy()
-        df2['data'] = pd.to_datetime(df2['data'], errors='coerce', dayfirst=True)
-        df2.dropna(subset=['data'], inplace=True)
-        df2['fluxo'] = df2.apply(
-            lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'],
-            axis=1
-        )
-        df2['mes_ano_str'] = df2['data'].dt.strftime('%Y-%m')
-        
-        # Filtrar apenas operações válidas (excluir NEUTRO)
-        df_fluxo = df2[df2['tipo_fluxo'] != 'NEUTRO'].copy()
-        
-        # 1. Gráfico de Barras por Tipo de Fluxo
-        st.markdown("#### Fluxo de Caixa Mensal por Categoria")
-        
-        df_fluxo_agrupado = df_fluxo.groupby(['mes_ano_str', 'tipo_fluxo'])['fluxo'].sum().reset_index()
-        
-        fig_dcf = px.bar(
-            df_fluxo_agrupado,
-            x='mes_ano_str',
-            y='fluxo',
-            color='tipo_fluxo',
-            barmode='group',
-            title='Evolução do Fluxo de Caixa por Tipo',
-            labels={'fluxo': 'Fluxo (R$)', 'mes_ano_str': 'Mês/Ano', 'tipo_fluxo': 'Tipo de Fluxo'},
-            color_discrete_map={
-                'OPERACIONAL': ACCENT_COLOR,
-                'INVESTIMENTO': INVESTMENT_COLOR,
-                'FINANCIAMENTO': FINANCING_COLOR
-            }
-        )
-        fig_dcf.update_layout(height=400, plot_bgcolor='white', font=dict(family="Roboto"))
-        st.plotly_chart(fig_dcf, use_container_width=True)
-        
-        st.markdown("---")
-
-        # 2. Gráfico de Pizza: Caixa Operacional vs Retiradas Pessoais
-        st.markdown("#### Comparativo: Caixa Operacional vs Retiradas Pessoais")
-        
-        caixa_operacional = df_fluxo[df_fluxo['tipo_fluxo'] == 'OPERACIONAL']['fluxo'].sum()
-        
-        # Retiradas pessoais são da conta FIN-05 e devem ser negativas (débitos)
-        retiradas_pessoais = abs(df2[
-            (df2['conta_analitica'] == 'FIN-05') & 
-            (df2['tipo_movimentacao'] == 'DEBITO')
-        ]['valor'].sum())
-        
-        if caixa_operacional > 0 or retiradas_pessoais > 0:
-            dados_comparativo = pd.DataFrame({
-                'Categoria': ['Caixa Operacional Gerado', 'Retiradas Pessoais (Sócios/Pró-labore)'],
-                'Valor': [caixa_operacional, retiradas_pessoais]
-            })
-            
-            fig_comparativo = px.pie(
-                dados_comparativo,
-                values='Valor',
-                names='Categoria',
-                title='Distribuição: Geração Operacional vs Retiradas',
-                color_discrete_sequence=[ACCENT_COLOR, NEGATIVE_COLOR],
-                hole=0.3
-            )
-            
-            fig_comparativo.update_traces(
-                textposition='inside',
-                textinfo='percent+label',
-                hovertemplate='<b>%{label}</b><br>Valor: %{value:.2f}<br>Percentual: %{percent}<extra></extra>'
-            )
-            
-            fig_comparativo.update_layout(
-                height=400, 
-                font=dict(family="Roboto"),
-                showlegend=True
-            )
-            
-            st.plotly_chart(fig_comparativo, use_container_width=True)
-            
-            # Análise contextual
-            if caixa_operacional <= 0:
-                st.warning("🚨 **Atenção**: O Caixa Operacional está negativo ou zero. As retiradas pessoais não são sustentáveis neste período.")
-            elif retiradas_pessoais > caixa_operacional * 0.5:
-                st.warning("⚠️ **Alerta**: As retiradas pessoais representam mais de 50% do Caixa Operacional gerado. Isso pode comprometer a capacidade de reinvestimento e a saúde financeira do negócio.")
-            else:
-                st.success("✅ **Saudável**: O Caixa Operacional gerado é suficiente para cobrir as retiradas pessoais, indicando sustentabilidade.")
-        else:
-            st.info("Não há dados de Caixa Operacional ou Retiradas Pessoais para o período selecionado.")
-
-        st.markdown("---")
-
-        # 3. Gráfico de Barras: Top 5 Contas de Débito (Saídas)
-        st.markdown("#### Top 5 Contas de Débito (Saídas)")
-        
-        df_debitos = df2[df2['tipo_movimentacao'] == 'DEBITO'].copy()
-        df_debitos_agrupado = df_debitos.groupby('conta_display')['valor'].sum().reset_index()
-        df_debitos_agrupado['valor'] = df_debitos_agrupado['valor'] * -1 # Para exibir como negativo
-        df_debitos_agrupado = df_debitos_agrupado.sort_values('valor', ascending=True).head(5)
-        
-        if not df_debitos_agrupado.empty:
-            fig_top_debitos = px.bar(
-                df_debitos_agrupado,
-                x='valor',
-                y='conta_display',
-                orientation='h',
-                title='Maiores Saídas (Débitos)',
-                labels={'valor': 'Valor (R$)', 'conta_display': 'Conta'},
-                color_discrete_sequence=[NEGATIVE_COLOR]
-            )
-            fig_top_debitos.update_layout(
-                height=400, 
-                plot_bgcolor='white', 
-                font=dict(family="Roboto"),
-                yaxis={'categoryorder':'total ascending'}
-            )
-            st.plotly_chart(fig_top_debitos, use_container_width=True)
-        else:
-            st.info("Nenhuma transação de débito encontrada para o período.")
-
-        st.markdown("---")
-
-        # 4. Gráfico de Barras: Top 5 Contas de Crédito (Entradas)
-        st.markdown("#### Top 5 Contas de Crédito (Entradas)")
-        
-        df_creditos = df2[df2['tipo_movimentacao'] == 'CREDITO'].copy()
-        df_creditos_agrupado = df_creditos.groupby('conta_display')['valor'].sum().reset_index()
-        df_creditos_agrupado = df_creditos_agrupado.sort_values('valor', ascending=False).head(5)
-        
-        if not df_creditos_agrupado.empty:
-            fig_top_creditos = px.bar(
-                df_creditos_agrupado,
-                x='valor',
-                y='conta_display',
-                orientation='h',
-                title='Maiores Entradas (Créditos)',
-                labels={'valor': 'Valor (R$)', 'conta_display': 'Conta'},
-                color_discrete_sequence=[INVESTMENT_COLOR]
-            )
-            fig_top_creditos.update_layout(
-                height=400, 
-                plot_bgcolor='white', 
-                font=dict(family="Roboto"),
-                yaxis={'categoryorder':'total descending'}
-            )
-            st.plotly_chart(fig_top_creditos, use_container_width=True)
-        else:
-            st.info("Nenhuma transação de crédito encontrada para o período.")
-
-    except Exception as e:
-        st.error(f"Erro ao gerar dashboard: {e}")
-        # st.code(traceback.format_exc())
-
-# --- FUNÇÃO PRINCIPAL DA SEÇÃO 3 ---
 def secao_relatorios_dashboard(df_transacoes: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any]):
-    """Função que agrupa a exibição do Score, Dashboard e Relatório de Fluxo de Caixa."""
-    st.header("3. Relatórios Gerenciais e Dashboard")
+    """Função principal que monta o dashboard completo com storytelling."""
     
-    # 1. Cálculo dos Indicadores e Score
+    st.markdown("""
+    <style>
+        .metric-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            border: 2px solid #E0E0E0;
+        }
+        .section-divider {
+            margin: 40px 0;
+            border-bottom: 3px solid #0A2342;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("# 📊 Painel Financeiro do Seu Negócio")
+    st.markdown("Aqui você tem uma visão completa da saúde financeira da sua empresa, com linguagem simples e dicas práticas!")
+    
+    # ====================================
+    # 1. SCORE E ANÁLISE PRINCIPAL
+    # ====================================
+    
     resultado_score = calcular_score_fluxo(df_transacoes)
     score = resultado_score['score_final']
     indicadores = resultado_score['valores']
     retiradas_pessoais_val = indicadores.get('retiradas_pessoais', 0.0)
-
-    # 2. Mini-Relatório e Score
-    st.markdown("#### Score Financeiro e Análise Rápida")
     
-    html_relatorio, classe_texto = gerar_mini_relatorio_local(
-        score, 
-        indicadores, 
-        retiradas_pessoais_val
-    )
+    html_relatorio, badge = gerar_mini_relatorio_storytelling(score, indicadores, retiradas_pessoais_val)
     
-    col_score, col_resumo = st.columns([1, 3])
+    st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+    st.markdown("## 🏅 Seu Score Financeiro")
+    
+    col_score, col_analise = st.columns([1, 2])
     
     with col_score:
+        # Badge visual
         st.markdown(f"""
-        <div style='text-align:center; padding: 10px; border: 2px solid {ACCENT_COLOR}; border-radius: 10px; background-color: #F9F5EB;'>
-            <h1 style='color:{ACCENT_COLOR}; margin: 0;'>{score:.1f}</h1>
-            <p style='margin: 0; font-weight: bold;'>Score Financeiro</p>
+        <div style='background: linear-gradient(135deg, {badge['cor']} 0%, {PRIMARY_COLOR} 100%); 
+                    padding: 30px; border-radius: 20px; text-align: center; color: white; box-shadow: 0 8px 16px rgba(0,0,0,0.2);'>
+            <div style='font-size: 80px; margin-bottom: 10px;'>{badge['emoji']}</div>
+            <h1 style='margin: 10px 0; font-size: 48px;'>{score:.0f}</h1>
+            <p style='font-size: 18px; margin: 0;'>de 100 pontos</p>
+            <p style='font-size: 16px; margin-top: 15px; font-weight: bold;'>{badge['nivel']}</p>
         </div>
         """, unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align:center; font-weight:bold; margin-top: 10px;'>{classe_texto}</p>", unsafe_allow_html=True)
-
-    with col_resumo:
-        st.markdown(html_relatorio, unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # 3. Dashboard
-    criar_dashboard(df_transacoes)
-
-    # 4. Gráfico de Indicadores
-    criar_grafico_indicadores(df_transacoes)
-
-    # 5. Relatório de Fluxo de Caixa (Tabela)
-    criar_relatorio_fluxo_caixa(df_transacoes, PLANO_DE_CONTAS)
-
-    st.markdown("---")
+        
+        # Barra de progresso
+        st.markdown(criar_barra_progresso_score(score), unsafe_allow_html=True)
     
-    # 6. Detalhes do Score (Opcional, para debug/análise avançada)
-    with st.expander("Detalhes do Cálculo do Score"):
-        st.markdown("#### Notas e Contribuições por Indicador")
+    with col_analise:
+        st.markdown(html_relatorio, unsafe_allow_html=True)
+    
+    # ====================================
+    # 2. EVOLUÇÃO DOS FLUXOS DE CAIXA
+    # ====================================
+    
+    st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+    criar_evolucao_fluxos_caixa(df_transacoes)
+    
+    # ====================================
+    # 3. ANÁLISE DE SAÍDAS E ENTRADAS
+    # ====================================
+    
+    st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+    
+    col_saidas, col_entradas = st.columns(2)
+    
+    with col_saidas:
+        criar_grafico_top_saidas_melhorado(df_transacoes)
+    
+    with col_entradas:
+        criar_grafico_top_entradas_melhorado(df_transacoes)
+    
+    # ====================================
+    # 4. COMPARATIVO CAIXA VS RETIRADAS
+    # ====================================
+    
+    st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+    criar_comparativo_caixa_retiradas_melhorado(df_transacoes)
+    
+    # ====================================
+    # 5. RELATÓRIO DETALHADO
+    # ====================================
+    
+    st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+    criar_relatorio_fluxo_caixa(df_transacoes, PLANO_DE_CONTAS)
+    
+    # ====================================
+    # 6. DETALHES TÉCNICOS (EXPANDIDO)
+    # ====================================
+    
+    st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+    
+    with st.expander("🔍 Detalhes Técnicos do Cálculo (Para Curiosos)"):
+        st.markdown("### Como calculamos seu score?")
+        st.markdown("Seu score é composto por 5 indicadores financeiros, cada um com um peso diferente:")
         
         df_notas = pd.DataFrame({
-            'Indicador': list(resultado_score['notas'].keys()),
-            'Nota (0-100)': list(resultado_score['notas'].values()),
-            'Peso (%)': [resultado_score['pesos'].get(k, 0) for k in resultado_score['notas'].keys()],
-            'Contribuição para o Score': list(resultado_score['contribuicoes'].values())
+            'Indicador': [
+                '💼 Margem Operacional',
+                '🏢 Autossuficiência',
+                '🚀 Taxa de Reinvestimento',
+                '💰 Cobertura de Juros',
+                '💳 Controle de Retiradas'
+            ],
+            'Nota (0-100)': [
+                resultado_score['notas']['margem_operacional'],
+                resultado_score['notas']['autossuficiencia'],
+                resultado_score['notas']['taxa_reinvestimento'],
+                resultado_score['notas']['cobertura_juros'],
+                resultado_score['notas']['peso_retiradas']
+            ],
+            'Peso': [
+                '30%',
+                '25%',
+                '15%',
+                '15%',
+                '15%'
+            ],
+            'Contribuição': [
+                f"{resultado_score['contribuicoes']['margem_operacional']:.1f}",
+                f"{resultado_score['contribuicoes']['autossuficiencia']:.1f}",
+                f"{resultado_score['contribuicoes']['taxa_reinvestimento']:.1f}",
+                f"{resultado_score['contribuicoes']['cobertura_juros']:.1f}",
+                f"{resultado_score['contribuicoes']['peso_retiradas']:.1f}"
+            ]
         })
         
-        st.dataframe(df_notas, hide_index=True)
+        st.dataframe(df_notas, hide_index=True, use_container_width=True)
         
-        st.markdown("#### Valores Brutos dos Indicadores")
-        st.json(indicadores)
+        st.markdown("### Valores Brutos Calculados")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Caixa Operacional", formatar_brl(indicadores['gco']))
+            st.metric("Entradas Operacionais", formatar_brl(indicadores['entradas_operacionais']))
+        
+        with col2:
+            st.metric("Saídas Operacionais", formatar_brl(indicadores['saidas_operacionais']))
+            st.metric("Investimentos", formatar_brl(indicadores['investimentos']))
+        
+        with col3:
+            st.metric("Retiradas Pessoais", formatar_brl(indicadores['retiradas_pessoais']))
+            st.metric("Empréstimos Recebidos", formatar_brl(indicadores['emprestimos_recebidos']))
