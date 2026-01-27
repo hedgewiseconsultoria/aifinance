@@ -23,6 +23,7 @@ from auth import (
 # funções de relatórios (arquivo reports_functions.py)
 from reports_functions import secao_relatorios_dashboard
 
+import streamlit.components.v1 as components
 
 def verificar_trial(perfil):
     trial_fim = perfil.get("trial_fim")
@@ -1087,7 +1088,6 @@ elif page == "Planos":
              else "<button style='background:#007BFF; color:white; padding:14px; border:none; border-radius:10px; width:100%; font-weight:bold; font-size:18px;'>Quero ser Premium</button>"}
         </div>
         """, unsafe_allow_html=True)
-  
 
         if plano_atual != "premium":
             if st.button("Assinar Plano PREMIUM Agora", type="primary", key="upgrade_premium", use_container_width=True):
