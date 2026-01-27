@@ -1051,19 +1051,14 @@ elif page == "Planos":
                 Classificação automática com IA
             </div>
             <div class="preco-plano">R$ 0<small style="font-size:18px;">/mês</small></div>
-            {"<button style='background:#28a745; color:white; padding:12px; border:none; border-radius:8px; width:100%; font-weight:bold; cursor:not-allowed;'>Você já está neste plano</button>" 
-             if plano_atual == "free" 
-             else "<button style='background:#6c757d; color:white; padding:12px; border:none; border-radius:8px; width:100%; font-weight:bold;'>Voltar para FREE</button>"}
+            <button style='background:#6c757d; color:white; padding:12px; border:none; border-radius:8px; width:100%; font-weight:bold; cursor:not-allowed;'>
+            Plano gratuito permanente
+            </button>
+
         </div>
         """, unsafe_allow_html=True)
     
    
-        if plano_atual != "free":
-            if st.button("Downgrade para FREE", key="downgrade_free", use_container_width=True):
-                supabase.table("users_profiles").update({"plano": "free"}).eq("id", user_id).execute()
-                st.success("Você voltou para o plano FREE")
-                st.rerun()
-
     with col2:
         st.markdown(f"""
         <div class="card-plano">
