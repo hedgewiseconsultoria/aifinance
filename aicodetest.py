@@ -1126,7 +1126,7 @@ elif page == "Planos":
                                     "Content-Type": "application/json"
                                 }},
                                 body: JSON.stringify({{
-                                    user_id: "{user_id}",
+                                   user_id: "{user_id}",
                                     email: "{user.email}"
                                 }})
                             }}
@@ -1141,14 +1141,15 @@ elif page == "Planos":
 
                     }} catch (err) {{
                         alert("Erro ao iniciar assinatura. Tente novamente.");
-                       btn.innerText = "Quero ser Premium";
+                        btn.innerText = "Quero ser Premium";
                         btn.disabled = false;
                     }}
-                });
+                }});
                 </script>
                 """,
-                height=90
+                height=120
             )
+
 
 
 # --------------------------
