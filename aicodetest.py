@@ -1056,7 +1056,7 @@ elif page == "Planos":
                 Classificação automática com IA<br>
                 Dashboard<br>
                 Score de saúde financeira<br>
-                Relatório de fluxo de caixa<br>
+                Relatório de fluxo de caixa
                 
             </div>
             <div class="preco-plano">R$ 0<small style="font-size:18px;">/mês</small></div>
