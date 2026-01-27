@@ -1061,94 +1061,94 @@ elif page == "Planos":
     
     
     with col2:
-    st.markdown(f"""
-    <div class="card-plano">
-        <div class="titulo-plano">Plano PREMIUM</div>
-        <p style="color:#555; margin-bottom:16px;">Para quem quer performance máxima</p>
-        <div class="lista-beneficios">
-            Tudo do FREE +<br>
-            Relatórios completos e personalizados<br>
-            Exportação Excel + PDF<br>
-            Indicadores financeiros avançados<br>
-            Comparativos mensais e anuais<br>
-            Backup prioritário e histórico ilimitado<br>
-            Suporte por WhatsApp
+        st.markdown(f"""
+        <div class="card-plano">
+            <div class="titulo-plano">Plano PREMIUM</div>
+            <p style="color:#555; margin-bottom:16px;">Para quem quer performance máxima</p>
+            <div class="lista-beneficios">
+                Tudo do FREE +<br>
+                Relatórios completos e personalizados<br>
+                Exportação Excel + PDF<br>
+                Indicadores financeiros avançados<br>
+                Comparativos mensais e anuais<br>
+                Backup prioritário e histórico ilimitado<br>
+                Suporte por WhatsApp
+            </div>
+            <div class="preco-plano">
+                <span style="text-decoration: line-through; color:#999; font-size:22px;">
+                    R$ 29,90
+                </span><br>
+                <span style="color:#007BFF;">
+                    R$ 19,82
+                </span>
+                <small style="font-size:18px;">/mês</small>
+            </div>
         </div>
-        <div class="preco-plano">
-            <span style="text-decoration: line-through; color:#999; font-size:22px;">
-                R$ 29,90
-            </span><br>
-            <span style="color:#007BFF;">
-                R$ 19,82
-            </span>
-            <small style="font-size:18px;">/mês</small>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    if plano_atual == "premium":
-        st.markdown(
-            "<button style='background:#28a745; color:white; padding:14px; border:none; border-radius:10px; width:100%; font-weight:bold; font-size:18px;'>Você já é PREMIUM</button>",
-            unsafe_allow_html=True
-        )
+        if plano_atual == "premium":
+            st.markdown(
+                "<button style='background:#28a745; color:white; padding:14px; border:none; border-radius:10px; width:100%; font-weight:bold; font-size:18px;'>Você já é PREMIUM</button>",
+                unsafe_allow_html=True
+            )
 
-    else:
-        components.html(
-            f"""
-            <button id="premiumBtn"
-                style="
-                    background:#007BFF;
-                    color:white;
-                    padding:14px;
-                    border:none;
-                    border-radius:10px;
-                    width:100%;
-                    font-weight:bold;
-                    font-size:18px;
-                    cursor:pointer;
-                ">
-                Quero ser Premium
-            </button>
+        else:
+            components.html(
+                f"""
+                <button id="premiumBtn"
+                    style="
+                        background:#007BFF;
+                        color:white;
+                        padding:14px;
+                        border:none;
+                        border-radius:10px;
+                        width:100%;
+                        font-weight:bold;
+                        font-size:18px;
+                        cursor:pointer;
+                    ">
+                    Quero ser Premium
+                </button>
 
-            <script>
-            const btn = document.getElementById("premiumBtn");
+                <script>
+                const btn = document.getElementById("premiumBtn");
 
-            btn.addEventListener("click", async () => {{
-                btn.innerText = "Redirecionando...";
-                btn.disabled = true;
+                btn.addEventListener("click", async () => {{
+                    btn.innerText = "Redirecionando...";
+                    btn.disabled = true;
 
-                try {{
-                    const response = await fetch(
-                        "https://yedbjwddmpwspouvscqx.supabase.co/functions/v1/create-mercadopago-subscription",
-                        {{
-                            method: "POST",
-                            headers: {{
-                                "Content-Type": "application/json"
-                            }},
-                            body: JSON.stringify({{
-                                user_id: "{user_id}",
-                                email: "{user.email}"
-                            }})
+                    try {{
+                        const response = await fetch(
+                            "https://yedbjwddmpwspouvscqx.supabase.co/functions/v1/create-mercadopago-subscription",
+                            {{
+                                method: "POST",
+                                headers: {{
+                                    "Content-Type": "application/json"
+                                }},
+                                body: JSON.stringify({{
+                                    user_id: "{user_id}",
+                                    email: "{user.email}"
+                                }})
+                            }}
+                        );
+
+                        if (!response.ok) {{
+                            throw new Error("Erro ao criar assinatura");
                         }}
-                    );
 
-                    if (!response.ok) {{
-                        throw new Error("Erro ao criar assinatura");
+                        const data = await response.json();
+                        window.location.href = data.checkout_url;
+
+                    }} catch (err) {{
+                        alert("Erro ao iniciar assinatura. Tente novamente.");
+                       btn.innerText = "Quero ser Premium";
+                        btn.disabled = false;
                     }}
-
-                    const data = await response.json();
-                    window.location.href = data.checkout_url;
-
-                }} catch (err) {{
-                    alert("Erro ao iniciar assinatura. Tente novamente.");
-                    btn.innerText = "Quero ser Premium";
-                    btn.disabled = false;
-                }}
-            });
-            </script>
-            """,
-            height=90
-        )
+                });
+                </script>
+                """,
+                height=90
+            )
 
 
 # --------------------------
