@@ -1049,7 +1049,7 @@ elif page == "Planos":
     with col1:
         st.markdown(f"""
         <div class="card-plano">
-            <div class="titulo-plano">Plano FREE</div>
+            <div class="titulo-plano">Plano FREE(TRIAL)</div>
             <p style="color:#555; margin-bottom:16px;">Ideal para começar</p>
             <div class="lista-beneficios">
                 Upload de extratos (PDF)<br>
