@@ -1053,10 +1053,11 @@ elif page == "Planos":
             <p style="color:#555; margin-bottom:16px;">Ideal para começar</p>
             <div class="lista-beneficios">
                 Upload de extratos (PDF)<br>
-                Dashboard básico<br>
-                Score simplificado<br>
-                Relatórios resumidos<br>
-                Classificação automática com IA
+                Classificação automática com IA<br>
+                Dashboard<br>
+                Score de saúde financeira<br>
+                Relatório de fluxo de caixa<br>
+                
             </div>
             <div class="preco-plano">R$ 0<small style="font-size:18px;">/mês</small></div>
             <button style='background:#6c757d; color:white; padding:12px; border:none; border-radius:8px; width:100%; font-weight:bold; cursor:not-allowed;'>
@@ -1073,10 +1074,7 @@ elif page == "Planos":
             <div class="titulo-plano">Plano PREMIUM</div>
             <p style="color:#555; margin-bottom:16px;">Para quem quer performance máxima</p>
             <div class="lista-beneficios">
-                Tudo do FREE +<br>
-                Relatórios completos e personalizados<br>
-                Exportação Excel + PDF<br>
-                Indicadores financeiros avançados<br>
+                Tudo do FREE (TRIAL) +<br>
                 Comparativos mensais e anuais<br>
                 Backup prioritário e histórico ilimitado<br>
                 Suporte por WhatsApp
