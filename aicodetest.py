@@ -25,6 +25,12 @@ from reports_functions import secao_relatorios_dashboard
 
 import streamlit.components.v1 as components
 
+# --------------------------
+# MERCADO PAGO – ASSINATURA
+# --------------------------
+MP_SUBSCRIPTION_URL = "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=9fec9be34af54104a543026f1f13ebcb"
+
+
 def verificar_trial(perfil):
     trial_fim = perfil.get("trial_fim")
     if not trial_fim:
@@ -984,7 +990,6 @@ elif page == "Perfil":
 # 5. PLANOS
 # --------------------------
 
-MP_SUBSCRIPTION_URL = "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=9fec9be34af54104a543026f1f13ebcb"
 
 elif page == "Planos":
     st.markdown("### 5. Planos e Assinaturas")
