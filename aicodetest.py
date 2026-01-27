@@ -984,6 +984,8 @@ elif page == "Perfil":
 # 5. PLANOS
 # --------------------------
 
+MP_SUBSCRIPTION_URL = "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=9fec9be34af54104a543026f1f13ebcb"
+
 elif page == "Planos":
     st.markdown("### 5. Planos e Assinaturas")
 
@@ -1093,12 +1095,14 @@ elif page == "Planos":
             )
 
         else:
+           
+
             components.html(
-                """
+                f"""
                 <button
                     style="
                         background:#007BFF;
-                        color:white;
+                        color:white;            
                         padding:14px;
                         border:none;
                         border-radius:10px;
@@ -1107,12 +1111,14 @@ elif page == "Planos":
                         font-size:18px;
                         cursor:pointer;
                     "
-                    onclick="window.location.href='https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=9fec9be34af54104a543026f1f13ebcb'">
+                    onclick="window.open('{MP_SUBSCRIPTION_URL}', '_blank')"
+                >
                     Quero ser Premium
                 </button>
                 """,
-                height=120
+                height=70
             )
+
 
 
 
