@@ -1094,8 +1094,8 @@ elif page == "Planos":
 
         else:
             components.html(
-                f"""
-                <button id="premiumBtn"
+                """
+                <button
                     style="
                         background:#007BFF;
                         color:white;
@@ -1106,46 +1106,10 @@ elif page == "Planos":
                         font-weight:bold;
                         font-size:18px;
                         cursor:pointer;
-                    ">
+                    "
+                    onclick="window.location.href='https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=9fec9be34af54104a543026f1f13ebcb'">
                     Quero ser Premium
                 </button>
-
-                <script>
-                const btn = document.getElementById("premiumBtn");
-
-                btn.addEventListener("click", async () => {{
-                    btn.innerText = "Redirecionando...";
-                    btn.disabled = true;
-
-                    try {{
-                        const response = await fetch(
-                            "https://yedbjwddmpwspouvscqx.supabase.co/functions/v1/create-mercadopago-subscription",
-                            {{
-                                method: "POST",
-                                headers: {{
-                                    "Content-Type": "application/json"
-                                }},
-                                body: JSON.stringify({{
-                                   user_id: "{user_id}",
-                                    email: "{user.email}"
-                                }})
-                            }}
-                        );
-
-                        if (!response.ok) {{
-                            throw new Error("Erro ao criar assinatura");
-                        }}
-
-                        const data = await response.json();
-                        window.location.href = data.checkout_url;
-
-                    }} catch (err) {{
-                        alert("Erro ao iniciar assinatura. Tente novamente.");
-                        btn.innerText = "Quero ser Premium";
-                        btn.disabled = false;
-                    }}
-                }});
-                </script>
                 """,
                 height=120
             )
