@@ -1078,7 +1078,15 @@ elif page == "Planos":
                 Backup prioritário e histórico ilimitado<br>
                 Suporte por WhatsApp
             </div>
-            <div class="preco-plano">R$ 29,90<small style="font-size:18px;">/mês</small></div>
+            <div class="preco-plano">
+                <span style="text-decoration: line-through; color:#999; font-size:22px;">
+                    R$ 29,90
+                </span><br>
+                <span style="color:#007BFF;">
+                    R$ 19,82
+                </span>
+                <small style="font-size:18px;">/mês</small>
+            </div>
             {"<button style='background:#007BFF; color:white; padding:14px; border:none; border-radius:10px; width:100%; font-weight:bold; font-size:18px;'>Você já é PREMIUM</button>" 
              if plano_atual == "premium" 
              else "<button style='background:#007BFF; color:white; padding:14px; border:none; border-radius:10px; width:100%; font-weight:bold; font-size:18px;'>Quero ser Premium</button>"}
