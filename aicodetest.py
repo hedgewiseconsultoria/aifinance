@@ -810,41 +810,34 @@ elif page == "Revisão":
 elif page == "Dashboard":
     st.markdown("### 3. Relatórios Gerenciais e Dashboard")
 
-    # === CSS igual ao estilo do auth.py ===
+    # === CSS para os date_input ===
     st.markdown(
         """
         <style>
-            .period-box {
-                background-color: #FFFFFF;
-                border: 1px solid #D9D9D9;
-                border-radius: 10px;
-                padding: 25px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.06);
-                margin-bottom: 25px;
-            }
-            /* Estilização para os date_input */
-            [data-testid="stDateInput"] > div > div > input {
-                border: 1px solid #0A2342 !important;
+            /* Estilização para os campos de data */
+            div[data-baseweb="input"] input {
+                border: 2px solid #0A2342 !important;
                 border-radius: 6px !important;
                 padding: 8px 10px !important;
             }
-            [data-testid="stDateInput"] > div > div > input:focus {
+            div[data-baseweb="input"] input:focus {
                 border-color: #007BFF !important;
                 box-shadow: 0 0 4px #007BFF !important;
             }
+            /* Título da seção de datas */
             .period-title {
-                font-size: 20px;
+                font-size: 18px;
                 font-weight: 600;
                 color: #0A2342;
                 margin-bottom: 15px;
+                margin-top: 20px;
             }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    # === CARD DE PERÍODO COM DATE_INPUT ===
-    st.markdown('<div class="period-box">', unsafe_allow_html=True)
+    # === Seleção de período ===
     st.markdown('<div class="period-title">📅 Selecione o Período de Análise</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([2, 2, 1])
@@ -854,7 +847,7 @@ elif page == "Dashboard":
             "Data Inicial",
             value=datetime.now() - timedelta(days=90),  # Padrão: últimos 3 meses
             format="DD/MM/YYYY",
-            help="Clique para abrir o calendário",
+            help="Clique para selecionar a data",
             key="dt_ini"
         )
     
@@ -863,47 +856,13 @@ elif page == "Dashboard":
             "Data Final",
             value=datetime.now(),  # Padrão: hoje
             format="DD/MM/YYYY",
-            help="Clique para abrir o calendário",
+            help="Clique para selecionar a data",
             key="dt_fim"
         )
     
     with col3:
         st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento
         gerar = st.button("🔄 Gerar", use_container_width=True, type="primary")
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # === Atalhos de período ===
-    st.markdown("**Atalhos rápidos:**")
-    col_a, col_b, col_c, col_d = st.columns(4)
-    
-    with col_a:
-        if st.button("📅 Este mês", use_container_width=True):
-            hoje = datetime.now()
-            st.session_state["dt_ini"] = datetime(hoje.year, hoje.month, 1).date()
-            st.session_state["dt_fim"] = hoje.date()
-            st.rerun()
-    
-    with col_b:
-        if st.button("📆 Últimos 3 meses", use_container_width=True):
-            hoje = datetime.now()
-            st.session_state["dt_ini"] = (hoje - timedelta(days=90)).date()
-            st.session_state["dt_fim"] = hoje.date()
-            st.rerun()
-    
-    with col_c:
-        if st.button("📊 Últimos 6 meses", use_container_width=True):
-            hoje = datetime.now()
-            st.session_state["dt_ini"] = (hoje - timedelta(days=180)).date()
-            st.session_state["dt_fim"] = hoje.date()
-            st.rerun()
-    
-    with col_d:
-        if st.button("📈 Este ano", use_container_width=True):
-            hoje = datetime.now()
-            st.session_state["dt_ini"] = datetime(hoje.year, 1, 1).date()
-            st.session_state["dt_fim"] = hoje.date()
-            st.rerun()
 
     st.markdown("---")
 
@@ -949,13 +908,12 @@ elif page == "Dashboard":
 
                         st.session_state["df_transacoes_editado"] = df_relatorio.copy()
                         
-                        # Feedback visual mais completo
+                        # Feedback visual
                         periodo_str = f"{data_inicial.strftime('%d/%m/%Y')} a {data_final.strftime('%d/%m/%Y')}"
                         st.success(f"✅ {len(df_relatorio)} transações carregadas para o período: {periodo_str}")
 
         except Exception as e:
             st.error(f"Erro ao gerar relatórios: {e}")
-            st.code(traceback.format_exc())
 
     # === Dashboard / Relatórios ===
     if not st.session_state.get("df_transacoes_editado", pd.DataFrame()).empty:
@@ -973,7 +931,6 @@ elif page == "Dashboard":
             secao_relatorios_dashboard(df_final, PLANO_DE_CONTAS)
         except Exception as e:
             st.error(f"Erro ao gerar relatórios/dashboard: {e}")
-            st.code(traceback.format_exc())
     else:
         st.info("👆 Selecione um período acima e clique em 'Gerar' para visualizar o dashboard.")
 
