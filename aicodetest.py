@@ -822,12 +822,13 @@ elif page == "Dashboard":
                 box-shadow: 0 2px 4px rgba(0,0,0,0.06);
                 margin-bottom: 25px;
             }
-            input[type="text"] {
+            /* Estilização para os date_input */
+            [data-testid="stDateInput"] > div > div > input {
                 border: 1px solid #0A2342 !important;
                 border-radius: 6px !important;
                 padding: 8px 10px !important;
             }
-            input[type="text"]:focus {
+            [data-testid="stDateInput"] > div > div > input:focus {
                 border-color: #007BFF !important;
                 box-shadow: 0 0 4px #007BFF !important;
             }
@@ -842,28 +843,80 @@ elif page == "Dashboard":
         unsafe_allow_html=True,
     )
 
-    # === CARD DE PERÍODO ===
-   # st.markdown('<div class="period-box">', unsafe_allow_html=True)
-   # st.markdown('<div class="period-title">📅 Selecione o Período</div>', unsafe_allow_html=True)
+    # === CARD DE PERÍODO COM DATE_INPUT ===
+    st.markdown('<div class="period-box">', unsafe_allow_html=True)
+    st.markdown('<div class="period-title">📅 Selecione o Período de Análise</div>', unsafe_allow_html=True)
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns([2, 2, 1])
+    
     with col1:
-        data_inicial_str = st.text_input("Data Inicial", placeholder="DD/MM/AAAA", key="dt_ini")
+        data_inicial = st.date_input(
+            "Data Inicial",
+            value=datetime.now() - timedelta(days=90),  # Padrão: últimos 3 meses
+            format="DD/MM/YYYY",
+            help="Clique para abrir o calendário",
+            key="dt_ini"
+        )
+    
     with col2:
-        data_final_str = st.text_input("Data Final", placeholder="DD/MM/AAAA", key="dt_fim")
+        data_final = st.date_input(
+            "Data Final",
+            value=datetime.now(),  # Padrão: hoje
+            format="DD/MM/YYYY",
+            help="Clique para abrir o calendário",
+            key="dt_fim"
+        )
+    
+    with col3:
+        st.markdown("<br>", unsafe_allow_html=True)  # Espaçamento
+        gerar = st.button("🔄 Gerar", use_container_width=True, type="primary")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    gerar = st.button("Gerar Relatórios e Dashboard")
-   # st.markdown("</div>", unsafe_allow_html=True)   # fecha caixa
+    # === Atalhos de período ===
+    st.markdown("**Atalhos rápidos:**")
+    col_a, col_b, col_c, col_d = st.columns(4)
+    
+    with col_a:
+        if st.button("📅 Este mês", use_container_width=True):
+            hoje = datetime.now()
+            st.session_state["dt_ini"] = datetime(hoje.year, hoje.month, 1).date()
+            st.session_state["dt_fim"] = hoje.date()
+            st.rerun()
+    
+    with col_b:
+        if st.button("📆 Últimos 3 meses", use_container_width=True):
+            hoje = datetime.now()
+            st.session_state["dt_ini"] = (hoje - timedelta(days=90)).date()
+            st.session_state["dt_fim"] = hoje.date()
+            st.rerun()
+    
+    with col_c:
+        if st.button("📊 Últimos 6 meses", use_container_width=True):
+            hoje = datetime.now()
+            st.session_state["dt_ini"] = (hoje - timedelta(days=180)).date()
+            st.session_state["dt_fim"] = hoje.date()
+            st.rerun()
+    
+    with col_d:
+        if st.button("📈 Este ano", use_container_width=True):
+            hoje = datetime.now()
+            st.session_state["dt_ini"] = datetime(hoje.year, 1, 1).date()
+            st.session_state["dt_fim"] = hoje.date()
+            st.rerun()
 
-    # === Lógica original ===
+    st.markdown("---")
+
+    # === Lógica de geração de relatórios ===
     if gerar:
         try:
-            data_inicial = pd.to_datetime(data_inicial_str, format="%d/%m/%Y", errors="coerce")
-            data_final = pd.to_datetime(data_final_str, format="%d/%m/%Y", errors="coerce")
-
-            if pd.isna(data_inicial) or pd.isna(data_final):
-                st.error("Formato de data inválido.")
+            # Validar se as datas foram selecionadas
+            if data_inicial is None or data_final is None:
+                st.error("Por favor, selecione ambas as datas.")
+            elif data_inicial > data_final:
+                st.error("A data inicial não pode ser maior que a data final.")
             else:
+                # Converter para string ISO
                 data_inicial_iso = data_inicial.strftime("%Y-%m-%d")
                 data_final_iso = data_final.strftime("%Y-%m-%d")
 
@@ -873,40 +926,56 @@ elif page == "Dashboard":
                 else:
                     user_id = getattr(user, "id", None)
 
-                resultado = (
-                    supabase.table("transacoes")
-                    .select("*")
-                    .eq("user_id", user_id)
-                    .gte("data", data_inicial_iso)
-                    .lte("data", data_final_iso)
-                    .execute()
-                )
+                # Buscar transações no Supabase
+                with st.spinner("Carregando transações..."):
+                    resultado = (
+                        supabase.table("transacoes")
+                        .select("*")
+                        .eq("user_id", user_id)
+                        .gte("data", data_inicial_iso)
+                        .lte("data", data_final_iso)
+                        .execute()
+                    )
 
-                resultado_data = getattr(resultado, "data", resultado)
+                    resultado_data = getattr(resultado, "data", resultado)
 
-                if not resultado_data:
-                    st.warning("Nenhuma transação encontrada no período.")
-                else:
-                    df_relatorio = pd.DataFrame(resultado_data)
-                    df_relatorio["data"] = pd.to_datetime(df_relatorio["data"], errors="coerce")
-                    df_relatorio["valor"] = pd.to_numeric(df_relatorio["valor"], errors="coerce").fillna(0)
-                    df_relatorio = enriquecer_com_plano_contas(df_relatorio)
+                    if not resultado_data:
+                        st.warning(f"Nenhuma transação encontrada no período de {data_inicial.strftime('%d/%m/%Y')} a {data_final.strftime('%d/%m/%Y')}.")
+                    else:
+                        df_relatorio = pd.DataFrame(resultado_data)
+                        df_relatorio["data"] = pd.to_datetime(df_relatorio["data"], errors="coerce")
+                        df_relatorio["valor"] = pd.to_numeric(df_relatorio["valor"], errors="coerce").fillna(0)
+                        df_relatorio = enriquecer_com_plano_contas(df_relatorio)
 
-                    st.session_state["df_transacoes_editado"] = df_relatorio.copy()
-                    st.success(f"{len(df_relatorio)} transações carregadas para o período!")
+                        st.session_state["df_transacoes_editado"] = df_relatorio.copy()
+                        
+                        # Feedback visual mais completo
+                        periodo_str = f"{data_inicial.strftime('%d/%m/%Y')} a {data_final.strftime('%d/%m/%Y')}"
+                        st.success(f"✅ {len(df_relatorio)} transações carregadas para o período: {periodo_str}")
 
         except Exception as e:
             st.error(f"Erro ao gerar relatórios: {e}")
+            st.code(traceback.format_exc())
 
     # === Dashboard / Relatórios ===
     if not st.session_state.get("df_transacoes_editado", pd.DataFrame()).empty:
         df_final = st.session_state["df_transacoes_editado"].copy()
+        
+        # Mostrar info do período carregado
+        if not df_final.empty and 'data' in df_final.columns:
+            df_final_datas = df_final[df_final['data'].notna()]
+            if not df_final_datas.empty:
+                data_min = df_final_datas['data'].min()
+                data_max = df_final_datas['data'].max()
+                st.info(f"📊 Exibindo análise do período: {data_min.strftime('%d/%m/%Y')} a {data_max.strftime('%d/%m/%Y')}")
+        
         try:
             secao_relatorios_dashboard(df_final, PLANO_DE_CONTAS)
         except Exception as e:
             st.error(f"Erro ao gerar relatórios/dashboard: {e}")
+            st.code(traceback.format_exc())
     else:
-        st.info("Nenhum dado disponível para relatório.")
+        st.info("👆 Selecione um período acima e clique em 'Gerar' para visualizar o dashboard.")
 
 # --------------------------
 # 4. Perfil do Usuário 
