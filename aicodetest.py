@@ -472,12 +472,23 @@ if page == "Upload":
     # NOVO TEXTO APRIMORADO E ADAPTADO AO CONTEXTO
     st.markdown(
         """
-         **Bem-vindo(a)!** Para gerar sua análise financeira, realize o upload dos extratos:
+         **Bem-vindo(a) ao seu assistente financeiro inteligente!** 
+         
+        Para gerar a análise financeira, envie seus extratos bancários em PDF:
+       
+        **Passo 1:** Upload
+        1.  **Envie** o(s) seu(s) extrato(s) bancário(s) no formato **PDF** na seção abaixo (Upload de Arquivos).
+        2.  Nossa IA irá **extrair automaticamente** e **classificar** as transações de acordo com o nosso **Plano de Contas**.
+       
+        **Passo 2:** Revisão
+        3.  Você poderá revisar os dados e ajustar as classificações na seção **Revisão**.
+
+       **Passo 3:** Análise
+        4. Gere o seu Score Financeiro + Dashboard completo na seção **Dashboard**. 
+
+        **[Fazer Upload]**
         
-        1.  **Faça o upload** do(s) seu(s) extrato(s) bancário(s) no formato **PDF** (na seção abaixo).
-        2.  Nosso sistema irá **extrair automaticamente** e **classificar** as transações.
-        
-        Você pode consultar as categorias de classificação utilizadas no nosso **Plano de Contas** abaixo.
+        Consulte o Plano de Contas para detalhes sobre categorias.
         """
     )
 
