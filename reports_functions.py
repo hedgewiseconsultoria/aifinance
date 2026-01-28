@@ -981,7 +981,7 @@ def secao_relatorios_dashboard(df_transacoes: pd.DataFrame, PLANO_DE_CONTAS: Dic
     # Título com ícone Bootstrap
     st.markdown("""
     <h1>
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="#0A2342" class="bi bi-bar-chart-fill" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 10px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="#0A2342" class="bi bi-bar-chart-fill" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 10px;">
             <path d="M1 11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/>
         </svg>
         Painel Financeiro do Seu Negócio
