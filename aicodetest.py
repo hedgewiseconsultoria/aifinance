@@ -414,7 +414,7 @@ def render_sidebar():
             escolha = option_menu(
                 menu_title="Menu",
                 options=["Upload", "Revisão","Dashboard", "Perfil", "Planos", "Configurações", "Sair"],
-                icons=["bar-chart-fill", "cloud-upload", "pencil-square", "person-circle", "gear-fill", "credit-card-2-back", "box-arrow-right"],
+                icons=["cloud-upload","pencil-square","bar-chart-fill", "person-circle", "credit-card-2-back","gear-fill", "box-arrow-right"],
                 menu_icon="list",
                 default_index=0,
                 styles={
