@@ -180,9 +180,12 @@ def login_page():
 
                             user_id = extract_user_field(user, "id", None)
                             if user_id:
-                                supabase.table("users_profiles").upsert(
-                                    {"id": user_id}
-                                ).execute()
+                                supabase.table("users_profiles") \
+                                    .select("id") \
+                                    .eq("id", user_id) \
+                                    .single() \
+                                    .execute()
+
 
                             _safe_rerun()
 
@@ -241,7 +244,7 @@ def login_page():
                         user = res.user
                         user_id = extract_user_field(user, "id", str(uuid.uuid4()))
 
-                        supabase.table("users_profiles").upsert({
+                        supabase_admin.table("users_profiles").insert({
                             "id": user_id,
                             "nome": nome,
                             "empresa": empresa,
@@ -348,4 +351,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
