@@ -184,16 +184,22 @@ def gerar_mini_relatorio_storytelling(score: float, indicadores: Dict[str, float
         else:
             proximo_nivel = {'nome': 'Atenção Necessária', 'pontos_necessarios': 40 - score}
         
-        texto_proximo = f"<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; color: white; margin: 15px 0;'>" \
-                       f"<b>🎯 Próximo Nível:</b> {proximo_nivel['nome']}<br>" \
-                       f"<small>Você precisa de mais <b>{proximo_nivel['pontos_necessarios']:.1f} pontos</b> para alcançar!</small>" \
-                       f"</div>"
+        texto_proximo = f"""
+        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; color: white; margin: 15px 0;'>
+            <b>🎯 Próximo Nível:</b> {proximo_nivel['nome']}<br>
+            <small>Você precisa de mais <b>{proximo_nivel['pontos_necessarios']:.1f} pontos</b> para alcançar!</small>
+        </div>
+        """
     else:
-        texto_proximo = "<div style='background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 15px; border-radius: 10px; color: #000; margin: 15px 0;'>" \
-                       "<b>🏆 Você alcançou o nível máximo!</b> Mantenha essa excelência!" \
-                       "</div>"
+        texto_proximo = """
+        <div style='background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 15px; border-radius: 10px; color: #000; margin: 15px 0;'>
+            <b>🏆 Você alcançou o nível máximo!</b> Mantenha essa excelência!
+        </div>
+        """
     
     # HTML final
+    dicas_html = "<br><br>".join(dicas)
+    
     html = f"""
     <div style='background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
         <div style='text-align: center; margin-bottom: 20px;'>
@@ -217,7 +223,7 @@ def gerar_mini_relatorio_storytelling(score: float, indicadores: Dict[str, float
         </h3>
         
         <div style='line-height: 1.8; font-size: 15px; margin: 20px 0;'>
-            {"<br>".join(dicas)}
+            {dicas_html}
         </div>
         
         {texto_proximo}
@@ -742,10 +748,10 @@ def calcular_score_fluxo(df: pd.DataFrame) -> Dict[str, Any]:
         }
     }
 
-def criar_relatorio_fluxo_caixa(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any]):
-    """Cria o relatório de fluxo de caixa em formato tabular."""
-    st.markdown("### 📋 Relatório Detalhado de Fluxo de Caixa")
-    st.markdown("Veja todos os movimentos organizados por tipo de atividade.")
+def criar_relatorio_fluxo_caixa_acumulado(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any]):
+    """Cria o relatório de fluxo de caixa ACUMULADO por tipo de atividade."""
+    st.markdown("### 📋 Relatório Acumulado de Fluxo de Caixa")
+    st.markdown("Resumo consolidado de todo o período analisado, agrupado por tipo de atividade.")
     
     ind = IndicadoresFluxo(df)
     
@@ -754,6 +760,10 @@ def criar_relatorio_fluxo_caixa(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any
     for sintetico in PLANO_DE_CONTAS.get('sinteticos', []):
         tipo_fluxo = sintetico['tipo_fluxo']
         nome_sintetico = sintetico['nome']
+        
+        # Pular o tipo NEUTRO
+        if tipo_fluxo == 'NEUTRO':
+            continue
         
         entradas = ind.obter_entradas_por_tipo(tipo_fluxo)
         saidas = ind.obter_saidas_por_tipo(tipo_fluxo)
@@ -774,7 +784,7 @@ def criar_relatorio_fluxo_caixa(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any
     total_saldo = df_relatorio['Saldo (R$)'].sum()
     
     df_relatorio.loc[len(df_relatorio)] = {
-        'Atividade': 'TOTAL',
+        'Atividade': 'TOTAL GERAL',
         'Entradas (R$)': total_entradas,
         'Saídas (R$)': total_saidas,
         'Saldo (R$)': total_saldo
@@ -789,11 +799,175 @@ def criar_relatorio_fluxo_caixa(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any
     
     # Insights
     if total_saldo > 0:
-        st.success(f"✅ Seu saldo total no período foi positivo: {formatar_brl(total_saldo)}. O negócio aumentou o caixa!")
+        st.success(f"✅ Seu saldo total acumulado foi positivo: {formatar_brl(total_saldo)}. O negócio aumentou o caixa!")
     elif total_saldo < 0:
-        st.error(f"🚨 Seu saldo total no período foi negativo: {formatar_brl(abs(total_saldo))}. O caixa diminuiu!")
+        st.error(f"🚨 Seu saldo total acumulado foi negativo: {formatar_brl(abs(total_saldo))}. O caixa diminuiu!")
     else:
         st.info("⚖️ Seu saldo ficou neutro - entradas e saídas se equilibraram.")
+
+def criar_relatorio_fluxo_caixa_detalhado(df: pd.DataFrame, PLANO_DE_CONTAS: Dict[str, Any]):
+    """Cria a tabela DETALHADA de Fluxo de Caixa por Conta Analítica e Mês."""
+    st.markdown("### 📊 Relatório Detalhado - Evolução Mensal do Fluxo de Caixa")
+    st.markdown("Acompanhe a movimentação de cada conta mês a mês.")
+    
+    if df.empty:
+        st.info("Nenhum dado disponível. Por favor, processe os extratos primeiro.")
+        return
+    
+    df = df.copy()
+    df['data'] = pd.to_datetime(df['data'], errors='coerce', dayfirst=True)
+    df.dropna(subset=['data'], inplace=True)
+    df['mes_ano'] = df['data'].dt.to_period('M')
+    df['fluxo'] = df.apply(
+        lambda row: row['valor'] if row['tipo_movimentacao'] == 'CREDITO' else -row['valor'],
+        axis=1
+    )
+    
+    df_fluxo = df[df['tipo_fluxo'] != 'NEUTRO'].copy()
+    meses = sorted(df_fluxo['mes_ano'].unique())
+    
+    if len(meses) == 0:
+        st.info("Não há dados suficientes para gerar o relatório mensal.")
+        return
+    
+    meses_pt = {
+        1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr',
+        5: 'Mai', 6: 'Jun', 7: 'Jul', 8: 'Ago',
+        9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'
+    }
+    
+    colunas_meses = []
+    for mes in meses:
+        mes_nome = meses_pt[mes.month]
+        ano = mes.year % 100
+        colunas_meses.append(f"{mes_nome}/{ano:02d}")
+    
+    # Mapeamento de contas
+    todas_contas = df_fluxo.groupby(['tipo_fluxo', 'conta_analitica', 'nome_conta']).size().reset_index()[['tipo_fluxo', 'conta_analitica', 'nome_conta']]
+    relatorio_linhas = []
+    
+    # 1. ATIVIDADES OPERACIONAIS
+    contas_op = todas_contas[todas_contas['tipo_fluxo'] == 'OPERACIONAL'].sort_values('conta_analitica')
+    if not contas_op.empty:
+        relatorio_linhas.append({'Categoria': '**ATIVIDADES OPERACIONAIS**', 'tipo': 'header'})
+        
+        for _, conta in contas_op.iterrows():
+            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+            for mes in meses:
+                df_mes_conta = df_fluxo[
+                    (df_fluxo['mes_ano'] == mes) & 
+                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
+                ]
+                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+                linha[mes_col] = valor
+            relatorio_linhas.append(linha)
+        
+        # Total Operacional
+        linha_total_op = {'Categoria': '**Total Caixa Operacional**', 'tipo': 'total'}
+        for mes in meses:
+            df_mes_op = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'OPERACIONAL')]
+            valor = df_mes_op['fluxo'].sum() if not df_mes_op.empty else 0
+            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+            linha_total_op[mes_col] = valor
+        relatorio_linhas.append(linha_total_op)
+        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
+
+    # 2. ATIVIDADES DE INVESTIMENTO
+    contas_inv = todas_contas[todas_contas['tipo_fluxo'] == 'INVESTIMENTO'].sort_values('conta_analitica')
+    if not contas_inv.empty:
+        relatorio_linhas.append({'Categoria': '**ATIVIDADES DE INVESTIMENTO**', 'tipo': 'header'})
+        
+        for _, conta in contas_inv.iterrows():
+            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+            for mes in meses:
+                df_mes_conta = df_fluxo[
+                    (df_fluxo['mes_ano'] == mes) & 
+                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
+                ]
+                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+                linha[mes_col] = valor
+            relatorio_linhas.append(linha)
+        
+        # Total Investimento
+        linha_total_inv = {'Categoria': '**Total Caixa de Investimento**', 'tipo': 'total'}
+        for mes in meses:
+            df_mes_inv = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'INVESTIMENTO')]
+            valor = df_mes_inv['fluxo'].sum() if not df_mes_inv.empty else 0
+            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+            linha_total_inv[mes_col] = valor
+        relatorio_linhas.append(linha_total_inv)
+        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
+    
+    # 3. ATIVIDADES DE FINANCIAMENTO
+    contas_fin = todas_contas[todas_contas['tipo_fluxo'] == 'FINANCIAMENTO'].sort_values('conta_analitica')
+    if not contas_fin.empty:
+        relatorio_linhas.append({'Categoria': '**ATIVIDADES DE FINANCIAMENTO**', 'tipo': 'header'})
+        
+        for _, conta in contas_fin.iterrows():
+            linha = {'Categoria': f"  {conta['conta_analitica']} - {conta['nome_conta']}", 'tipo': 'item'}
+            for mes in meses:
+                df_mes_conta = df_fluxo[
+                    (df_fluxo['mes_ano'] == mes) & 
+                    (df_fluxo['conta_analitica'] == conta['conta_analitica'])
+                ]
+                valor = df_mes_conta['fluxo'].sum() if not df_mes_conta.empty else 0
+                mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+                linha[mes_col] = valor
+            relatorio_linhas.append(linha)
+        
+        # Total Financiamento
+        linha_total_fin = {'Categoria': '**Total Caixa de Financiamento**', 'tipo': 'total'}
+        for mes in meses:
+            df_mes_fin = df_fluxo[(df_fluxo['mes_ano'] == mes) & (df_fluxo['tipo_fluxo'] == 'FINANCIAMENTO')]
+            valor = df_mes_fin['fluxo'].sum() if not df_mes_fin.empty else 0
+            mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+            linha_total_fin[mes_col] = valor
+        relatorio_linhas.append(linha_total_fin)
+        relatorio_linhas.append({'Categoria': '', 'tipo': 'blank'})
+    
+    # 4. CAIXA GERADO NO MÊS
+    linha_separador = {'Categoria': '═' * 50, 'tipo': 'separator'}
+    for mes_col in colunas_meses:
+        linha_separador[mes_col] = ''
+    relatorio_linhas.append(linha_separador)
+    
+    linha_caixa_gerado = {'Categoria': '**CAIXA GERADO NO MÊS**', 'tipo': 'total'}
+    for mes in meses:
+        df_mes_total = df_fluxo[df_fluxo['mes_ano'] == mes]
+        valor = df_mes_total['fluxo'].sum() if not df_mes_total.empty else 0
+        mes_col = f"{meses_pt[mes.month]}/{mes.year % 100:02d}"
+        linha_caixa_gerado[mes_col] = valor
+    relatorio_linhas.append(linha_caixa_gerado)
+    
+    # Criar DataFrame
+    df_relatorio = pd.DataFrame(relatorio_linhas)
+    
+    # Preencher NaN com valores vazios antes de formatar
+    df_relatorio = df_relatorio.fillna('')
+    
+    # Formatar valores monetários
+    for col in colunas_meses:
+        if col in df_relatorio.columns:
+            df_relatorio[col] = df_relatorio[col].apply(
+                lambda x: formatar_brl(x) if isinstance(x, (int, float)) and x != 0 else ''
+            )
+    
+    # Remover coluna 'tipo'
+    df_display = df_relatorio.drop(columns=['tipo'])
+    
+    # Exibir tabela
+    st.dataframe(
+        df_display,
+        use_container_width=True,
+        hide_index=True,
+        height=800,
+        column_config={
+            "Categoria": st.column_config.TextColumn("Categoria", width="large"),
+            **{col: st.column_config.TextColumn(col, width="medium") for col in colunas_meses}
+        }
+    )
 
 # ====================================
 # FUNÇÃO PRINCIPAL (NOVA)
@@ -885,11 +1059,14 @@ def secao_relatorios_dashboard(df_transacoes: pd.DataFrame, PLANO_DE_CONTAS: Dic
     criar_comparativo_caixa_retiradas_melhorado(df_transacoes)
     
     # ====================================
-    # 5. RELATÓRIO DETALHADO
+    # 5. RELATÓRIOS DE FLUXO DE CAIXA
     # ====================================
     
     st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
-    criar_relatorio_fluxo_caixa(df_transacoes, PLANO_DE_CONTAS)
+    criar_relatorio_fluxo_caixa_acumulado(df_transacoes, PLANO_DE_CONTAS)
+    
+    st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+    criar_relatorio_fluxo_caixa_detalhado(df_transacoes, PLANO_DE_CONTAS)
     
     # ====================================
     # 6. DETALHES TÉCNICOS (EXPANDIDO)
