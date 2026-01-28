@@ -478,7 +478,7 @@ if page == "Upload":
       
        
         1.  **Envie** o(s) seu(s) extrato(s) bancário(s) no formato **PDF** na seção abaixo (Upload de Arquivos).
-        2.  Nossa IA irá **extrair automaticamente** e **classificar** as transações de acordo com o nosso **Plano de Contas**.        
+        2.  Nossa IA **extrairá automaticamente** e **classificará** as transações de acordo com o nosso **Plano de Contas**.        
         3.  Você poderá revisar os dados e ajustar as classificações na seção **Revisão**.
         4.  Gere o seu Score Financeiro + Dashboard completo na seção **Dashboard**. 
 
