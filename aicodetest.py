@@ -475,19 +475,12 @@ if page == "Upload":
          **Bem-vindo(a) ao seu assistente financeiro inteligente!** 
          
         Para gerar a análise financeira, envie seus extratos bancários em PDF:
+      
        
-        **Passo 1:** Upload
-        
         1.  **Envie** o(s) seu(s) extrato(s) bancário(s) no formato **PDF** na seção abaixo (Upload de Arquivos).
-        2.  Nossa IA irá **extrair automaticamente** e **classificar** as transações de acordo com o nosso **Plano de Contas**.
-       
-        **Passo 2:** Revisão
-        
+        2.  Nossa IA irá **extrair automaticamente** e **classificar** as transações de acordo com o nosso **Plano de Contas**.        
         3.  Você poderá revisar os dados e ajustar as classificações na seção **Revisão**.
-
-       **Passo 3:** Análise
-        
-        4. Gere o seu Score Financeiro + Dashboard completo na seção **Dashboard**. 
+        4.  Gere o seu Score Financeiro + Dashboard completo na seção **Dashboard**. 
 
                
         Consulte o Plano de Contas para detalhes sobre categorias.
