@@ -454,7 +454,7 @@ def criar_evolucao_fluxos_caixa(df: pd.DataFrame):
     
     resumo_mensal = df_copia.groupby(['mes', 'tipo_fluxo'])['valor_ajustado'].sum().reset_index()
     
-    # Criar gráfico de linhas
+    # Criar gráfico de barras agrupadas
     fig = go.Figure()
     
     cores_fluxo = {
@@ -474,20 +474,18 @@ def criar_evolucao_fluxos_caixa(df: pd.DataFrame):
     for tipo_fluxo in resumo_mensal['tipo_fluxo'].unique():
         dados_fluxo = resumo_mensal[resumo_mensal['tipo_fluxo'] == tipo_fluxo]
         
-        fig.add_trace(go.Scatter(
+        fig.add_trace(go.Bar(
             x=dados_fluxo['mes'],
             y=dados_fluxo['valor_ajustado'],
             name=nomes_fluxo.get(tipo_fluxo, tipo_fluxo),
-            mode='lines+markers',
-            line=dict(color=cores_fluxo.get(tipo_fluxo, '#000000'), width=3),
-            marker=dict(size=8),
+            marker=dict(color=cores_fluxo.get(tipo_fluxo, '#000000')),
             hovertemplate='<b>%{fullData.name}</b><br>' +
                          'Mês: %{x}<br>' +
                          'Saldo: R$ %{y:,.2f}<extra></extra>'
         ))
     
     # Adicionar linha zero
-    fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5, line_width=2)
     
     fig.update_layout(
         title=dict(
@@ -496,6 +494,7 @@ def criar_evolucao_fluxos_caixa(df: pd.DataFrame):
         ),
         xaxis_title="Mês",
         yaxis_title="Saldo (R$)",
+        barmode='group',  # Barras agrupadas lado a lado
         height=500,
         plot_bgcolor='#F9F9F9',
         paper_bgcolor='white',
@@ -979,7 +978,16 @@ def secao_relatorios_dashboard(df_transacoes: pd.DataFrame, PLANO_DE_CONTAS: Dic
     </style>
     """, unsafe_allow_html=True)
     
-    st.markdown("# 📊 Painel Financeiro do Seu Negócio")
+    # Título com ícone Bootstrap
+    st.markdown("""
+    <h1>
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="#0A2342" class="bi bi-bar-chart-fill" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 10px;">
+            <path d="M1 11a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/>
+        </svg>
+        Painel Financeiro do Seu Negócio
+    </h1>
+    """, unsafe_allow_html=True)
+    
     st.markdown("Aqui você tem uma visão completa da saúde financeira da sua empresa, com linguagem simples e dicas práticas!")
     
     # ====================================
