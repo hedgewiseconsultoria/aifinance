@@ -94,7 +94,14 @@ def criar_barra_progresso_score(score: float) -> str:
     else:
         cor = '#DC3545'
     
-    html = f"""<div style='width: 100%; background-color: #E0E0E0; border-radius: 10px; height: 30px; position: relative; margin: 15px 0;'><div style='width: {porcentagem}%; background-color: {cor}; border-radius: 10px; height: 30px; transition: width 0.5s ease;'></div><div style='position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #000;'>{score:.1f}/100</div></div>"""
+    html = (
+        f"<div style='width: 100%; background-color: #E0E0E0; border-radius: 10px; height: 30px; position: relative; margin: 15px 0;'>"
+        f"<div style='width: {porcentagem}%; background-color: {cor}; border-radius: 10px; height: 30px; transition: width 0.5s ease;'></div>"
+        f"<div style='position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; color: #000;'>"
+        f"{score:.1f}/100"
+        f"</div>"
+        f"</div>"
+    )
     return html
 
 # ====================================
@@ -177,14 +184,37 @@ def gerar_mini_relatorio_storytelling(score: float, indicadores: Dict[str, float
         else:
             proximo_nivel = {'nome': 'Atenção Necessária', 'pontos_necessarios': 40 - score}
         
-        texto_proximo = f"""<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; color: white; margin: 15px 0;'><b>🎯 Próximo Nível:</b> {proximo_nivel['nome']}<br><small>Você precisa de mais <b>{proximo_nivel['pontos_necessarios']:.1f} pontos</b> para alcançar!</small></div>"""
+        texto_proximo = f"<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; color: white; margin: 15px 0;'><b>🎯 Próximo Nível:</b> {proximo_nivel['nome']}<br><small>Você precisa de mais <b>{proximo_nivel['pontos_necessarios']:.1f} pontos</b> para alcançar!</small></div>"
     else:
-        texto_proximo = """<div style='background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 15px; border-radius: 10px; color: #000; margin: 15px 0;'><b>🏆 Você alcançou o nível máximo!</b> Mantenha essa excelência!</div>"""
+        texto_proximo = "<div style='background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 15px; border-radius: 10px; color: #000; margin: 15px 0;'><b>🏆 Você alcançou o nível máximo!</b> Mantenha essa excelência!</div>"
     
-    # HTML final
+    # HTML final - construído sem espaços
     dicas_html = "<br><br>".join(dicas)
     
-    html = f"""<div style='background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'><div style='text-align: center; margin-bottom: 20px;'><div style='font-size: 60px; margin-bottom: 10px;'>{badge['emoji']}</div><h2 style='color: {badge['cor']}; margin: 10px 0;'>{badge['titulo']}</h2><p style='color: #666; font-size: 16px; margin: 10px 0;'>{badge['mensagem']}</p></div><h3 style='color: {PRIMARY_COLOR}; border-bottom: 2px solid {ACCENT_COLOR}; padding-bottom: 10px; margin-top: 25px;'>📖 A História do Seu Negócio Neste Período</h3><div style='line-height: 1.8; font-size: 15px; margin: 20px 0;'><p><b>{emoji_caixa} Caixa Operacional:</b><br>{historia_caixa}</p><p><b>💳 Suas Retiradas:</b><br>{historia_retiradas}</p><p><b>🏢 Independência do Negócio:</b><br>{historia_autossuf}</p></div><h3 style='color: {PRIMARY_COLOR}; border-bottom: 2px solid {ACCENT_COLOR}; padding-bottom: 10px; margin-top: 25px;'>💡 Dicas Práticas Pra Você</h3><div style='line-height: 1.8; font-size: 15px; margin: 20px 0;'>{dicas_html}</div>{texto_proximo}</div>"""
+    html = (
+        f"<div style='background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>"
+        f"<div style='text-align: center; margin-bottom: 20px;'>"
+        f"<div style='font-size: 60px; margin-bottom: 10px;'>{badge['emoji']}</div>"
+        f"<h2 style='color: {badge['cor']}; margin: 10px 0;'>{badge['titulo']}</h2>"
+        f"<p style='color: #666; font-size: 16px; margin: 10px 0;'>{badge['mensagem']}</p>"
+        f"</div>"
+        f"<h3 style='color: {PRIMARY_COLOR}; border-bottom: 2px solid {ACCENT_COLOR}; padding-bottom: 10px; margin-top: 25px;'>"
+        f"📖 A História do Seu Negócio Neste Período"
+        f"</h3>"
+        f"<div style='line-height: 1.8; font-size: 15px; margin: 20px 0;'>"
+        f"<p><b>{emoji_caixa} Caixa Operacional:</b><br>{historia_caixa}</p>"
+        f"<p><b>💳 Suas Retiradas:</b><br>{historia_retiradas}</p>"
+        f"<p><b>🏢 Independência do Negócio:</b><br>{historia_autossuf}</p>"
+        f"</div>"
+        f"<h3 style='color: {PRIMARY_COLOR}; border-bottom: 2px solid {ACCENT_COLOR}; padding-bottom: 10px; margin-top: 25px;'>"
+        f"💡 Dicas Práticas Pra Você"
+        f"</h3>"
+        f"<div style='line-height: 1.8; font-size: 15px; margin: 20px 0;'>"
+        f"{dicas_html}"
+        f"</div>"
+        f"{texto_proximo}"
+        f"</div>"
+    )
     
     return html, badge
 
