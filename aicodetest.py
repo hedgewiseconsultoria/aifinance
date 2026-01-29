@@ -25,6 +25,23 @@ from reports_functions import secao_relatorios_dashboard
 
 import streamlit.components.v1 as components
 
+import re
+
+def normalizar_descricao(descricao: str) -> str:
+    """
+    Normaliza descrições bancárias para evitar erros repetidos de classificação.
+    """
+    if not descricao:
+        return ""
+
+    descricao = descricao.lower()
+    descricao = re.sub(r"\d+", "", descricao)      # remove números
+    descricao = re.sub(r"[^\w\s]", "", descricao)  # remove pontuação
+    descricao = re.sub(r"\s+", " ", descricao)     # normaliza espaços
+    return descricao.strip()
+
+
+
 # --------------------------
 # MERCADO PAGO – ASSINATURA
 # --------------------------
