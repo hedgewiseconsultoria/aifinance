@@ -833,6 +833,24 @@ elif page == "Revisão":
                     st.error(f"Erro ao inserir transações: {e}")
                     raise
 
+                try:
+                    memoria_records = []
+
+                    for _, row in edited_df.iterrows():
+                        memoria_records.append({
+                            "user_id": user_id,
+                            "descricao_normalizada": normalizar_descricao(row["descricao"]),
+                            "conta_analitica": row["conta_analitica"],
+                            "origem": "revisao_usuario",
+                            "criado_em": datetime.utcnow().isoformat()
+                        })
+
+                    if memoria_records:
+                        supabase.table("memoria_classificacao").insert(memoria_records).execute()
+
+                except Exception as e:
+                    st.warning(f"Aviso: não foi possível salvar memória de classificação: {e}")
+                
                 st.session_state["df_transacoes_editado"] = edited_df
                 st.success("Transações salvas com sucesso!")
             except Exception as e:
