@@ -238,6 +238,19 @@ INSTRUÇÕES CRÍTICAS:
 1. Use EXATAMENTE os códigos do plano de contas.
 2. Retorne APENAS um JSON válido.
 3. Siga os códigos do plano de contas sem inventar novos códigos.
+4. Extraia SOMENTE transações que representem movimentação financeira real (entrada ou saída de dinheiro).
+
+REGRAS DE EXCLUSÃO (MUITO IMPORTANTE):
+- NÃO considere como transação linhas que representem:
+  • Saldo anterior
+  • Saldo inicial
+  • Saldo final
+  • Saldo disponível
+  • Saldo em conta
+  • Saldo do dia
+  • Totalizador de saldo
+- Linhas de saldo NÃO devem aparecer na lista "transacoes".
+- Saldo NÃO é transação, NÃO possui tipo_movimentacao e NÃO deve ser classificado no plano de contas.
 
 O JSON de saída deve ter o seguinte formato:
 
@@ -257,6 +270,8 @@ O JSON de saída deve ter o seguinte formato:
 IMPORTANTE:
 - "valor" deve ser sempre número positivo.
 - "tipo_movimentacao" deve ser "CREDITO" ou "DEBITO".
+- O campo "transacoes" deve conter APENAS eventos de movimentação financeira.
+- Linhas informativas, saldos ou totais NÃO devem ser retornadas como transação.
 - O JSON DEVE SER VÁLIDO — NÃO coloque comentários nem texto fora do JSON.
 """
 
