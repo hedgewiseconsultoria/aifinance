@@ -47,7 +47,7 @@ def buscar_classificacao_memoria(user_id, descricao_normalizada, supabase):
     """
     res = (
         supabase
-        .table("memoria_classificacao")
+        .table("classificacao_memoria")
         .select("conta_classificada")
         .eq("user_id", user_id)
         .eq("descricao_normalizada", descricao_normalizada)
@@ -645,7 +645,7 @@ if page == "Upload":
 
                 try:
                     memoria = (
-                        supabase.table("memoria_classificacao")
+                        supabase.table("classificacao_memoria")
                         .select("descricao_normalizada, conta_analitica")
                         .eq("user_id", user_id)
                         .execute()
@@ -891,7 +891,7 @@ elif page == "Revisão":
                         })
 
                     if memoria_records:
-                        supabase.table("memoria_classificacao").insert(memoria_records).execute()
+                        supabase.table("classificacao_memoria").insert(memoria_records).execute()
 
                 except Exception as e:
                     st.warning(f"Aviso: não foi possível salvar memória de classificação: {e}")
@@ -914,7 +914,7 @@ elif page == "Revisão":
                         })
 
                     if memoria_rows:
-                        supabase.table("memoria_classificacao").upsert(
+                        supabase.table("classificacao_memoria").upsert(
                             memoria_rows,
                             on_conflict="user_id,descricao_normalizada"
                         ).execute()
