@@ -40,6 +40,25 @@ def normalizar_descricao(descricao: str) -> str:
     descricao = re.sub(r"\s+", " ", descricao)     # normaliza espaços
     return descricao.strip()
 
+def buscar_classificacao_memoria(user_id, descricao_normalizada, supabase):
+    """
+    Busca uma classificação já corrigida anteriormente pelo mesmo usuário.
+    Retorna None se não existir.
+    """
+    res = (
+        supabase
+        .table("memoria_classificacao")
+        .select("conta_classificada")
+        .eq("user_id", user_id)
+        .eq("descricao_normalizada", descricao_normalizada)
+        .limit(1)
+        .execute()
+    )
+
+    if res.data:
+        return res.data[0]["conta_classificada"]
+
+    return None
 
 
 # --------------------------
@@ -624,6 +643,32 @@ if page == "Upload":
                 dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client)
                 transacoes = dados_dict.get("transacoes", [])
 
+                try:
+                    memoria = (
+                        supabase.table("memoria_classificacao")
+                        .select("descricao_normalizada, conta_analitica")
+                        .eq("user_id", user_id)
+                        .execute()
+                    )
+
+                    memoria_data = memoria.data if memoria.data else []
+                    mapa_memoria = {
+                        m["descricao_normalizada"]: m["conta_analitica"]
+                        for m in memoria_data
+                    }
+
+                    for t in transacoes:
+                        desc_norm = normalizar_descricao(t.get("descricao", ""))
+
+                        if desc_norm in mapa_memoria:
+                            t["conta_analitica"] = mapa_memoria[desc_norm]
+                            t["origem_classificacao"] = "memoria_usuario"
+                        else:
+                            t["origem_classificacao"] = "gemini"
+
+                except Exception as e:
+                    st.warning(f"Aviso: memória de classificação não aplicada ({e})")
+                
                 # vincular extrato_id
                 for t in transacoes:
                     try:
