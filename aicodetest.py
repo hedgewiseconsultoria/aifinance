@@ -886,7 +886,6 @@ elif page == "Revisão":
                             "user_id": user_id,
                             "descricao_normalizada": normalizar_descricao(row["descricao"]),
                             "conta_analitica": row["conta_analitica"],
-                            "origem": "revisao_usuario",
                             "criado_em": datetime.utcnow().isoformat()
                         })
 
@@ -910,7 +909,7 @@ elif page == "Revisão":
                             "user_id": user_id,
                             "descricao_normalizada": descricao_norm,
                             "conta_analitica": row.get("conta_analitica"),
-                            "created_at": datetime.utcnow().isoformat()
+                            "criado_em": datetime.utcnow().isoformat()
                         })
 
                     if memoria_rows:
