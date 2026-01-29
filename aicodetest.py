@@ -878,48 +878,34 @@ elif page == "Revisão":
                     st.error(f"Erro ao inserir transações: {e}")
                     raise
 
+                
                 try:
-                    memoria_records = []
-
-                    for _, row in edited_df.iterrows():
-                        memoria_records.append({
-                            "user_id": user_id,
-                            "descricao_normalizada": normalizar_descricao(row["descricao"]),
-                            "conta_analitica": row["conta_analitica"],
-                            "criado_em": datetime.utcnow().isoformat()
-                        })
-
-                    if memoria_records:
-                        supabase.table("classificacao_memoria").insert(memoria_records).execute()
-
-                except Exception as e:
-                    st.warning(f"Aviso: não foi possível salvar memória de classificação: {e}")
-
-
-                try:
-                    memoria_rows = []
+                    memoria_unica = {}
 
                     for _, row in edited_df.iterrows():
                         if row.get("origem_classificacao") == "memoria_usuario":
-                            continue  # já veio da memória, não reaprende
+                            continue  # não reaprender o que já veio da memória
 
                         descricao_norm = normalizar_descricao(row.get("descricao", ""))
 
-                        memoria_rows.append({
+                        chave = (user_id, descricao_norm)
+
+                        memoria_unica[chave] = {
                             "user_id": user_id,
                             "descricao_normalizada": descricao_norm,
                             "conta_analitica": row.get("conta_analitica"),
                             "criado_em": datetime.utcnow().isoformat()
-                        })
+                        }
 
-                    if memoria_rows:
+                    if memoria_unica:
                         supabase.table("classificacao_memoria").upsert(
-                            memoria_rows,
+                            list(memoria_unica.values()),
                             on_conflict="user_id,descricao_normalizada"
                         ).execute()
 
                 except Exception as e:
                     st.warning(f"Aviso: memória de classificação não atualizada ({e})")
+    
                 
                 st.session_state["df_transacoes_editado"] = edited_df
                 st.success("Transações salvas com sucesso!")
