@@ -895,6 +895,32 @@ elif page == "Revisão":
 
                 except Exception as e:
                     st.warning(f"Aviso: não foi possível salvar memória de classificação: {e}")
+
+
+                try:
+                    memoria_rows = []
+
+                    for _, row in edited_df.iterrows():
+                        if row.get("origem_classificacao") == "memoria_usuario":
+                            continue  # já veio da memória, não reaprende
+
+                        descricao_norm = normalizar_descricao(row.get("descricao", ""))
+
+                        memoria_rows.append({
+                            "user_id": user_id,
+                            "descricao_normalizada": descricao_norm,
+                            "conta_analitica": row.get("conta_analitica"),
+                            "created_at": datetime.utcnow().isoformat()
+                        })
+
+                    if memoria_rows:
+                        supabase.table("memoria_classificacao").upsert(
+                            memoria_rows,
+                            on_conflict="user_id,descricao_normalizada"
+                        ).execute()
+
+                except Exception as e:
+                    st.warning(f"Aviso: memória de classificação não atualizada ({e})")
                 
                 st.session_state["df_transacoes_editado"] = edited_df
                 st.success("Transações salvas com sucesso!")
