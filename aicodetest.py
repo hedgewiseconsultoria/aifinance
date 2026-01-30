@@ -600,6 +600,7 @@ if page == "Upload":
                     supabase.storage.from_("extratos").upload(
                         storage_path,
                         pdf_bytes
+                        {"upsert": True}
                     )
                 except Exception as e:
                     st.error(f"Erro ao enviar arquivo para o storage: {e}")
