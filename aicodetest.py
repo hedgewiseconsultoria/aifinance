@@ -586,62 +586,46 @@ if page == "Upload":
                 )
                 pdf_bytes = uploaded_file.getvalue()
 
-                # hash p/ evitar duplicidade
+                # gerar hash do arquivo (identidade do PDF, não do extrato)
                 file_hash = hashlib.sha256(pdf_bytes).hexdigest()
+
+                # armazenar PDF no Storage
+                if not user_id:
+                    st.error("Usuário não identificado.")
+                    st.stop()
+
+                storage_path = f"{user_id}/{file_hash}_{uploaded_file.name}"
+
                 try:
-                    existente = (
+                    supabase.storage.from_("extratos").upload(
+                        storage_path,
+                        pdf_bytes
+                    )
+                except Exception as e:
+                    st.error(f"Erro ao enviar arquivo para o storage: {e}")
+                    st.stop()
+
+                # 🔑 SEMPRE criar um novo extrato
+                try:
+                    resultado = (
                         supabase.table("extratos")
-                        .select("*")
-                        .eq("hash_arquivo", file_hash)
+                        .insert(
+                            {
+                                "user_id": user_id,
+                                "nome_arquivo": uploaded_file.name,
+                                "hash_arquivo": file_hash,
+                                "arquivo_url": storage_path,
+                            }
+                        )
                         .execute()
                     )
-                    existente_data = getattr(existente, "data", existente)
-                    already_exists = bool(existente_data)
-                except Exception:
-                    existente_data = None
-                    already_exists = False
 
-                if already_exists:
-                    extraction_status.warning(
-                        f"O arquivo {uploaded_file.name} já foi registrado."
-                    )
+                    extrato_id = resultado.data[0]["id"]
+                except Exception as e:
+                    st.error(f"Erro ao salvar metadados do extrato: {e}")
+                    st.stop()
 
-                # armazenar PDF
-                try:
-                    if user_id:
-                        storage_path = f"{user_id}/{file_hash}_{uploaded_file.name}"
-                        supabase.storage.from_("extratos").upload(
-                            storage_path,
-                            pdf_bytes
-                        )
-                except Exception:
-                    pass
 
-                # metadados
-                try:
-                    
-                    if not already_exists:
-                        resultado = (
-                            supabase.table("extratos")
-                            .insert(
-                                {
-                                    "user_id": user_id,
-                                    "nome_arquivo": uploaded_file.name,
-                                    "hash_arquivo": file_hash,
-                                    "arquivo_url": storage_path,
-                                }
-                            )
-                            .execute()
-                        )
-                        extrato_id = (
-                            resultado.data[0]["id"] if resultado.data else None
-                        )
-                    else:
-                        extrato_id = (
-                            existente_data[0]["id"] if existente_data else None
-                        )
-                except Exception:
-                    extrato_id = None
 
                 # Extração com Gemini
                 dados_dict = analisar_extrato(pdf_bytes, uploaded_file.name, client)
