@@ -630,36 +630,36 @@ if page == "Upload":
         """
     )
 
-   with st.expander("Plano de Contas Utilizado", expanded=False):
-    st.caption(
-        "Este é o plano de contas utilizado pela IA para classificar automaticamente "
-        "as movimentações financeiras."
-    )
-
-    for sintetico in PLANO_DE_CONTAS["sinteticos"]:
-        # Título do grupo sintético
-        st.markdown(
-            f"### {sintetico['codigo']} — {sintetico['nome']} "
-            f"({sintetico['tipo_fluxo']})"
+    with st.expander("Plano de Contas Utilizado", expanded=False):
+        st.caption(
+            "Este é o plano de contas utilizado pela IA para classificar automaticamente "
+            "as movimentações financeiras."
         )
 
-        # Descrição do grupo
-        if "descricao" in sintetico:
-            st.markdown(f"📝 {sintetico['descricao']}")
-
-        # Contas analíticas
-        for conta in sintetico["contas"]:
+        for sintetico in PLANO_DE_CONTAS["sinteticos"]:
+            # Título do grupo sintético
             st.markdown(
-                f"- **{conta['codigo']} – {conta['nome']}**"
-                + (
-                    f"<br><small>{conta['descricao']}</small>"
-                    if "descricao" in conta
-                    else ""
-                ),
-                unsafe_allow_html=True
-            )
+                f"### {sintetico['codigo']} — {sintetico['nome']} "
+                f"({sintetico['tipo_fluxo']})"
+            )  
 
-        st.markdown("---")
+            # Descrição do grupo
+            if "descricao" in sintetico:
+                st.markdown(f"📝 {sintetico['descricao']}")
+
+            # Contas analíticas
+            for conta in sintetico["contas"]:
+                st.markdown(
+                    f"- **{conta['codigo']} – {conta['nome']}**"
+                    + (
+                        f"<br><small>{conta['descricao']}</small>"
+                        if "descricao" in conta
+                        else ""
+                    ),
+                    unsafe_allow_html=True
+                )
+
+            st.markdown("---")
 
     with st.expander("Upload de Arquivos", expanded=True):
         uploaded_files = st.file_uploader(
