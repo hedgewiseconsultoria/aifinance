@@ -609,8 +609,10 @@ if page == "Upload":
                 # armazenar PDF
                 try:
                     if user_id:
+                        storage_path = f"{user_id}/{file_hash}_{uploaded_file.name}"
                         supabase.storage.from_("extratos").upload(
-                            f"{user_id}/{file_hash}_{uploaded_file.name}", pdf_bytes
+                            storage_path,
+                            pdf_bytes
                         )
                 except Exception:
                     pass
@@ -625,6 +627,7 @@ if page == "Upload":
                                     "user_id": user_id,
                                     "nome_arquivo": uploaded_file.name,
                                     "hash_arquivo": file_hash,
+                                    "arquivo_url": storage_path,
                                 }
                             )
                             .execute()
