@@ -639,7 +639,7 @@ if page == "Upload":
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             # Título do grupo sintético
             st.markdown(
-                f"### {sintetico['codigo']} — {sintetico['nome']} "
+                f"# {sintetico['codigo']} — {sintetico['nome']} "
                 f"({sintetico['tipo_fluxo']})"
             )  
 
