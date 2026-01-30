@@ -599,7 +599,7 @@ if page == "Upload":
                 try:
                     supabase.storage.from_("extratos").upload(
                         storage_path,
-                        pdf_bytes
+                        pdf_bytes,
                         {"upsert": True}
                     )
                 except Exception as e:
