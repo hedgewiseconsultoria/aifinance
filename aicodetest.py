@@ -81,7 +81,7 @@ def verificar_trial(perfil):
 
 
 # ----------------------
-# PLANO DE CONTAS
+# PLANO DE CONTAS (COMENTADO)
 # ----------------------
 PLANO_DE_CONTAS = {
     "sinteticos": [
@@ -89,47 +89,139 @@ PLANO_DE_CONTAS = {
             "codigo": "OP",
             "nome": "Atividades Operacionais",
             "tipo_fluxo": "OPERACIONAL",
+            "descricao": (
+                "Movimentações ligadas ao funcionamento normal da empresa. "
+                "Inclui receitas, custos e despesas do dia a dia do negócio."
+            ),
             "contas": [
-                {"codigo": "OP-01", "nome": "Receitas de Vendas"},
-                {"codigo": "OP-02", "nome": "Receitas de Serviços"},
-                {"codigo": "OP-03", "nome": "Outras Receitas Operacionais"},
-                {"codigo": "OP-04", "nome": "Custos Operacionais"},
-                {"codigo": "OP-05", "nome": "Despesas Administrativas"},
-                {"codigo": "OP-06", "nome": "Despesas Comerciais"},
-                {"codigo": "OP-07", "nome": "Despesas com Pessoal"},
-                {"codigo": "OP-08", "nome": "Impostos e Contribuições"},
-                {"codigo": "OP-09", "nome": "Tarifas Bancárias e Serviços"},
+                {
+                    "codigo": "OP-01",
+                    "nome": "Receitas de Vendas",
+                    "descricao": "Entradas de dinheiro provenientes da venda de produtos."
+                },
+                {
+                    "codigo": "OP-02",
+                    "nome": "Receitas de Serviços",
+                    "descricao": "Valores recebidos pela prestação de serviços."
+                },
+                {
+                    "codigo": "OP-03",
+                    "nome": "Outras Receitas Operacionais",
+                    "descricao": "Entradas operacionais não recorrentes ou pontuais."
+                },
+                {
+                    "codigo": "OP-04",
+                    "nome": "Custos Operacionais",
+                    "descricao": "Gastos diretamente ligados à produção ou entrega do produto ou serviço."
+                },
+                {
+                    "codigo": "OP-05",
+                    "nome": "Despesas Administrativas",
+                    "descricao": "Despesas de estrutura e gestão, como aluguel, sistemas e contador."
+                },
+                {
+                    "codigo": "OP-06",
+                    "nome": "Despesas Comerciais",
+                    "descricao": "Gastos com vendas, marketing, anúncios e comissões."
+                },
+                {
+                    "codigo": "OP-07",
+                    "nome": "Despesas com Pessoal",
+                    "descricao": "Salários, encargos, benefícios e custos relacionados à equipe."
+                },
+                {
+                    "codigo": "OP-08",
+                    "nome": "Impostos e Contribuições",
+                    "descricao": "Tributos pagos pela empresa sobre receitas, folha ou operação."
+                },
+                {
+                    "codigo": "OP-09",
+                    "nome": "Tarifas Bancárias e Serviços",
+                    "descricao": "Tarifas, taxas bancárias e serviços financeiros."
+                },
             ],
         },
         {
             "codigo": "INV",
             "nome": "Atividades de Investimento",
             "tipo_fluxo": "INVESTIMENTO",
+            "descricao": (
+                "Movimentações relacionadas à aquisição ou venda de ativos "
+                "e aplicações visando crescimento ou estrutura da empresa."
+            ),
             "contas": [
-                {"codigo": "INV-01", "nome": "Aquisição de Imobilizado"},
-                {"codigo": "INV-02", "nome": "Aplicações Financeiras"},
-                {"codigo": "INV-03", "nome": "Alienação de Ativos"},
+                {
+                    "codigo": "INV-01",
+                    "nome": "Aquisição de Imobilizado",
+                    "descricao": "Compra de máquinas, equipamentos, veículos ou bens duráveis."
+                },
+                {
+                    "codigo": "INV-02",
+                    "nome": "Aplicações Financeiras",
+                    "descricao": "Valores aplicados para rendimento financeiro."
+                },
+                {
+                    "codigo": "INV-03",
+                    "nome": "Alienação de Ativos",
+                    "descricao": "Venda de bens ou ativos da empresa."
+                },
             ],
         },
         {
             "codigo": "FIN",
             "nome": "Atividades de Financiamento",
             "tipo_fluxo": "FINANCIAMENTO",
+            "descricao": (
+                "Movimentações ligadas a empréstimos, financiamentos "
+                "e relação financeira com os sócios."
+            ),
             "contas": [
-                {"codigo": "FIN-01", "nome": "Empréstimos Recebidos"},
-                {"codigo": "FIN-02", "nome": "Pagamento de Empréstimos"},
-                {"codigo": "FIN-03", "nome": "Juros sobre Empréstimos e Financiamentos"},
-                {"codigo": "FIN-04", "nome": "Aporte de Sócios"},
-                {"codigo": "FIN-05", "nome": "Retirada de Sócios / Pró-labore e Despesas Pessoais"},
+                {
+                    "codigo": "FIN-01",
+                    "nome": "Empréstimos Recebidos",
+                    "descricao": "Entrada de recursos provenientes de empréstimos ou financiamentos."
+                },
+                {
+                    "codigo": "FIN-02",
+                    "nome": "Pagamento de Empréstimos",
+                    "descricao": "Saídas para pagamento de parcelas de empréstimos."
+                },
+                {
+                    "codigo": "FIN-03",
+                    "nome": "Juros sobre Empréstimos e Financiamentos",
+                    "descricao": "Custo financeiro dos empréstimos e financiamentos."
+                },
+                {
+                    "codigo": "FIN-04",
+                    "nome": "Aporte de Sócios",
+                    "descricao": "Capital colocado pelos sócios na empresa."
+                },
+                {
+                    "codigo": "FIN-05",
+                    "nome": "Retirada de Sócios / Pró-labore e Despesas Pessoais",
+                    "descricao": "Retiradas de recursos feitas pelos sócios."
+                },
             ],
         },
         {
             "codigo": "NE",
             "nome": "Ajustes e Transferências Internas",
             "tipo_fluxo": "NEUTRO",
+            "descricao": (
+                "Movimentações que não impactam o resultado financeiro, "
+                "usadas apenas para organização e correção."
+            ),
             "contas": [
-                {"codigo": "NE-01", "nome": "Transferências entre Contas"},
-                {"codigo": "NE-02", "nome": "Ajustes e Estornos"},
+                {
+                    "codigo": "NE-01",
+                    "nome": "Transferências entre Contas",
+                    "descricao": "Movimentação de valores entre contas bancárias da empresa."
+                },
+                {
+                    "codigo": "NE-02",
+                    "nome": "Ajustes e Estornos",
+                    "descricao": "Correções ou estornos de lançamentos incorretos."
+                },
             ],
         },
     ]
