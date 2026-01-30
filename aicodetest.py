@@ -619,6 +619,10 @@ if page == "Upload":
 
                 # metadados
                 try:
+#debug
+                    st.write("already_exists =", already_exists)
+                    st.write("existente_data =", existente_data)
+                    
                     if not already_exists:
                         resultado = (
                             supabase.table("extratos")
