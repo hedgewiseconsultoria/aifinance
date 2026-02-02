@@ -1473,8 +1473,6 @@ with col2:
     st.caption(
         "Desenvolvido pela **Hedgewise Consultoria** · "
         "Especialistas em risco e inteligência financeira para MEIs e pequenos negócios."
-    )
-    st.caption(
         "Instagram: @hedgewise_risco · "
         "E-mail: hedgewise.consultoria@gmail.com"
     )
