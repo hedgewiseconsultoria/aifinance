@@ -1460,57 +1460,21 @@ elif page == "Configurações":
 # --------------------------
 st.markdown("---")
 
-st.markdown(
-    """
-    <style>
-        .app-footer {
-            padding: 24px 8px;
-            text-align: center;
-        }
-        .app-footer img {
-            height: 40px;
-            margin-bottom: 8px;
-            opacity: 0.95;
-        }
-        .app-footer p {
-            font-size: 0.85rem;
-            color: #6c757d;
-            margin: 4px 0;
-            line-height: 1.5;
-        }
-        .app-footer a {
-            color: #0A2342;
-            font-weight: 600;
-            text-decoration: none;
-        }
-        .app-footer a:hover {
-            text-decoration: underline;
-        }
-    </style>
+col1, col2 = st.columns([1, 12])
 
-    <div class="app-footer">
-        <img
-            src="https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/main/logo_hedgewise.png"
-            alt="Hedgewise Consultoria"
-        >
+with col1:
+    try:
+        footer_logo = Image.open(LOGO_FILENAME)
+        st.image(footer_logo, width=40)
+    except Exception:
+        pass
 
-        <p>
-            Desenvolvido pela <strong>Hedgewise Consultoria</strong><br>
-            Especialistas em risco e inteligência financeira para MEIs e pequenos negócios.
-        </p>
-
-        <p>
-            Instagram:
-            <a href="https://instagram.com/hedgewise_risco" target="_blank">
-                @hedgewise_risco
-            </a>
-            <br>
-            E-mail:
-            <a href="mailto:hedgewise.consultoria@gmail.com">
-                hedgewise.consultoria@gmail.com
-            </a>
-        </p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+with col2:
+    st.caption(
+        "Desenvolvido pela **Hedgewise Consultoria** · "
+        "Especialistas em risco e inteligência financeira para MEIs e pequenos negócios."
+    )
+    st.caption(
+        "Instagram: @hedgewise_risco · "
+        "E-mail: hedgewise.consultoria@gmail.com"
+    )
