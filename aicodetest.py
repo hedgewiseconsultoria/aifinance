@@ -1454,25 +1454,22 @@ elif page == "Configurações":
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-
 # --------------------------
-# --- Footer (Global App) ---
+# --- Footer ----
 # --------------------------
 st.markdown("---")
-
-col1, col2 = st.columns([1, 12])
-
-with col1:
-    try:
-        footer_logo = Image.open(LOGO_FILENAME)
+try:
+    footer_logo = Image.open(LOGO_FILENAME)
+    col1, col2 = st.columns([1, 20])
+    with col1:
         st.image(footer_logo, width=40)
-    except Exception:
-        pass
-
-with col2:
-    st.caption(
-        "Desenvolvido pela **Hedgewise Consultoria** · "
-        "Especialistas em risco e inteligência financeira para MEIs e pequenos negócios."
-        "Instagram: @hedgewise_risco · "
-        "E-mail: hedgewise.consultoria@gmail.com"
+    with col2:
+        st.markdown(
+            "<p style='font-size:0.9rem; color:#6c757d; margin:0;'>Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>",
+            unsafe_allow_html=True
+        )
+except Exception:
+    st.markdown(
+        "<p style='font-size:0.9rem; color:#6c757d; margin:0;'>Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>",
+        unsafe_allow_html=True
     )
