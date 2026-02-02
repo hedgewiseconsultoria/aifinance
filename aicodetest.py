@@ -1456,21 +1456,56 @@ elif page == "Configurações":
 
 
 # --------------------------
-# --- Footer ----
+# --- Footer (Institucional)
 # --------------------------
 st.markdown("---")
-try:
-    footer_logo = Image.open(LOGO_FILENAME)
-    col1, col2 = st.columns([1, 20])
-    with col1:
-        st.image(footer_logo, width=40)
-    with col2:
-        st.markdown(
-            "<p style='font-size:0.9rem; color:#6c757d; margin:0;'>Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>",
-            unsafe_allow_html=True
-        )
-except Exception:
-    st.markdown(
-        "<p style='font-size:0.9rem; color:#6c757d; margin:0;'>Análise de Extrato Empresarial | Dados extraídos e classificados com IA.</p>",
-        unsafe_allow_html=True
-    )
+
+st.markdown(
+    """
+    <style>
+        .app-footer {
+            padding: 30px 10px;
+            text-align: center;
+        }
+        .app-footer img {
+            height: 42px;
+            margin-bottom: 10px;
+            opacity: 0.95;
+        }
+        .app-footer p {
+            font-size: 0.9rem;
+            color: #4F6D7A;
+            margin: 0;
+            line-height: 1.6;
+        }
+        .app-footer a {
+            color: #0A2342;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .app-footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+
+    <div class="app-footer">
+        <img src="https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/main/logo_hedgewise.png"
+             alt="Hedgewise Logo">
+
+        <p>
+            Desenvolvido pela <strong>Hedgewise Consultoria</strong>, especialista em risco e inteligência financeira.
+            <br>
+            📸 Instagram:
+            <a href="https://instagram.com/hedgewise_risco" target="_blank">
+                @hedgewise_risco
+            </a>
+            &nbsp;|&nbsp;
+            📩 E-mail:
+            <a href="mailto:hedgewise.consultoria@gmail.com">
+                hedgewise.consultoria@gmail.com
+            </a>
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
