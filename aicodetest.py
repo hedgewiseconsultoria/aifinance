@@ -1456,7 +1456,7 @@ elif page == "Configurações":
 
 
 # --------------------------
-# --- Footer (Institucional)
+# --- Footer (Global App) ---
 # --------------------------
 st.markdown("---")
 
@@ -1464,19 +1464,19 @@ st.markdown(
     """
     <style>
         .app-footer {
-            padding: 30px 10px;
+            padding: 24px 8px;
             text-align: center;
         }
         .app-footer img {
-            height: 42px;
-            margin-bottom: 10px;
+            height: 40px;
+            margin-bottom: 8px;
             opacity: 0.95;
         }
         .app-footer p {
-            font-size: 0.9rem;
-            color: #4F6D7A;
-            margin: 0;
-            line-height: 1.6;
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin: 4px 0;
+            line-height: 1.5;
         }
         .app-footer a {
             color: #0A2342;
@@ -1489,18 +1489,23 @@ st.markdown(
     </style>
 
     <div class="app-footer">
-        <img src="https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/main/logo_hedgewise.png"
-             alt="Hedgewise Logo">
+        <img
+            src="https://raw.githubusercontent.com/hedgewiseconsultoria/aifinance/main/logo_hedgewise.png"
+            alt="Hedgewise Consultoria"
+        >
 
         <p>
-            Desenvolvido pela <strong>Hedgewise Consultoria</strong>, especialista em risco e inteligência financeira.
-            <br>
-            📸 Instagram:
+            Desenvolvido pela <strong>Hedgewise Consultoria</strong><br>
+            Especialistas em risco e inteligência financeira para MEIs e pequenos negócios.
+        </p>
+
+        <p>
+            Instagram:
             <a href="https://instagram.com/hedgewise_risco" target="_blank">
                 @hedgewise_risco
             </a>
-            &nbsp;|&nbsp;
-            📩 E-mail:
+            <br>
+            E-mail:
             <a href="mailto:hedgewise.consultoria@gmail.com">
                 hedgewise.consultoria@gmail.com
             </a>
