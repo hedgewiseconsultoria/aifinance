@@ -603,38 +603,31 @@ def render_sidebar():
 
     # ======== RODAPÉ | CONTATOS ========
     st.sidebar.markdown(
-        """
-        <hr style="margin:8px 0;">
+    """
+    <hr style="margin:8px 0;">
 
-        <div style="
-            font-size:13px;
-            color:#0A2342;
-            line-height:1.6;
-            padding-bottom:8px;
-        ">
-            <div style="font-weight:600; margin-bottom:6px;">
-                Contato
-            </div>
+    <div style="font-size:13px; color:#0A2342; line-height:1.6; padding-bottom:8px;">
+      <div style="font-weight:600; margin-bottom:6px;">
+        Contato
+      </div>
 
-            <div>
-                📸
-                <a href="https://instagram.com/hedgewise_risco"
-                   target="_blank"
-                   style="color:#0A2342; text-decoration:none;">
-                   @hedgewise_risco
-                </a>
-            </div>
+      <div>
+        📸 <a href="https://instagram.com/hedgewise_risco"
+              target="_blank"
+              style="color:#0A2342; text-decoration:none;">
+              @hedgewise_risco
+            </a>
+      </div>
 
-            <div>
-                📩
-                <a href="mailto:hedgewise.consultoria@gmail.com"
-                   style="color:#0A2342; text-decoration:none;">
-                   hedgewise.consultoria@gmail.com
-                </a>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+      <div>
+        📩 <a href="mailto:hedgewise.consultoria@gmail.com"
+              style="color:#0A2342; text-decoration:none;">
+              hedgewise.consultoria@gmail.com
+            </a>
+      </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
     )
       
     # ======== SAIR DO MENU ========
