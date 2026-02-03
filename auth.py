@@ -244,17 +244,13 @@ def login_page():
                         user = res.user
                         user_id = extract_user_field(user, "id", str(uuid.uuid4()))
 
-                        supabase_admin.table("users_profiles").insert({
-                            "id": user_id,
+                        supabase.table("users_profiles").update({
                             "nome": nome,
                             "empresa": empresa,
                             "cnpj": format_cnpj(cnpj),
                             "socios": socios,
-                            "plano": "trial",
-                            "trial_inicio": trial_inicio.isoformat(),
-                            "trial_fim": trial_fim.isoformat(),
                             "lgpd_consentimento": True
-                        }).execute()
+                        }).eq("id", user_id).execute()
 
                         st.success("Conta criada! Você possui 7 dias de teste gratuito.")
 
@@ -351,5 +347,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
