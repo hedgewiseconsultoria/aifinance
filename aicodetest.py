@@ -595,37 +595,29 @@ def render_sidebar():
         unsafe_allow_html=True,
     )
 
-    # ================================
-    # RODAPÉ DO SIDEBAR | CONTATOS
-    # ================================
+    # ======== ESPAÇADOR PARA EMPURRAR O RODAPÉ ========
+    st.sidebar.markdown(
+        "<div style='height:25vh;'></div>",
+        unsafe_allow_html=True
+    )
+
+    # ======== RODAPÉ | CONTATOS ========
     st.sidebar.markdown(
         """
-        <style>
-        section[data-testid="stSidebar"] > div {
-            position: relative;
-        }
+        <hr style="margin:8px 0;">
 
-        .sidebar-footer {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            right: 0;
-            padding: 12px 16px 0 16px;
-            border-top: 1px solid #E6E6E6;
-            font-size: 13px;
-            color: #0A2342;
-            line-height: 1.6;
-            background-color: #FFFFFF;
-        }
-        </style>
-
-        <div class="sidebar-footer">
+        <div style="
+            font-size:13px;
+            color:#0A2342;
+            line-height:1.6;
+            padding-bottom:8px;
+        ">
             <div style="font-weight:600; margin-bottom:6px;">
                 Contato
             </div>
 
             <div>
-                📸 
+                📸
                 <a href="https://instagram.com/hedgewise_risco"
                    target="_blank"
                    style="color:#0A2342; text-decoration:none;">
@@ -634,7 +626,7 @@ def render_sidebar():
             </div>
 
             <div>
-                📩 
+                📩
                 <a href="mailto:hedgewise.consultoria@gmail.com"
                    style="color:#0A2342; text-decoration:none;">
                    hedgewise.consultoria@gmail.com
