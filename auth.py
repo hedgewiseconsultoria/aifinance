@@ -21,10 +21,10 @@ SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 SUPABASE_SERVICE_ROLE_KEY = st.secrets["SUPABASE_SERVICE_ROLE_KEY"]
 
-supabase_admin = create_client(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
-)
+#supabase_admin = create_client(
+  #  SUPABASE_URL,
+    #SUPABASE_SERVICE_ROLE_KEY
+#)
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 LOGO_URL = "FinanceAI_1.png"
@@ -347,6 +347,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
