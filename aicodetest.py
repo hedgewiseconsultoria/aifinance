@@ -608,7 +608,7 @@ def render_sidebar():
 
     <div style="font-size:13px; color:#0A2342; line-height:1.6; padding-bottom:8px;">
       <div style="font-weight:600; margin-bottom:6px;">
-        Contato
+        Contatos:
       </div>
 
       <div>
