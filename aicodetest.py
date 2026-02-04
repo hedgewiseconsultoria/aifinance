@@ -1245,16 +1245,15 @@ elif page == "Perfil":
     # Botão salvar
     if st.button("Salvar Alterações"):
         try:
-            supabase.table("users_profiles").upsert(
+            supabase.table("users_profiles").update(
                 {
-                    "id": user_id,
                     "nome": nome,
                     "empresa": empresa,
                     "cnpj": cnpj,
                     "socios": socios,
                     "plano": plano  # Mantém o plano atual
                 }
-            ).execute()
+            ).eq("id", user_id).execute()
             st.success("Perfil atualizado com sucesso!")
             st.experimental_rerun()
         except Exception as e:
