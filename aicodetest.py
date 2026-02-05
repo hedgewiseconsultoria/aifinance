@@ -881,7 +881,7 @@ if page == "Upload":
                     pass
 
     # adiciona coluna de seleção
-            df_extratos["Excluir"] = False
+            df_extratos[""] = False
 
             edited_df = st.data_editor(
                 df_extratos[["Excluir", "id", "nome_arquivo", "criado_em"]],
