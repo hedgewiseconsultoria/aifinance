@@ -888,10 +888,15 @@ if page == "Upload":
                 use_container_width=True,
                 hide_index=True,
                 disabled=["id", "nome_arquivo", "criado_em"],
+                column_config={
+                    "": st.column_config.CheckboxColumn(
+                        width="small"
+                    )
+                }
             )
 
 # verifica se algum extrato foi marcado
-            extratos_marcados = edited_df[edited_df["Excluir"] == True]
+            extratos_marcados = edited_df[edited_df[""] == True]
 
             if not extratos_marcados.empty:
                 extrato_id = extratos_marcados.iloc[0]["id"]
