@@ -884,7 +884,7 @@ if page == "Upload":
             df_extratos[""] = False
 
             edited_df = st.data_editor(
-                df_extratos[["Excluir", "id", "nome_arquivo", "criado_em"]],
+                df_extratos[["", "id", "nome_arquivo", "criado_em"]],
                 use_container_width=True,
                 hide_index=True,
                 disabled=["id", "nome_arquivo", "criado_em"],
