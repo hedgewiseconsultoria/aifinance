@@ -286,7 +286,7 @@ def reset_password_page():
     col_left, col_center, col_right = st.columns([2, 3, 2])
 
     with col_center:
-       
+
         st.subheader("Redefinir senha")
 
         params = st.experimental_get_query_params()
@@ -302,7 +302,7 @@ def reset_password_page():
                 return
 
             if not access_token:
-                st.warning("Token ainda não recebido."
+                st.warning("Token ainda não recebido.")
                 return
 
             try:
@@ -311,6 +311,7 @@ def reset_password_page():
                 st.success("Senha redefinida com sucesso!")
             except Exception as e:
                 st.error(f"Erro: {e}")
+
 
 
 # ==========================
@@ -345,6 +346,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
