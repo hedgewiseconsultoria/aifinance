@@ -286,33 +286,31 @@ def reset_password_page():
     col_left, col_center, col_right = st.columns([2, 3, 2])
 
     with col_center:
-        with st.container():
-            st.markdown('<div class="auth-wrapper"><div class="auth-card">', unsafe_allow_html=True)
+       
+        st.subheader("Redefinir senha")
 
-            st.subheader("Redefinir senha")
+        params = st.experimental_get_query_params()
+        access_token = params.get("access_token", [None])[0] or params.get("token", [None])[0]
+        refresh_token = params.get("refresh_token", [None])[0]
 
-            params = st.experimental_get_query_params()
-            access_token = params.get("access_token", [None])[0] or params.get("token", [None])[0]
-            refresh_token = params.get("refresh_token", [None])[0]
+        nova = st.text_input("Nova senha", type="password")
+        nova2 = st.text_input("Repita a nova senha", type="password")
 
-            nova = st.text_input("Nova senha", type="password")
-            nova2 = st.text_input("Repita a nova senha", type="password")
+        if st.button("Redefinir senha", use_container_width=True):
+            if nova != nova2:
+                st.error("As senhas não coincidem.")
+                return
 
-            if st.button("Redefinir senha", use_container_width=True):
-                if nova != nova2:
-                    st.error("As senhas não coincidem.")
-                    return
+            if not access_token:
+                st.warning("Token ainda não recebido."
+                return
 
-                if not access_token:
-                    st.warning("Token ainda não recebido.")
-                    return
-
-                try:
-                    supabase.auth.set_session(access_token, refresh_token)
-                    supabase.auth.update_user({"password": nova})
-                    st.success("Senha redefinida com sucesso!")
-                except Exception as e:
-                    st.error(f"Erro: {e}")
+            try:
+                supabase.auth.set_session(access_token, refresh_token)
+                supabase.auth.update_user({"password": nova})
+                st.success("Senha redefinida com sucesso!")
+            except Exception as e:
+                st.error(f"Erro: {e}")
 
 
 # ==========================
@@ -347,6 +345,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
