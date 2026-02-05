@@ -286,7 +286,7 @@ def reset_password_page():
     col_left, col_center, col_right = st.columns([2, 3, 2])
 
     with col_center:
-        with st.container():
+        with st.container:
             st.markdown('<div class="auth-wrapper"><div class="auth-card">', unsafe_allow_html=True)
 
             st.subheader("Redefinir senha")
@@ -347,6 +347,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
