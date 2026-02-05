@@ -1014,12 +1014,6 @@ elif page == "Revisão":
                     user_id = getattr(user, "id", None)
                 # =================================================
 
-               # try:
-                   # supabase.table("transacoes").delete().eq("user_id", user_id).execute()
-                #except Exception:
-                  #  st.warning(
-                   #     "Aviso: não foi possível deletar transações antigas (permissões Supabase)."
-                  #  )
 
                 try:
                     # Identificar os extratos envolvidos
