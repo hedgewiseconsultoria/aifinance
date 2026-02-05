@@ -1431,7 +1431,7 @@ elif page == "Configurações":
             }
 
             /* Inputs e selects com o mesmo visual */
-            input, select {
+            input[type="password"] {
                 border: 1px solid #0A2342 !important;
                 border-radius: 6px !important;
                 padding: 8px 10px !important;
