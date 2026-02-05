@@ -1418,24 +1418,32 @@ elif page == "Configurações":
             .config-card {
                 border: 1px solid #0A2342;
                 border-radius: 10px;
-                padding: 15px;
-                margin-bottom: 12px;
+                padding: 20px;
+                margin-bottom: 20px;
                 background-color: #F8FBFF;
             }
+
             .config-titulo {
-                font-size: 20px; 
-                font-weight: 700; 
+                font-size: 20px;
+                font-weight: 700;
                 color: #0A2342;
+                margin-bottom: 15px;
             }
-            input[type="password"] {
+
+            /* Inputs e selects com o mesmo visual */
+            input, select {
                 border: 1px solid #0A2342 !important;
                 border-radius: 6px !important;
                 padding: 8px 10px !important;
             }
+
+            /* Selectbox do Streamlit (BaseWeb) */
+            div[data-baseweb="select"] > div {
+                border: 1px solid #0A2342 !important;
+                border-radius: 6px !important;
+            }
         </style>
     """, unsafe_allow_html=True)
-
-    st.markdown("### 6. Configurações")
 
     if isinstance(user, dict):
         user_id = user.get("id")
@@ -1450,7 +1458,10 @@ elif page == "Configurações":
 
     # buscar configurações simples (se existirem)
     try:
-        res = supabase.table("users_profiles").select("moeda, formato_data").eq("id", user_id).execute()
+        res = supabase.table("users_profiles") \
+            .select("moeda, formato_data") \
+            .eq("id", user_id) \
+            .execute()
         dados_cfg = getattr(res, "data", res)
         dados_cfg = dados_cfg[0] if dados_cfg else {}
     except:
@@ -1459,16 +1470,28 @@ elif page == "Configurações":
     moeda_atual = dados_cfg.get("moeda", "BRL")
     formato_atual = dados_cfg.get("formato_data", "br")
 
+    # CARD PRINCIPAL
     st.markdown('<div class="config-card">', unsafe_allow_html=True)
-    st.markdown('<div class="config-titulo">Preferências Básicas</div>', unsafe_allow_html=True)
+    st.markdown('<div class="config-titulo">6. Configurações</div>', unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
+
     with col1:
-        moeda = st.selectbox("Moeda padrão:", ["BRL (R$)", "USD ($)", "EUR (€)"], index=0 if moeda_atual=="BRL" else 1 if moeda_atual=="USD" else 2)
-        formato_data = st.selectbox("Formato de data:", ["Brasil (DD/MM/AAAA)", "Internacional (YYYY-MM-DD)"], index=0 if formato_atual=="br" else 1)
+        moeda = st.selectbox(
+            "Moeda padrão:",
+            ["BRL (R$)", "USD ($)", "EUR (€)"],
+            index=0 if moeda_atual == "BRL" else 1 if moeda_atual == "USD" else 2
+        )
+
+        formato_data = st.selectbox(
+            "Formato de data:",
+            ["Brasil (DD/MM/AAAA)", "Internacional (YYYY-MM-DD)"],
+            index=0 if formato_atual == "br" else 1
+        )
 
     with col2:
         st.markdown("**Alterar senha**")
+
         nova = st.text_input("Nova senha", type="password")
         nova2 = st.text_input("Repita a nova senha", type="password")
 
@@ -1479,25 +1502,25 @@ elif page == "Configurações":
                 st.error("As senhas não coincidem.")
             else:
                 try:
-                    # utiliza supabase auth para atualizar a senha do usuário atual
                     supabase.auth.update_user({"password": nova})
                     st.success("Senha atualizada com sucesso!")
                 except Exception as e:
                     st.error(f"Erro ao alterar senha: {e}")
 
-    # salvar preferências
     if st.button("Salvar preferências"):
         try:
             supabase.table("users_profiles").update({
                 "moeda": "BRL" if "BRL" in moeda else "USD" if "USD" in moeda else "EUR",
                 "formato_data": "br" if "Brasil" in formato_data else "iso"
             }).eq("id", user_id).execute()
+
             st.success("Preferências salvas!")
             st.experimental_rerun()
         except Exception as e:
             st.error(f"Erro ao salvar preferências: {e}")
 
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 # --------------------------
