@@ -879,38 +879,35 @@ if page == "Upload":
                     )
                 except Exception:
                     pass
-            st.dataframe(
-                df_extratos[["id", "nome_arquivo", "criado_em"]],
+
+    # adiciona coluna de seleção
+            df_extratos["Excluir"] = False
+
+            edited_df = st.data_editor(
+                df_extratos[["Excluir", "id", "nome_arquivo", "criado_em"]],
                 use_container_width=True,
+                hide_index=True,
+                disabled=["id", "nome_arquivo", "criado_em"],
             )
 
-          # ================= NOVO BLOCO: EXCLUSÃO =================
-            st.markdown("### 🗑️ Excluir extrato")
+# verifica se algum extrato foi marcado
+            extratos_marcados = edited_df[edited_df["Excluir"] == True]
 
-            extrato_selecionado = st.selectbox(
-                "Selecione um extrato para excluir",
-                df_extratos["id"],
-                format_func=lambda x: df_extratos.loc[
-                    df_extratos["id"] == x, "nome_arquivo"
-                ].values[0]
-            )
+            if not extratos_marcados.empty:
+                extrato_id = extratos_marcados.iloc[0]["id"]
 
-            if st.button("❌ Excluir extrato selecionado"):
-                with st.spinner("Excluindo extrato..."):
-                    res = (
-                        supabase.table("extratos")
-                        .delete()
-                        .eq("id", extrato_selecionado)
-                        .eq("user_id", user_id)  # segurança extra no app
-                        .execute()
-                    )
+                if st.button("❌ Confirmar exclusão do extrato selecionado", type="danger"):
+                    with st.spinner("Excluindo extrato..."):
+                        (
+                            supabase.table("extratos")
+                            .delete()
+                            .eq("id", extrato_id)
+                            .eq("user_id", user_id)  # segurança extra
+                            .execute()
+                        )
 
-                if res.data is not None:
                     st.success("Extrato excluído com sucesso.")
                     st.rerun()
-                else:
-                    st.error("Não foi possível excluir o extrato.")
-            # ========================================================  
 
     
     except Exception as e:
