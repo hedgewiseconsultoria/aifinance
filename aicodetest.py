@@ -896,7 +896,7 @@ if page == "Upload":
             if not extratos_marcados.empty:
                 extrato_id = extratos_marcados.iloc[0]["id"]
 
-                if st.button("❌ Confirmar exclusão do extrato selecionado", type="danger"):
+                if st.button("❌ Confirmar exclusão do extrato selecionado", type="secondary"):
                     with st.spinner("Excluindo extrato..."):
                         (
                             supabase.table("extratos")
