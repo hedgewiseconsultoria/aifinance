@@ -883,6 +883,36 @@ if page == "Upload":
                 df_extratos[["id", "nome_arquivo", "criado_em"]],
                 use_container_width=True,
             )
+
+          # ================= NOVO BLOCO: EXCLUSÃO =================
+            st.markdown("### 🗑️ Excluir extrato")
+
+            extrato_selecionado = st.selectbox(
+                "Selecione um extrato para excluir",
+                df_extratos["id"],
+                format_func=lambda x: df_extratos.loc[
+                    df_extratos["id"] == x, "nome_arquivo"
+                ].values[0]
+            )
+
+            if st.button("❌ Excluir extrato selecionado"):
+                with st.spinner("Excluindo extrato..."):
+                    res = (
+                        supabase.table("extratos")
+                        .delete()
+                        .eq("id", extrato_selecionado)
+                        .eq("user_id", user_id)  # segurança extra no app
+                        .execute()
+                    )
+
+                if res.data is not None:
+                    st.success("Extrato excluído com sucesso.")
+                    st.rerun()
+                else:
+                    st.error("Não foi possível excluir o extrato.")
+            # ========================================================  
+
+    
     except Exception as e:
         st.error(f"Erro ao buscar extratos: {e}")
 
