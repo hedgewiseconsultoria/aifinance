@@ -928,16 +928,19 @@ elif page == "Revisão":
     if not st.session_state.get("df_transacoes_editado", pd.DataFrame()).empty:
         st.info("Revise as classificações manualmente.")
 
+        # ---------- Opções de contas ----------
         opcoes_contas = []
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             for conta in sintetico["contas"]:
                 opcoes_contas.append(f"{conta['codigo']} - {conta['nome']}")
 
         df_display_edit = st.session_state["df_transacoes_editado"].copy()
+
         if "conta_display" not in df_display_edit.columns:
             df_display_edit = enriquecer_com_plano_contas(df_display_edit)
 
         columns_for_editor = [
+            "id",  # ⚠️ IMPORTANTE: manter o ID
             "data",
             "descricao",
             "valor",
@@ -946,6 +949,7 @@ elif page == "Revisão":
             "nome_conta",
             "tipo_fluxo",
         ]
+
         if "extrato_id" in df_display_edit.columns:
             columns_for_editor.append("extrato_id")
 
@@ -954,23 +958,18 @@ elif page == "Revisão":
                 df_display_edit[columns_for_editor],
                 width="stretch",
                 column_config={
+                    "id": st.column_config.TextColumn("ID", disabled=True),
                     "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
                     "descricao": st.column_config.TextColumn("Descrição", width="large"),
-                    "valor": st.column_config.NumberColumn(
-                        "Valor (R$)", format="R$ %.2f"
-                    ),
+                    "valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f"),
                     "tipo_movimentacao": st.column_config.SelectboxColumn(
                         "Tipo", options=["CREDITO", "DEBITO"]
                     ),
                     "conta_display": st.column_config.SelectboxColumn(
                         "Conta (código - nome)", options=opcoes_contas
                     ),
-                    "nome_conta": st.column_config.TextColumn(
-                        "Nome da Conta", disabled=True
-                    ),
-                    "tipo_fluxo": st.column_config.TextColumn(
-                        "Tipo de Fluxo", disabled=True
-                    ),
+                    "nome_conta": st.column_config.TextColumn("Nome da Conta", disabled=True),
+                    "tipo_fluxo": st.column_config.TextColumn("Tipo de Fluxo", disabled=True),
                 },
                 num_rows="dynamic",
                 key="data_editor_transacoes",
@@ -978,81 +977,66 @@ elif page == "Revisão":
 
         if st.button("Confirmar Dados e Salvar no Banco de Dados"):
             try:
-                if "conta_display" in edited_df.columns:
-                    edited_df["conta_analitica"] = edited_df["conta_display"].apply(
-                        lambda x: x.split(" - ")[0].strip()
-                        if isinstance(x, str) and " - " in x
-                        else x
-                    )
+                # ---------- Ajuste da conta analítica ----------
+                edited_df["conta_analitica"] = edited_df["conta_display"].apply(
+                    lambda x: x.split(" - ")[0].strip()
+                    if isinstance(x, str) and " - " in x
+                    else x
+                )
 
                 edited_df = enriquecer_com_plano_contas(edited_df)
 
                 df_to_save = edited_df.copy()
+
                 df_to_save["data"] = (
                     pd.to_datetime(df_to_save["data"], errors="coerce")
                     .dt.strftime("%Y-%m-%d")
                 )
+
                 df_to_save["valor"] = (
                     pd.to_numeric(df_to_save["valor"], errors="coerce").fillna(0)
                 )
 
-                colunas_validas = [
-                    "data",
-                    "descricao",
-                    "valor",
-                    "tipo_movimentacao",
-                    "conta_analitica",
-                ]
-                if "extrato_id" in df_to_save.columns:
-                    colunas_validas.append("extrato_id")
-                df_to_save = df_to_save[colunas_validas]
-
-                # ============== USER ID AJUSTADO ================
+                # ---------- USER ID ----------
                 if isinstance(user, dict):
                     user_id = user.get("id")
                 else:
                     user_id = getattr(user, "id", None)
-                # =================================================
 
+                # ================= UPDATE DAS TRANSAÇÕES =================
+                for _, row in df_to_save.iterrows():
+                    transacao_id = row.get("id")
 
-                try:
-                    # Identificar os extratos envolvidos
-                    extrato_ids = df_to_save["extrato_id"].dropna().unique().tolist()
+                    if not transacao_id:
+                        continue
 
-                    # Apagar somente as transações que pertencem aos mesmos extratos
-                    for ex_id in extrato_ids:
-                        supabase.table("transacoes").delete().eq("extrato_id", ex_id).execute()
+                    payload = {
+                        "data": row.get("data"),
+                        "descricao": row.get("descricao"),
+                        "valor": row.get("valor"),
+                        "tipo_movimentacao": row.get("tipo_movimentacao"),
+                        "conta_analitica": row.get("conta_analitica"),
+                        "classificacao_manual": True,
+                    }
 
-                except Exception as e:
-                    st.warning(
-                        f"Aviso: não foi possível remover transações antigas dos extratos reprocessados. Detalhes: {e}"
-                     ) 
+                    supabase.table("transacoes") \
+                        .update(payload) \
+                        .eq("id", transacao_id) \
+                        .eq("user_id", user_id) \
+                        .execute()
+                # ==========================================================
 
-                records = df_to_save.to_dict(orient="records")
-                for rec in records:
-                    rec["user_id"] = user_id
-                    if "extrato_id" not in rec:
-                        rec["extrato_id"] = None
-
-                try:
-                    supabase.table("transacoes").insert(records).execute()
-                except Exception as e:
-                    st.error(f"Erro ao inserir transações: {e}")
-                    raise
-
-                
+                # ---------- Memória de classificação ----------
                 try:
                     memoria_unica = {}
 
                     for _, row in edited_df.iterrows():
                         if row.get("origem_classificacao") == "memoria_usuario":
-                            continue  # não reaprender o que já veio da memória
+                            continue
 
                         descricao_norm = normalizar_descricao(row.get("descricao", ""))
 
-                        chave = (user_id, descricao_norm)
-
-                        memoria_unica[chave] = {
+                        memoria_unica[(user_id, descricao_norm)] = {
                             "user_id": user_id,
                             "descricao_normalizada": descricao_norm,
                             "conta_analitica": row.get("conta_analitica"),
@@ -1067,15 +1051,16 @@ elif page == "Revisão":
 
                 except Exception as e:
                     st.warning(f"Aviso: memória de classificação não atualizada ({e})")
-    
-                
+
                 st.session_state["df_transacoes_editado"] = edited_df
-                st.success("Transações salvas com sucesso!")
+                st.success("Transações atualizadas com sucesso!")
+
             except Exception as e:
                 st.error(f"Erro ao confirmar e salvar: {e}")
 
     else:
         st.warning("Nenhum dado processado. Volte à etapa 'Upload e Extração'.")
+
 
 
 # --------------------------
