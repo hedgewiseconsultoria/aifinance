@@ -286,31 +286,41 @@ def reset_password_page():
     col_left, col_center, col_right = st.columns([2, 3, 2])
 
     with col_center:
-
         st.subheader("Redefinir senha")
 
         params = st.query_params
-        access_token = params.get("access_token", [None])[0] or params.get("token", [None])[0]
-        refresh_token = params.get("refresh_token", [None])[0]
+
+        access_token = params.get("access_token") or params.get("token")
+        refresh_token = params.get("refresh_token")
+        recovery_type = params.get("type")
+
+        if recovery_type != "recovery" or not access_token:
+            st.error("Link de redefinição inválido ou expirado.")
+            return
 
         nova = st.text_input("Nova senha", type="password")
         nova2 = st.text_input("Repita a nova senha", type="password")
 
         if st.button("Redefinir senha", use_container_width=True):
+
             if nova != nova2:
                 st.error("As senhas não coincidem.")
                 return
 
-            if not access_token:
-                st.warning("Token ainda não recebido.")
-                return
-
             try:
-                supabase.auth.set_session(access_token, refresh_token)
+                # só seta sessão se tiver refresh_token
+                if refresh_token:
+                    supabase.auth.set_session(
+                        access_token=access_token,
+                        refresh_token=refresh_token
+                    )
+
                 supabase.auth.update_user({"password": nova})
-                st.success("Senha redefinida com sucesso!")
+
+                st.success("Senha redefinida com sucesso! ✅")
             except Exception as e:
-                st.error(f"Erro: {e}")
+                st.error("Não foi possível redefinir a senha. Tente novamente.")
+
 
 
 
@@ -346,6 +356,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
