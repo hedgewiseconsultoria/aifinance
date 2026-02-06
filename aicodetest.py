@@ -942,8 +942,13 @@ elif page == "Revisão":
         if "conta_display" not in df_display_edit.columns:
             df_display_edit = enriquecer_com_plano_contas(df_display_edit)
 
-        columns_for_editor = [
-            "id",  # ⚠️ IMPORTANTE: manter o ID
+        columns_for_editor = []
+
+        # Só inclui ID se ele existir (dados já gravados no banco)
+        if "id" in df_display_edit.columns:
+            columns_for_editor.append("id")
+
+        columns_for_editor += [
             "data",
             "descricao",
             "valor",
@@ -953,6 +958,11 @@ elif page == "Revisão":
             "tipo_fluxo",
         ]
 
+        # Mantém vínculo com extrato, se existir
+        if "extrato_id" in df_display_edit.columns:
+            columns_for_editor.append("extrato_id")
+
+        
         if "extrato_id" in df_display_edit.columns:
             columns_for_editor.append("extrato_id")
 
