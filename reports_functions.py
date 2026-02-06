@@ -1216,91 +1216,103 @@ def secao_simulador_prolabore(df: pd.DataFrame):
 
     st.markdown("## Simulador de Pró-Labore")
 
-    st.caption(
-        "Simule quanto você pode retirar do negócio com segurança. "
-        "A análise considera receitas, despesas operacionais, "
-        "pagamentos financeiros e histórico de retiradas."
+    # =====================================================
+    # Contexto narrativo
+    # =====================================================
+
+    st.markdown(
+        """
+Simule quanto você pode retirar do negócio sem comprometer o funcionamento.
+
+**Capacidade segura:**  
+Valor estimado que o caixa suporta retirar mantendo as operações.
+
+**Reserva de proteção:**  
+Margem mantida para lidar com imprevistos e oscilações.
+
+**Impacto no caixa:**  
+Diferença entre o valor desejado e a capacidade atual.
+"""
     )
 
     if df.empty:
-        st.info("Envie extratos para liberar a simulação.")
+        st.info("Envie extratos para habilitar o simulador.")
         return
 
-    # --------------------------------------------------
+    # =====================================================
     # Preparação
-    # --------------------------------------------------
+    # =====================================================
 
     df = normalizar_fluxo_caixa(df)
-
     resumo = resumo_para_simulador(df)
-    capacidade, reserva = calcular_capacidade_retirada(resumo)
 
+    capacidade, reserva = calcular_capacidade_retirada(resumo)
     capacidade = max(capacidade, 0)
 
-    # --------------------------------------------------
-    # Input profissional
-    # --------------------------------------------------
+    # =====================================================
+    # Input em container
+    # =====================================================
 
-    retirada = st.number_input(
-        "Quanto você deseja retirar no próximo mês?",
-        min_value=0.0,
-        value=float(capacidade),
-        step=100.0,
-        format="%.2f"
-    )
+    with st.container(border=True):
 
-    # --------------------------------------------------
-    # Cards informativos (padrão visual Streamlit)
-    # --------------------------------------------------
+        retirada = st.number_input(
+            "Valor desejado de retirada (R$)",
+            min_value=0.0,
+            value=float(capacidade),
+            step=100.0,
+            format="%.2f"
+        )
+
+    impacto = retirada - capacidade
+
+    # =====================================================
+    # Cards estilo dashboard
+    # =====================================================
 
     c1, c2, c3 = st.columns(3)
 
     with c1:
-        st.metric(
-            "Capacidade segura",
-            formatar_brl(capacidade)
-        )
+        st.markdown("### 🟢 Capacidade Segura")
+        st.markdown(f"## {formatar_brl(capacidade)}")
+        st.caption("Estimativa sustentável de retirada")
 
     with c2:
-        st.metric(
-            "Reserva de proteção",
-            formatar_brl(reserva)
-        )
+        st.markdown("### 🟡 Reserva de Proteção")
+        st.markdown(f"## {formatar_brl(reserva)}")
+        st.caption("Margem para imprevistos")
 
     with c3:
-        impacto = retirada - capacidade
-        st.metric(
-            "Impacto no caixa",
-            formatar_brl(impacto)
-        )
+        cor = "🔴" if impacto > 0 else "🟢"
+        st.markdown(f"### {cor} Impacto no Caixa")
+        st.markdown(f"## {formatar_brl(impacto)}")
+        st.caption("Diferença simulada")
 
     st.divider()
 
-    # --------------------------------------------------
-    # Diagnóstico comportamental
-    # --------------------------------------------------
+    # =====================================================
+    # Relatório narrativo
+    # =====================================================
 
     gap = retirada - capacidade
 
+    st.markdown("## 📘 Diagnóstico da Simulação")
+
     if gap <= 0:
+
         st.success(
-            "Essa retirada está dentro da capacidade atual do negócio. "
-            "O caixa tende a suportar esse valor."
+            "Sua retirada está dentro da capacidade operacional do negócio. "
+            "O fluxo de caixa tende a permanecer equilibrado."
         )
 
     else:
+
         st.warning(
-            f"Sua retirada desejada está {formatar_brl(gap)} "
-            "acima da capacidade estimada. "
-            "Isso pode gerar pressão no pagamento de despesas operacionais."
+            f"A retirada simulada excede a capacidade em {formatar_brl(gap)}."
         )
 
         sugestoes = gerar_sugestoes_simples(resumo, gap)
 
-        st.markdown("### Caminhos para viabilizar a retirada")
+        st.markdown("### 🔎 Caminhos para viabilizar")
 
         for s in sugestoes:
-            st.write("•", s)
-
-
-
+            st.markdown(f"- {s}")
