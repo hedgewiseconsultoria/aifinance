@@ -1201,7 +1201,7 @@ elif page == "Dashboard":
 # 4. Simulador Pró-Labor 
 # --------------------------
 
-elif selected == "Simulador Pró-Labore":
+elif page == "Simulador Pró-Labore":
 
     res = (
         supabase
