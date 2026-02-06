@@ -1196,8 +1196,27 @@ elif page == "Dashboard":
     else:
         st.info("👆 Selecione um período acima e clique em 'Gerar' para visualizar o dashboard.")
 
+
 # --------------------------
-# 4. Perfil do Usuário 
+# 4. Simulador Pró-Labor 
+# --------------------------
+
+elif selected == "Simulador Pró-Labore":
+
+    res = (
+        supabase
+        .table("transacoes")
+        .select("*")
+        .eq("user_id", st.session_state.user_id)
+        .execute()
+    )
+
+    df = pd.DataFrame(res.data)
+    secao_simulador_prolabore(df)
+
+
+# --------------------------
+# 5. Perfil do Usuário 
 # --------------------------
 
 elif page == "Perfil":
@@ -1217,7 +1236,7 @@ elif page == "Perfil":
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 4. Meu Perfil")
+    st.markdown("### 5. Meu Perfil")
 
     # Extrair user_id e email — compatível com dict/obj
     if isinstance(user, dict):
@@ -1274,12 +1293,12 @@ elif page == "Perfil":
             st.error(f"Erro ao salvar: {e}")
 
 # --------------------------
-# 5. PLANOS
+# 6. PLANOS
 # --------------------------
 
 
 elif page == "Planos":
-    st.markdown("### 5. Planos e Assinaturas")
+    st.markdown("### 6. Planos e Assinaturas")
 
     # --- Pegar plano atual do usuário ---
     user_id = user.get("id") if isinstance(user, dict) else getattr(user, "id", None)
@@ -1412,7 +1431,7 @@ elif page == "Planos":
 
 
 # --------------------------
-# 6. CONFIGURAÇÕES
+# 7. CONFIGURAÇÕES
 # --------------------------
 elif page == "Configurações":
 
@@ -1475,7 +1494,7 @@ elif page == "Configurações":
 
     # CARD PRINCIPAL
     st.markdown('<div class="config-card">', unsafe_allow_html=True)
-    st.markdown('<div class="config-titulo">6. Configurações</div>', unsafe_allow_html=True)
+    st.markdown('<div class="config-titulo">7. Configurações</div>', unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
 
