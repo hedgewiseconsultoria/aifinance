@@ -252,7 +252,7 @@ def login_page():
                             "lgpd_consentimento": True
                         }).eq("id", user_id).execute()
 
-                        st.success("Conta criada! Você possui 7 dias de teste gratuito.")
+                        st.success("Conta criada! Confirme o seu cadastro no e-mail de ativação. Você possui 7 dias de teste gratuito.")
 
                     except Exception as e:
                         st.error(f"Erro ao criar conta: {e}")
@@ -346,6 +346,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
