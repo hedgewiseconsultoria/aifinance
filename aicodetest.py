@@ -475,7 +475,7 @@ def load_header():
 # AUTENTICAÇÃO E MENU
 # --------------------------
 
-params = st.experimental_get_query_params()
+params = st.query_params()
 
 # 🔥 Tratar o fluxo de redefinição de senha
 is_reset_flow = (
