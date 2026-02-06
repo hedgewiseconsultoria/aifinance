@@ -1203,16 +1203,16 @@ elif page == "Dashboard":
 
 elif page == "Simulador Pró-Labore":
 
-    res = (
-        supabase
-        .table("transacoes")
-        .select("*")
-        .eq("user_id", st.session_state.user_id)
-        .execute()
-    )
+res = (
+    supabase
+    .table("transacoes")
+    .select("*")
+    .eq("user_id", user_id)
+    .execute()
+)
 
-    df = pd.DataFrame(res.data)
-    secao_simulador_prolabore(df)
+df = pd.DataFrame(res.data)
+secao_simulador_prolabore(df)
 
 
 # --------------------------
