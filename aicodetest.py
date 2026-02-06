@@ -966,9 +966,16 @@ elif page == "Revisão":
         if "extrato_id" in df_display_edit.columns:
             columns_for_editor.append("extrato_id")
 
+        # --- Blindagem contra colunas duplicadas (OBRIGATÓRIO para st.data_editor) ---
+        df_display_edit = df_display_edit.loc[:, ~df_display_edit.columns.duplicated()]
+
+        safe_columns = list(dict.fromkeys(
+            c for c in columns_for_editor if c in df_display_edit.columns
+        ))
+        
         with st.expander("Editar Transações", expanded=True):
             edited_df = st.data_editor(
-                df_display_edit[columns_for_editor],
+                df_display_edit[safe_columns],
                 width="stretch",
                 column_config={
                     "id": st.column_config.TextColumn("ID", disabled=True),
