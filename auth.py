@@ -289,7 +289,7 @@ def reset_password_page():
 
         st.subheader("Redefinir senha")
 
-        params = st.experimental_get_query_params()
+        params = st.query_params
         access_token = params.get("access_token", [None])[0] or params.get("token", [None])[0]
         refresh_token = params.get("refresh_token", [None])[0]
 
@@ -346,6 +346,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
