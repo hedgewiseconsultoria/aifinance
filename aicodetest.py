@@ -21,7 +21,10 @@ from auth import (
 )
 
 # funções de relatórios (arquivo reports_functions.py)
-from reports_functions import secao_relatorios_dashboard
+from reports_functions import (
+    secao_relatorios_dashboard,
+    secao_simulador_prolabore
+)
 
 import streamlit.components.v1 as components
 
