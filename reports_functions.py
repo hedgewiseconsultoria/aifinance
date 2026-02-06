@@ -1119,3 +1119,132 @@ def secao_relatorios_dashboard(df_transacoes: pd.DataFrame, PLANO_DE_CONTAS: Dic
         with col3:
             st.metric("Retiradas Pessoais", formatar_brl(indicadores['retiradas_pessoais']))
             st.metric("Empréstimos Recebidos", formatar_brl(indicadores['emprestimos_recebidos']))
+
+
+# =========================================================
+# SIMULADOR DE PRÓ-LABORE — FUNÇÕES ANALÍTICAS
+# =========================================================
+
+def normalizar_fluxo_caixa(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+
+    df["valor_ajustado"] = df.apply(
+        lambda r: r["valor"] if r["tipo_movimentacao"] == "CREDITO"
+        else -r["valor"],
+        axis=1
+    )
+
+    return df
+
+
+def resumo_para_simulador(df: pd.DataFrame) -> dict:
+
+    mapa = {
+        "receita": ["OP-01","OP-02","OP-03"],
+        "custos": ["OP-04"],
+        "adm": ["OP-05"],
+        "comercial": ["OP-06"],
+        "pessoal": ["OP-07"],
+        "impostos": ["OP-08"],
+        "tarifas": ["OP-09"],
+        "financiamento": ["FIN-02","FIN-03"],
+        "retiradas": ["FIN-05"]
+    }
+
+    resumo = {}
+
+    for k, contas in mapa.items():
+        resumo[k] = df[df["conta_analitica"].isin(contas)]["valor_ajustado"].sum()
+
+    return resumo
+
+
+def calcular_capacidade_retirada(resumo: dict):
+
+    fluxo_livre = sum([
+        resumo["receita"],
+        resumo["custos"],
+        resumo["adm"],
+        resumo["comercial"],
+        resumo["pessoal"],
+        resumo["impostos"],
+        resumo["tarifas"],
+        resumo["financiamento"],
+    ])
+
+    reserva = abs(resumo["custos"] + resumo["adm"]) * 0.5
+    capacidade = fluxo_livre - reserva
+
+    return capacidade, reserva
+
+
+def gerar_sugestoes_simples(resumo: dict, gap: float):
+
+    sugestoes = []
+
+    sugestoes.append(
+        f"Aumentar receitas em {formatar_brl(gap)} viabiliza a retirada."
+    )
+
+    categorias = ["adm","comercial","tarifas","custos","pessoal"]
+
+    for cat in categorias:
+        valor = abs(resumo.get(cat, 0))
+        if valor <= 0:
+            continue
+
+        cobertura = valor / gap
+
+        if cobertura > 0.2:
+            sugestoes.append(
+                f"Ajustes em {cat} podem cobrir cerca de {cobertura:.0%} da diferença."
+            )
+
+    if abs(resumo.get("financiamento",0)) > gap * 0.25:
+        sugestoes.append(
+            "Pagamentos de empréstimos impactam sua capacidade de retirada."
+        )
+
+    return sugestoes
+
+
+# =========================================================
+# UI STREAMLIT — PÁGINA DO SIMULADOR
+# =========================================================
+
+def secao_simulador_prolabore(df: pd.DataFrame):
+
+    st.markdown("## Simulador de Pró-Labore")
+
+    if df.empty:
+        st.info("Sem dados para simulação.")
+        return
+
+    df = normalizar_fluxo_caixa(df)
+
+    resumo = resumo_para_simulador(df)
+    capacidade, reserva = calcular_capacidade_retirada(resumo)
+
+    retirada = st.slider(
+        "Valor desejado de retirada",
+        0,
+        int(max(capacidade*2, 1000)),
+        int(max(capacidade,0))
+    )
+
+    st.write("Capacidade segura:", formatar_brl(capacidade))
+    st.write("Reserva considerada:", formatar_brl(reserva))
+
+    gap = retirada - capacidade
+
+    if gap <= 0:
+        st.success("Retirada saudável para o caixa 👍")
+    else:
+        st.warning("Valor pressiona o caixa")
+
+        sugestoes = gerar_sugestoes_simples(resumo, gap)
+
+        for s in sugestoes:
+            st.write("•", s)
+
+
