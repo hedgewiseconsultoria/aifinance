@@ -1248,6 +1248,9 @@ def secao_simulador_prolabore(df: pd.DataFrame):
     df = normalizar_fluxo_caixa(df)
     resumo = resumo_para_simulador(df)
 
+    # DEBUG TEMPORÁRIO
+    st.write("DEBUG resumo", resumo)
+
     capacidade, reserva = calcular_capacidade_retirada(resumo)
     capacidade = max(capacidade, 0)
 
