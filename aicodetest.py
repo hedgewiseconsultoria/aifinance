@@ -559,8 +559,8 @@ def render_sidebar():
         with st.sidebar:
             escolha = option_menu(
                 menu_title="Menu",
-                options=["Upload", "Revisão","Dashboard", "Perfil", "Planos", "Configurações", "Sair"],
-                icons=["cloud-upload","pencil-square","bar-chart-fill", "person-circle", "credit-card-2-back","gear-fill", "box-arrow-right"],
+                options=["Upload", "Revisão","Dashboard", "Simulador Pró-Labore", "Perfil", "Planos", "Configurações", "Sair"],
+                icons=["cloud-upload","pencil-square","bar-chart-fill", "cash-coin", "person-circle", "credit-card-2-back","gear-fill", "box-arrow-right"],
                 menu_icon="list",
                 default_index=0,
                 styles={
@@ -583,7 +583,7 @@ def render_sidebar():
             st.markdown("<div style='font-size:15px; color:#0A2342; font-weight:700;'>Menu</div>", unsafe_allow_html=True)
             escolha = st.radio(
                 "",
-                ["Dashboard", "Upload", "Revisão", "Perfil", "Planos", "Configurações", "Sair"],
+                ["Upload", "Revisão","Dashboard", "Simulador Pró-Labore", "Perfil", "Planos", "Configurações", "Sair"],
                 index=0,
             )
 
