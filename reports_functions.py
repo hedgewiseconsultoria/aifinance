@@ -1216,13 +1216,9 @@ def secao_simulador_prolabore(df: pd.DataFrame):
 
     st.markdown("## Simulador de Pró-Labore")
 
-    # =====================================================
-    # Contexto narrativo (mais enxuto)
-    # =====================================================
-
     st.markdown(
         """
-Simule quanto você pode retirar do negócio sem apertar o caixa.
+Simule quanto você pode retirar do negócio sem comprometer o funcionamento.
 Passe o mouse no ❔ para entender cada indicador.
 """
     )
@@ -1231,9 +1227,9 @@ Passe o mouse no ❔ para entender cada indicador.
         st.info("Envie extratos para habilitar o simulador.")
         return
 
-    # =====================================================
+    # =========================
     # Preparação
-    # =====================================================
+    # =========================
 
     df = normalizar_fluxo_caixa(df)
     resumo = resumo_para_simulador(df)
@@ -1241,24 +1237,20 @@ Passe o mouse no ❔ para entender cada indicador.
     capacidade, reserva = calcular_capacidade_retirada(resumo)
     capacidade = max(capacidade, 0)
 
-    # =====================================================
-    # Input com moldura padrão (igual seletor de datas)
-    # =====================================================
+    # =========================
+    # Input padrão visual app
+    # =========================
 
-    st.markdown("""
-        <div style="
-            border:1px solid #d9d9d9;
-            border-radius:8px;
-            padding:14px;
-            background-color:#ffffff;
-            margin-bottom:10px;
-        ">
-            <label style="font-weight:600;">
-                Valor desejado de retirada (R$)
-                <span title="Quanto você gostaria de retirar por mês. A análise abaixo mostra se isso é saudável para o caixa."
-                      style="cursor:help;"> ❔</span>
-            </label>
+    st.markdown(f"""
+    <div style='background:white;padding:18px;border-radius:12px;
+                border:2px solid {ACCENT_COLOR};
+                margin-bottom:10px;'>
+        <div style='font-weight:600;font-size:15px;margin-bottom:6px;'>
+            Valor desejado de retirada (R$)
+            <span title="Quanto você quer retirar mensalmente do negócio."
+                  style="cursor:help;"> ❔</span>
         </div>
+    </div>
     """, unsafe_allow_html=True)
 
     retirada = st.number_input(
@@ -1272,80 +1264,89 @@ Passe o mouse no ❔ para entender cada indicador.
 
     impacto = retirada - capacidade
 
-    # =====================================================
-    # Função visual de card (harmonizada)
-    # =====================================================
+    # =========================
+    # Função de card PADRÃO REAL
+    # =========================
 
-    def card_financeiro(titulo, valor, tooltip):
+    def card_dashboard(titulo, valor, cor_fundo, cor_borda, emoji, tooltip):
+
         st.markdown(f"""
-            <div style="
-                border-radius:10px;
-                padding:16px;
-                background:#f7f9fc;
-                border:1px solid #e6eaf1;
-                margin-bottom:12px;
-            ">
-                <div style="font-weight:600;">
-                    {titulo}
-                    <span title="{tooltip}" style="cursor:help;"> ❔</span>
-                </div>
+        <div style='background:{cor_fundo};
+                    padding:20px;
+                    border-radius:12px;
+                    text-align:center;
+                    border:2px solid {cor_borda};
+                    box-shadow:0 3px 6px rgba(0,0,0,0.08);'>
 
-                <div style="
-                    font-size:26px;
-                    font-weight:700;
-                    margin-top:6px;">
-                    {valor}
-                </div>
+            <div style='font-size:36px;margin-bottom:5px;'>{emoji}</div>
+
+            <div style='font-weight:600;font-size:15px;'>
+                {titulo}
+                <span title="{tooltip}" style="cursor:help;"> ❔</span>
             </div>
+
+            <div style='font-size:24px;font-weight:bold;margin-top:6px;'>
+                {valor}
+            </div>
+
+        </div>
         """, unsafe_allow_html=True)
 
-    # =====================================================
-    # Cards
-    # =====================================================
+    # =========================
+    # Cards alinhados ao dashboard
+    # =========================
 
     c1, c2, c3 = st.columns(3)
 
     with c1:
-        card_financeiro(
-            "🟢 Capacidade Segura",
+        card_dashboard(
+            "Capacidade Segura",
             formatar_brl(capacidade),
-            "Valor que o negócio consegue pagar a você sem comprometer contas, impostos e operação."
+            "#E8F5E9",
+            ACCENT_COLOR,
+            "🟢",
+            "Valor que o negócio suporta retirar mantendo a operação."
         )
 
     with c2:
-        card_financeiro(
-            "🟡 Reserva de Proteção",
+        card_dashboard(
+            "Reserva de Proteção",
             formatar_brl(reserva),
-            "Dinheiro mantido como segurança para meses fracos ou imprevistos."
+            "#FFF8E1",
+            FINANCING_COLOR,
+            "🟡",
+            "Margem de segurança para imprevistos."
         )
 
     with c3:
-        cor = "🔴" if impacto > 0 else "🟢"
-        card_financeiro(
-            f"{cor} Impacto no Caixa",
+        emoji = "🔴" if impacto > 0 else "🟢"
+        cor_bg = "#FDECEA" if impacto > 0 else "#E8F5E9"
+
+        card_dashboard(
+            "Impacto no Caixa",
             formatar_brl(impacto),
-            "Mostra se a retirada desejada aperta o caixa. Negativo = confortável. Positivo = risco."
+            cor_bg,
+            NEGATIVE_COLOR if impacto > 0 else ACCENT_COLOR,
+            emoji,
+            "Diferença entre retirada desejada e capacidade real."
         )
 
     st.divider()
 
-    # =====================================================
-    # Diagnóstico narrativo
-    # =====================================================
+    # =========================
+    # Diagnóstico
+    # =========================
 
     gap = retirada - capacidade
 
     st.markdown("## 📘 Diagnóstico da Simulação")
 
     if gap <= 0:
-
         st.success(
             "Sua retirada está dentro da capacidade do negócio. "
             "O fluxo de caixa tende a permanecer equilibrado."
         )
-
     else:
-
         st.warning(
             f"A retirada simulada excede a capacidade em {formatar_brl(gap)}."
         )
