@@ -931,7 +931,7 @@ elif page == "Revisão":
     if not st.session_state.get("df_transacoes_editado", pd.DataFrame()).empty:
         st.info("Revise as classificações manualmente.")
 
-        # ---------- Opções de contas ----------
+        # ================= OPÇÕES DE CONTAS =================
         opcoes_contas = []
         for sintetico in PLANO_DE_CONTAS["sinteticos"]:
             for conta in sintetico["contas"]:
@@ -942,13 +942,8 @@ elif page == "Revisão":
         if "conta_display" not in df_display_edit.columns:
             df_display_edit = enriquecer_com_plano_contas(df_display_edit)
 
-        columns_for_editor = []
-
-        # Só inclui ID se ele existir (dados já gravados no banco)
-        if "id" in df_display_edit.columns:
-            columns_for_editor.append("id")
-
-        columns_for_editor += [
+        columns_for_editor = [
+            "id",  # 🔴 ESSENCIAL para UPDATE
             "data",
             "descricao",
             "valor",
@@ -956,27 +951,12 @@ elif page == "Revisão":
             "conta_display",
             "nome_conta",
             "tipo_fluxo",
+            "extrato_id",
         ]
 
-        # Mantém vínculo com extrato, se existir
-        if "extrato_id" in df_display_edit.columns:
-            columns_for_editor.append("extrato_id")
-
-        
-        if "extrato_id" in df_display_edit.columns:
-            columns_for_editor.append("extrato_id")
-
-        # --- Blindagem contra colunas duplicadas (OBRIGATÓRIO para st.data_editor) ---
-        df_display_edit = df_display_edit.loc[:, ~df_display_edit.columns.duplicated()]
-
-        safe_columns = list(dict.fromkeys(
-            c for c in columns_for_editor if c in df_display_edit.columns
-        ))
-        
         with st.expander("Editar Transações", expanded=True):
             edited_df = st.data_editor(
-                df_display_edit[safe_columns],
-                width="stretch",
+                df_display_edit[columns_for_editor],
                 column_config={
                     "id": st.column_config.TextColumn("ID", disabled=True),
                     "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
@@ -988,89 +968,70 @@ elif page == "Revisão":
                     "conta_display": st.column_config.SelectboxColumn(
                         "Conta (código - nome)", options=opcoes_contas
                     ),
-                    "nome_conta": st.column_config.TextColumn("Nome da Conta", disabled=True),
-                    "tipo_fluxo": st.column_config.TextColumn("Tipo de Fluxo", disabled=True),
+                    "nome_conta": st.column_config.TextColumn(disabled=True),
+                    "tipo_fluxo": st.column_config.TextColumn(disabled=True),
+                    "extrato_id": st.column_config.TextColumn(disabled=True),
                 },
-                num_rows="dynamic",
+                num_rows="fixed",
                 key="data_editor_transacoes",
             )
 
         if st.button("Confirmar Dados e Salvar no Banco de Dados"):
             try:
-                # ---------- Ajuste da conta analítica ----------
-                edited_df["conta_analitica"] = edited_df["conta_display"].apply(
-                    lambda x: x.split(" - ")[0].strip()
-                    if isinstance(x, str) and " - " in x
-                    else x
-                )
-
-                edited_df = enriquecer_com_plano_contas(edited_df)
-
-                df_to_save = edited_df.copy()
-
-                df_to_save["data"] = (
-                    pd.to_datetime(df_to_save["data"], errors="coerce")
-                    .dt.strftime("%Y-%m-%d")
-                )
-
-                df_to_save["valor"] = (
-                    pd.to_numeric(df_to_save["valor"], errors="coerce").fillna(0)
-                )
-
-                # ---------- USER ID ----------
+                # ============== USER ID =================
                 if isinstance(user, dict):
                     user_id = user.get("id")
                 else:
                     user_id = getattr(user, "id", None)
+                # ========================================
 
-                # ================= UPDATE DAS TRANSAÇÕES =================
-                for _, row in df_to_save.iterrows():
-                    transacao_id = row.get("id")
+                # Normalizar conta analítica
+                edited_df["conta_analitica"] = edited_df["conta_display"].apply(
+                    lambda x: x.split(" - ")[0].strip()
+                )
 
-                    if not transacao_id:
-                        continue
+                edited_df = enriquecer_com_plano_contas(edited_df)
 
-                    payload = {
-                        "data": row.get("data"),
-                        "descricao": row.get("descricao"),
-                        "valor": row.get("valor"),
-                        "tipo_movimentacao": row.get("tipo_movimentacao"),
-                        "conta_analitica": row.get("conta_analitica"),
-                        "classificacao_manual": True,
+                edited_df["data"] = pd.to_datetime(
+                    edited_df["data"], errors="coerce"
+                ).dt.strftime("%Y-%m-%d")
+
+                edited_df["valor"] = pd.to_numeric(
+                    edited_df["valor"], errors="coerce"
+                ).fillna(0)
+
+                # ================= UPDATE TRANSACOES =================
+                for _, row in edited_df.iterrows():
+                    supabase.table("transacoes").update(
+                        {
+                            "data": row["data"],
+                            "descricao": row["descricao"],
+                            "valor": row["valor"],
+                            "tipo_movimentacao": row["tipo_movimentacao"],
+                            "conta_analitica": row["conta_analitica"],
+                            "classificacao_manual": True,
+                        }
+                    ).eq("id", row["id"]).eq("user_id", user_id).execute()
+
+                # ================= MEMÓRIA DE CLASSIFICAÇÃO =================
+                memoria_unica = {}
+
+                for _, row in edited_df.iterrows():
+                    descricao_norm = normalizar_descricao(row["descricao"])
+                    chave = (user_id, descricao_norm)
+
+                    memoria_unica[chave] = {
+                        "user_id": user_id,
+                        "descricao_normalizada": descricao_norm,
+                        "conta_analitica": row["conta_analitica"],
+                        "criado_em": datetime.utcnow().isoformat(),
                     }
 
-                    supabase.table("transacoes") \
-                        .update(payload) \
-                        .eq("id", transacao_id) \
-                        .eq("user_id", user_id) \
-                        .execute()
-                # ==========================================================
-
-                # ---------- Memória de classificação ----------
-                try:
-                    memoria_unica = {}
-
-                    for _, row in edited_df.iterrows():
-                        if row.get("origem_classificacao") == "memoria_usuario":
-                            continue
-
-                        descricao_norm = normalizar_descricao(row.get("descricao", ""))
-
-                        memoria_unica[(user_id, descricao_norm)] = {
-                            "user_id": user_id,
-                            "descricao_normalizada": descricao_norm,
-                            "conta_analitica": row.get("conta_analitica"),
-                            "criado_em": datetime.utcnow().isoformat()
-                        }
-
-                    if memoria_unica:
-                        supabase.table("classificacao_memoria").upsert(
-                            list(memoria_unica.values()),
-                            on_conflict="user_id,descricao_normalizada"
-                        ).execute()
-
-                except Exception as e:
-                    st.warning(f"Aviso: memória de classificação não atualizada ({e})")
+                if memoria_unica:
+                    supabase.table("classificacao_memoria").upsert(
+                        list(memoria_unica.values()),
+                        on_conflict="user_id,descricao_normalizada",
+                    ).execute()
 
                 st.session_state["df_transacoes_editado"] = edited_df
                 st.success("Transações atualizadas com sucesso!")
@@ -1080,6 +1041,7 @@ elif page == "Revisão":
 
     else:
         st.warning("Nenhum dado processado. Volte à etapa 'Upload e Extração'.")
+
 
 
 
