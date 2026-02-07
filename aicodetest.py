@@ -939,20 +939,39 @@ elif page == "Revisão":
 
         df_display_edit = st.session_state["df_transacoes_editado"].copy()
 
+        # ================= GARANTIR COLUNAS ESSENCIAIS =================
+        if "id" not in df_display_edit.columns:
+            st.error(
+                "Erro interno: coluna 'id' não encontrada nas transações. "
+                "Esse extrato precisa ser reprocessado."
+            )
+            st.stop()
+
+        if "extrato_id" not in df_display_edit.columns:
+            df_display_edit["extrato_id"] = None
+# ==============================================================
+
+
         if "conta_display" not in df_display_edit.columns:
             df_display_edit = enriquecer_com_plano_contas(df_display_edit)
 
         columns_for_editor = [
-            "id",  # 🔴 ESSENCIAL para UPDATE
-            "data",
-            "descricao",
-            "valor",
-            "tipo_movimentacao",
-            "conta_display",
-            "nome_conta",
-            "tipo_fluxo",
-            "extrato_id",
+            col
+            for col in [
+                "id",
+                "data",
+                "descricao",
+                "valor",
+                "tipo_movimentacao",
+                "conta_display",
+                "nome_conta",
+                "tipo_fluxo",
+                "extrato_id",
+            ]
+            if col in df_display_edit.columns
         ]
+
+
 
         with st.expander("Editar Transações", expanded=True):
             edited_df = st.data_editor(
