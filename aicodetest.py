@@ -853,6 +853,53 @@ if page == "Upload":
 
                 df_transacoes = enriquecer_com_plano_contas(df_transacoes)
 
+
+                # ================= NORMALIZAR DF PARA INSERT =================
+
+                # datas → string ISO
+                df_transacoes["data"] = (
+                    pd.to_datetime(df_transacoes["data"], errors="coerce")
+                    .dt.strftime("%Y-%m-%d")
+                )
+
+                # valores → float puro
+                df_transacoes["valor"] = (
+                    pd.to_numeric(df_transacoes["valor"], errors="coerce")
+                    .fillna(0.0)
+                    .astype(float)
+                )
+
+                # garantir strings onde o banco espera texto
+                df_transacoes["descricao"] = df_transacoes["descricao"].astype(str)
+                df_transacoes["tipo_movimentacao"] = df_transacoes["tipo_movimentacao"].astype(str)
+                df_transacoes["conta_analitica"] = df_transacoes["conta_analitica"].astype(str)
+
+                # NaN / NaT → None (JSON-safe)
+                df_transacoes = df_transacoes.where(pd.notnull(df_transacoes), None)
+
+                # manter apenas colunas que EXISTEM na tabela transacoes
+                COLUNAS_TRANSACOES = [
+                    "id",
+                    "user_id",
+                    "extrato_id",
+                    "data",
+                    "descricao",
+                    "valor",
+                    "tipo_movimentacao",
+                    "conta_analitica",
+                    "origem_classificacao",
+                    "classificacao_manual",
+                    "criado_em",
+                ]
+
+                df_transacoes = df_transacoes[
+                    [c for c in COLUNAS_TRANSACOES if c in df_transacoes.columns]
+                ]
+                
+
+
+
+                
                 # ================= GRAVAR TRANSACOES (SNAPSHOT INICIAL) =================
 
                 records = df_transacoes.to_dict(orient="records")
