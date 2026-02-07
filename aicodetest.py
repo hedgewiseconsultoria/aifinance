@@ -829,6 +829,14 @@ if page == "Upload":
                     f"✅ Extração de {len(todas_transacoes)} transações concluída!"
                 )
 
+                # 🔑 GARANTIR ID ÚNICO PARA CADA TRANSAÇÃO
+                from uuid import uuid4
+
+                if "id" not in df_transacoes.columns:
+                    df_transacoes["id"] = [
+                        str(uuid4()) for _ in range(len(df_transacoes))
+                    ]
+                
                 # Normalizações
                 df_transacoes["valor"] = (
                     pd.to_numeric(df_transacoes["valor"], errors="coerce").fillna(0)
@@ -845,6 +853,17 @@ if page == "Upload":
 
                 df_transacoes = enriquecer_com_plano_contas(df_transacoes)
 
+                # ================= GRAVAR TRANSACOES (SNAPSHOT INICIAL) =================
+
+                records = df_transacoes.to_dict(orient="records")
+
+                for r in records:
+                    r["user_id"] = user_id
+                    r["classificacao_manual"] = False  # importante!
+                    r["criado_em"] = datetime.utcnow().isoformat()
+
+                supabase.table("transacoes").insert(records).execute()
+                
                 st.session_state["df_transacoes_editado"] = df_transacoes
                 st.success(
                     "Dados carregados e classificados. Vá para 'Revisão de Dados'."
