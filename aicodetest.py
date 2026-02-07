@@ -897,6 +897,16 @@ if page == "Upload":
                 ]
                 
 
+                # ================= DEBUG RLS / EXTRATO_ID =================
+
+                invalid = df_transacoes[
+                    df_transacoes["extrato_id"].isna()
+                ]
+
+                st.write("🔎 Transações sem extrato_id:", invalid)
+
+                st.write("🔐 Auth UID:", user_id)
+                st.write("📄 Extratos no DF:", df_transacoes["extrato_id"].unique())
 
 
                 
